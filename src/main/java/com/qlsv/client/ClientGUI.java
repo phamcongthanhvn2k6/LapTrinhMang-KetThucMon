@@ -239,12 +239,19 @@ public class ClientGUI extends JFrame {
                 if (type == SqlConfig.DbType.SQL_SERVER) {
                     txtDbPort.setText("1433");
                     txtDbUser.setText("sa");
+                    txtDbName.setText("QLSV_DB");
                 } else if (type == SqlConfig.DbType.MYSQL) {
                     txtDbPort.setText("3306");
                     txtDbUser.setText("root");
+                    txtDbName.setText("QLSV_DB");
+                } else if (type == SqlConfig.DbType.POSTGRESQL) {
+                    txtDbPort.setText("5432");
+                    txtDbUser.setText("postgres");
+                    txtDbName.setText("postgres");
                 } else {
                     txtDbPort.setText("0");
                     txtDbUser.setText("sa");
+                    txtDbName.setText("qlsv_db");
                 }
             }
         });

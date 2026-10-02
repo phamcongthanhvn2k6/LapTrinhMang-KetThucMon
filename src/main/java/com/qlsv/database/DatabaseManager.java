@@ -53,6 +53,12 @@ public class DatabaseManager {
                 url = String.format("jdbc:mysql://%s:%d/%s?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC",
                         config.getHost(), config.getPort() > 0 ? config.getPort() : 3306, config.getDatabaseName());
                 break;
+            case POSTGRESQL:
+                driver = "org.postgresql.Driver";
+                url = String.format("jdbc:postgresql://%s:%d/%s?sslmode=require",
+                        config.getHost(), config.getPort() > 0 ? config.getPort() : 5432, 
+                        (config.getDatabaseName() != null && !config.getDatabaseName().isEmpty()) ? config.getDatabaseName() : "postgres");
+                break;
             case SQLITE_EMBEDDED:
                 driver = "org.sqlite.JDBC";
                 String dbName = (config.getDatabaseName() != null && !config.getDatabaseName().isEmpty()) 

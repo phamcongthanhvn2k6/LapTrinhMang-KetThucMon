@@ -36,6 +36,13 @@
             <version>8.3.0</version>
         </dependency>
 
+        <!-- PostgreSQL JDBC Driver for Supabase -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>42.7.2</version>
+        </dependency>
+
         <!-- SQLite JDBC Driver for embedded local DB -->
         <dependency>
             <groupId>org.xerial</groupId>

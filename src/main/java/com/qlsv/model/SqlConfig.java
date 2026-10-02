@@ -8,6 +8,7 @@ public class SqlConfig implements Serializable {
     public enum DbType {
         SQL_SERVER,
         MYSQL,
+        POSTGRESQL,
         H2_EMBEDDED,
         SQLITE_EMBEDDED
     }
