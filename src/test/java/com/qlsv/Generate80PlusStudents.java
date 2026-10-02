@@ -30,8 +30,17 @@ public class Generate80PlusStudents {
            .append("-- DỮ LIỆU MẪU > 250 SINH VIÊN & > 1,000 BẢNG ĐIỂM | MÃ HÓA DES | SUPABASE POSTGRESQL\n")
            .append("-- ==============================================================================\n\n");
 
+        // Drop old tables first to upgrade schema cleanly
+        sql.append("-- 0. XÓA CẤU TRÚC BẢNG CŨ (NẾU CÓ) ĐỂ TẠO MỚI HOÀN TOÀN CẤU TRÚC CHUYÊN SÂU\n")
+           .append("DROP VIEW IF EXISTS \"v_ChiTietSinhVien\" CASCADE;\n")
+           .append("DROP TABLE IF EXISTS \"BangDiem\" CASCADE;\n")
+           .append("DROP TABLE IF EXISTS \"SinhVien\" CASCADE;\n")
+           .append("DROP TABLE IF EXISTS \"MonHoc\" CASCADE;\n")
+           .append("DROP TABLE IF EXISTS \"LopHoc\" CASCADE;\n")
+           .append("DROP TABLE IF EXISTS \"Khoa\" CASCADE;\n\n");
+
         // Table creation statements
-        sql.append("-- 1. TẠO BẢNG CSDL\n")
+        sql.append("-- 1. TẠO BẢNG CSDL MỚI\n")
            .append("CREATE TABLE IF NOT EXISTS \"Khoa\" (\n")
            .append("    \"MaKhoa\" VARCHAR(20) PRIMARY KEY,\n")
            .append("    \"TenKhoa\" VARCHAR(100) NOT NULL,\n")
@@ -155,8 +164,8 @@ public class Generate80PlusStudents {
                .append("    \"DiemTB\" = EXCLUDED.\"DiemTB\",\n")
                .append("    \"XepLoai\" = EXCLUDED.\"XepLoai\";\n\n");
 
-            // Insert BangDiem for 100 students
-            sql.append("-- 4. NẠP ĐIỂM THI CHI TIẾT MÔN HỌC DÀNH CHO BẢNG ĐIỂM (ĐIỂM SỐ MÃ HÓA DES)\n")
+            // Insert BangDiem
+            sql.append("-- 4. NẠP ĐIỂM THI CHI TIẾT MÔN HỌC DÀNH CHO BẢNG ĐIỂM (MÃ HÓA DES)\n")
                .append("INSERT INTO \"BangDiem\" (\"MaSV\", \"MaMon\", \"HocKy\", \"DiemQuaTrinhEncrypted\", \"DiemThiEncrypted\", \"DiemTongKet\", \"DiemChu\") VALUES\n");
 
             String[] monHocArr = {
@@ -217,7 +226,7 @@ public class Generate80PlusStudents {
                 out.print(sql.toString());
             }
 
-            System.out.println("===> ĐÃ TẠO THÀNH CÔNG FILE DATABASE.SQL VỚI 250 SINH VIÊN & 2000 BẢNG ĐIỂM CHI TIẾT!");
+            System.out.println("===> ĐÃ TẠO THÀNH CÔNG FILE DATABASE.SQL MỚI CÓ DROP TABLE CASCADE!");
 
         } catch (Exception e) {
             e.printStackTrace();

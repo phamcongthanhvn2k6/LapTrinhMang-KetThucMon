@@ -3,7 +3,15 @@
 -- DỮ LIỆU MẪU > 250 SINH VIÊN & > 1,000 BẢNG ĐIỂM | MÃ HÓA DES | SUPABASE POSTGRESQL
 -- ==============================================================================
 
--- 1. TẠO BẢNG CSDL
+-- 0. XÓA CẤU TRÚC BẢNG CŨ (NẾU CÓ) ĐỂ TẠO MỚI HOÀN TOÀN CẤU TRÚC CHUYÊN SÂU
+DROP VIEW IF EXISTS "v_ChiTietSinhVien" CASCADE;
+DROP TABLE IF EXISTS "BangDiem" CASCADE;
+DROP TABLE IF EXISTS "SinhVien" CASCADE;
+DROP TABLE IF EXISTS "MonHoc" CASCADE;
+DROP TABLE IF EXISTS "LopHoc" CASCADE;
+DROP TABLE IF EXISTS "Khoa" CASCADE;
+
+-- 1. TẠO BẢNG CSDL MỚI
 CREATE TABLE IF NOT EXISTS "Khoa" (
     "MaKhoa" VARCHAR(20) PRIMARY KEY,
     "TenKhoa" VARCHAR(100) NOT NULL,
@@ -335,7 +343,7 @@ ON CONFLICT ("MaSV") DO UPDATE SET
     "DiemTB" = EXCLUDED."DiemTB",
     "XepLoai" = EXCLUDED."XepLoai";
 
--- 4. NẠP ĐIỂM THI CHI TIẾT MÔN HỌC DÀNH CHO BẢNG ĐIỂM (ĐIỂM SỐ MÃ HÓA DES)
+-- 4. NẠP ĐIỂM THI CHI TIẾT MÔN HỌC DÀNH CHO BẢNG ĐIỂM (MÃ HÓA DES)
 INSERT INTO "BangDiem" ("MaSV", "MaMon", "HocKy", "DiemQuaTrinhEncrypted", "DiemThiEncrypted", "DiemTongKet", "DiemChu") VALUES
 ('SV001', 'INT1339', 'HK1 2024-2025', 'YqZzhy8qbY8=', 'QC82vSyAAvc=', 8.89, 'A'),
 ('SV001', 'INT1340', 'HK1 2024-2025', 'ED3O5eRioUA=', 'QC82vSyAAvc=', 9.79, 'A+'),
