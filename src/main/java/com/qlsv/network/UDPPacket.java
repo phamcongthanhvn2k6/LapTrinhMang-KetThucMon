@@ -45,6 +45,26 @@ public class UDPPacket {
         return new UDPPacket(PacketType.STUDENT_RESULT, success, message, studentResultJson);
     }
 
+    public static UDPPacket createSearchRequest(String query) {
+        return new UDPPacket(PacketType.SEARCH_STUDENTS, true, "Search Query", query);
+    }
+
+    public static UDPPacket createUpdateRequest(String studentDataJson) {
+        return new UDPPacket(PacketType.UPDATE_STUDENT, true, "Update Student Data", studentDataJson);
+    }
+
+    public static UDPPacket createDeleteRequest(String studentId) {
+        return new UDPPacket(PacketType.DELETE_STUDENT, true, "Delete Student ID", studentId);
+    }
+
+    public static UDPPacket createGetAllRequest() {
+        return new UDPPacket(PacketType.GET_ALL_STUDENTS, true, "Get All Students", null);
+    }
+
+    public static UDPPacket createStudentsListResponse(boolean success, String message, String listJson) {
+        return new UDPPacket(PacketType.STUDENTS_LIST, success, message, listJson);
+    }
+
     public static UDPPacket createError(String message) {
         return new UDPPacket(PacketType.ERROR, false, message, null);
     }

@@ -1,6 +1,7 @@
 package com.qlsv.server;
 
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.qlsv.database.DatabaseManager;
 import com.qlsv.model.SqlConfig;
 import com.qlsv.model.StudentData;
@@ -8,9 +9,13 @@ import com.qlsv.model.StudentResult;
 import com.qlsv.network.PacketType;
 import com.qlsv.network.UDPPacket;
 
+import java.lang.reflect.Type;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class UDPServer {
 
@@ -25,6 +30,7 @@ public class UDPServer {
     private boolean running = false;
     private Thread serverThread;
     private ServerLogListener logListener;
+    private ExecutorService threadPool;
 
     public UDPServer(int port) {
         this.port = port;
@@ -38,23 +44,23 @@ public class UDPServer {
         if (running) return;
         socket = new DatagramSocket(port);
         running = true;
+        threadPool = Executors.newFixedThreadPool(15);
 
-        log("Server UDP bắt đầu khởi chạy trên cổng: " + port);
+        log("Server UDP bắt đầu khởi chạy với ThreadPool đa luồng trên cổng: " + port);
 
         serverThread = new Thread(() -> {
-            byte[] buffer = new byte[8192];
+            byte[] buffer = new byte[16384];
             while (running && !socket.isClosed()) {
                 try {
                     DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
                     socket.receive(packet);
 
-                    // Process in async task to prevent blocking UDP receive loop
-                    byte[] data = packet.getData();
-                    int length = packet.getLength();
+                    byte[] data = new byte[packet.getLength()];
+                    System.arraycopy(packet.getData(), 0, data, 0, packet.getLength());
                     InetAddress clientAddress = packet.getAddress();
                     int clientPort = packet.getPort();
 
-                    new Thread(() -> processPacket(data, length, clientAddress, clientPort)).start();
+                    threadPool.submit(() -> processPacket(data, data.length, clientAddress, clientPort));
                 } catch (Exception e) {
                     if (running) {
                         log("Lỗi nhận gói tin UDP: " + e.getMessage());
@@ -94,27 +100,68 @@ public class UDPServer {
                     break;
 
                 case ADD_STUDENT:
+                case UPDATE_STUDENT:
                     try {
                         if (!DatabaseManager.getInstance().isConnected()) {
-                            responsePacket = UDPPacket.createError("Server chưa được kết nối với CSDL! Hãy thực hiện kết nối CSDL trước.");
+                            responsePacket = UDPPacket.createError("Server chưa được kết nối CSDL!");
                         } else {
                             StudentData student = gson.fromJson(packet.getPayload(), StudentData.class);
-                            log("Đang xử lý sinh viên: " + student.getStudentId() + " - " + student.getFullName());
+                            log("Đang lưu/cập nhật sinh viên: " + student.getStudentId() + " - " + student.getFullName());
 
-                            // Encrypt DES -> Save SQL -> Decrypt DES -> Calculate Average Score
                             StudentResult result = DatabaseManager.getInstance().saveStudentEncryptedAndCalculateResult(student);
-                            log(String.format("Đã lưu CSDL (Mã hóa DES) & tính DTB thành công cho %s: %.2f", result.getFullName(), result.getAverageScore()));
+                            log(String.format("Đã lưu CSDL & tính ĐTB cho %s: %.2f", result.getFullName(), result.getAverageScore()));
 
-                            String resultJson = gson.toJson(result);
-                            responsePacket = UDPPacket.createStudentResult(true, "Xử lý thành công", resultJson);
+                            responsePacket = UDPPacket.createStudentResult(true, "Xử lý thành công", gson.toJson(result));
 
                             if (logListener != null) {
                                 logListener.onDataUpdated();
                             }
                         }
                     } catch (Exception ex) {
-                        log("Lỗi xử lý dữ liệu sinh viên: " + ex.getMessage());
+                        log("Lỗi xử lý sinh viên: " + ex.getMessage());
                         responsePacket = UDPPacket.createError("Lỗi Server: " + ex.getMessage());
+                    }
+                    break;
+
+                case DELETE_STUDENT:
+                    try {
+                        if (!DatabaseManager.getInstance().isConnected()) {
+                            responsePacket = UDPPacket.createError("Server chưa được kết nối CSDL!");
+                        } else {
+                            String studentId = packet.getPayload();
+                            boolean deleted = DatabaseManager.getInstance().deleteStudent(studentId);
+                            if (deleted) {
+                                log("Đã xóa sinh viên có mã: " + studentId);
+                                responsePacket = new UDPPacket(PacketType.DELETE_STUDENT, true, "Đã xóa sinh viên " + studentId, studentId);
+                                if (logListener != null) {
+                                    logListener.onDataUpdated();
+                                }
+                            } else {
+                                responsePacket = UDPPacket.createError("Không tìm thấy sinh viên có mã: " + studentId);
+                            }
+                        }
+                    } catch (Exception ex) {
+                        log("Lỗi xóa sinh viên: " + ex.getMessage());
+                        responsePacket = UDPPacket.createError("Lỗi xóa: " + ex.getMessage());
+                    }
+                    break;
+
+                case SEARCH_STUDENTS:
+                    try {
+                        String query = packet.getPayload();
+                        List<StudentResult> list = DatabaseManager.getInstance().searchStudents(query);
+                        responsePacket = UDPPacket.createStudentsListResponse(true, "Tìm kiếm thành công", gson.toJson(list));
+                    } catch (Exception ex) {
+                        responsePacket = UDPPacket.createError("Lỗi tìm kiếm: " + ex.getMessage());
+                    }
+                    break;
+
+                case GET_ALL_STUDENTS:
+                    try {
+                        List<StudentResult> list = DatabaseManager.getInstance().getAllStudentsDecrypted();
+                        responsePacket = UDPPacket.createStudentsListResponse(true, "Tải danh sách thành công", gson.toJson(list));
+                    } catch (Exception ex) {
+                        responsePacket = UDPPacket.createError("Lỗi lấy danh sách: " + ex.getMessage());
                     }
                     break;
 
@@ -123,7 +170,6 @@ public class UDPServer {
                     break;
             }
 
-            // Send UDP response back to client
             byte[] respBytes = responsePacket.toBytes();
             DatagramPacket respPacket = new DatagramPacket(respBytes, respBytes.length, clientAddress, clientPort);
             socket.send(respPacket);
@@ -136,6 +182,9 @@ public class UDPServer {
 
     public synchronized void stop() {
         running = false;
+        if (threadPool != null) {
+            threadPool.shutdownNow();
+        }
         if (socket != null && !socket.isClosed()) {
             socket.close();
         }

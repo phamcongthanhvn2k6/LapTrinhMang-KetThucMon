@@ -3,18 +3,20 @@ package com.qlsv.database;
 import com.qlsv.model.SqlConfig;
 import com.qlsv.model.StudentData;
 import com.qlsv.model.StudentResult;
-import com.qlsv.security.DESEncryption;
+import com.qlsv.security.SecurityManager;
 
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class DatabaseManager {
 
     private static DatabaseManager instance;
     private Connection connection;
     private SqlConfig currentConfig;
-    private String desKey = DESEncryption.DEFAULT_KEY;
+    private String desKey = "QLSV_KEY";
 
     private DatabaseManager() {
     }
@@ -82,7 +84,6 @@ public class DatabaseManager {
                 connection = DriverManager.getConnection(url, config.getUsername(), config.getPassword());
             }
 
-            // Create table if not exists
             createTableIfNotExists();
             return true;
         } catch (Exception e) {
@@ -120,26 +121,19 @@ public class DatabaseManager {
         }
     }
 
-    /**
-     * Encrypts student scores & info using DES and stores them in Database.
-     * Then reads back, decrypts using DES, calculates average, and returns StudentResult.
-     */
     public synchronized StudentResult saveStudentEncryptedAndCalculateResult(StudentData student) throws Exception {
         if (connection == null || connection.isClosed()) {
             throw new Exception("CSDL chưa được kết nối!");
         }
 
-        // Encrypt with DES algorithm
-        String encFullName = DESEncryption.encrypt(student.getFullName(), desKey);
-        String encToan = DESEncryption.encrypt(String.valueOf(student.getScoreMath()), desKey);
-        String encVan = DESEncryption.encrypt(String.valueOf(student.getScoreLiterature()), desKey);
-        String encAnh = DESEncryption.encrypt(String.valueOf(student.getScoreEnglish()), desKey);
+        String encFullName = SecurityManager.encrypt(student.getFullName(), desKey);
+        String encToan = SecurityManager.encrypt(String.valueOf(student.getScoreMath()), desKey);
+        String encVan = SecurityManager.encrypt(String.valueOf(student.getScoreLiterature()), desKey);
+        String encAnh = SecurityManager.encrypt(String.valueOf(student.getScoreEnglish()), desKey);
 
-        // Calculate average score
         double avgScore = (student.getScoreMath() + student.getScoreLiterature() + student.getScoreEnglish()) / 3.0;
         avgScore = Math.round(avgScore * 100.0) / 100.0;
 
-        // Check if student exists
         String checkSql = "SELECT COUNT(*) FROM SinhVien WHERE MaSV = ?";
         boolean exists = false;
         try (PreparedStatement checkStmt = connection.prepareStatement(checkSql)) {
@@ -177,15 +171,11 @@ public class DatabaseManager {
             }
         }
 
-        // Retrieve from Database and decrypt DES data to form final StudentResult
         return getStudentDecrypted(student.getStudentId());
     }
 
-    /**
-     * Reads student from Database, decrypts DES data, and returns StudentResult.
-     */
     public synchronized StudentResult getStudentDecrypted(String studentId) throws Exception {
-        String querySql = "SELECT MaSV, HoTenEncrypted, DiemToanEncrypted, DiemVanEncrypted, DiemAnhEncrypted " +
+        String querySql = "SELECT MaSV, HoTenEncrypted, DiemToanEncrypted, DiemVanEncrypted, DiemAnhEncrypted, DiemTB " +
                 "FROM SinhVien WHERE MaSV = ?";
         try (PreparedStatement stmt = connection.prepareStatement(querySql)) {
             stmt.setString(1, studentId);
@@ -197,25 +187,113 @@ public class DatabaseManager {
                     String encVan = rs.getString("DiemVanEncrypted");
                     String encAnh = rs.getString("DiemAnhEncrypted");
 
-                    // Decrypt DES
-                    String fullName = DESEncryption.decrypt(encFullName, desKey);
-                    double scoreMath = Double.parseDouble(DESEncryption.decrypt(encToan, desKey));
-                    double scoreVan = Double.parseDouble(DESEncryption.decrypt(encVan, desKey));
-                    double scoreAnh = Double.parseDouble(DESEncryption.decrypt(encAnh, desKey));
+                    String fullName = SecurityManager.decrypt(encFullName, desKey);
+                    double scoreMath = parseDoubleSafe(SecurityManager.decrypt(encToan, desKey), 0.0);
+                    double scoreVan = parseDoubleSafe(SecurityManager.decrypt(encVan, desKey), 0.0);
+                    double scoreAnh = parseDoubleSafe(SecurityManager.decrypt(encAnh, desKey), 0.0);
 
                     double avg = (scoreMath + scoreVan + scoreAnh) / 3.0;
                     avg = Math.round(avg * 100.0) / 100.0;
 
-                    return new StudentResult(id, fullName, avg);
+                    StudentResult result = new StudentResult(id, fullName, avg);
+                    result.setScoreMath(scoreMath);
+                    result.setScoreLiterature(scoreVan);
+                    result.setScoreEnglish(scoreAnh);
+                    return result;
                 }
             }
         }
         throw new Exception("Không tìm thấy sinh viên có mã: " + studentId);
     }
 
-    /**
-     * Helper struct for displaying encrypted database content on Server dashboard.
-     */
+    public synchronized boolean deleteStudent(String studentId) throws Exception {
+        if (connection == null || connection.isClosed()) {
+            throw new Exception("CSDL chưa được kết nối!");
+        }
+        String sql = "DELETE FROM SinhVien WHERE MaSV = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setString(1, studentId);
+            int rows = stmt.executeUpdate();
+            return rows > 0;
+        }
+    }
+
+    public synchronized List<StudentResult> getAllStudentsDecrypted() throws Exception {
+        List<StudentResult> list = new ArrayList<>();
+        if (connection == null || connection.isClosed()) {
+            return list;
+        }
+        String sql = "SELECT MaSV, HoTenEncrypted, DiemToanEncrypted, DiemVanEncrypted, DiemAnhEncrypted, DiemTB FROM SinhVien ORDER BY MaSV ASC";
+        try (Statement stmt = connection.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            while (rs.next()) {
+                String id = rs.getString("MaSV");
+                String encName = rs.getString("HoTenEncrypted");
+                String encToan = rs.getString("DiemToanEncrypted");
+                String encVan = rs.getString("DiemVanEncrypted");
+                String encAnh = rs.getString("DiemAnhEncrypted");
+
+                String fullName;
+                try {
+                    fullName = SecurityManager.decrypt(encName, desKey);
+                } catch (Exception ex) {
+                    fullName = "[Lỗi giải mã]";
+                }
+
+                double scoreMath = parseDoubleSafe(SecurityManager.decrypt(encToan, desKey), 0.0);
+                double scoreVan = parseDoubleSafe(SecurityManager.decrypt(encVan, desKey), 0.0);
+                double scoreAnh = parseDoubleSafe(SecurityManager.decrypt(encAnh, desKey), 0.0);
+                double avg = rs.getDouble("DiemTB");
+
+                StudentResult res = new StudentResult(id, fullName, avg);
+                res.setScoreMath(scoreMath);
+                res.setScoreLiterature(scoreVan);
+                res.setScoreEnglish(scoreAnh);
+                list.add(res);
+            }
+        }
+        return list;
+    }
+
+    public synchronized List<StudentResult> searchStudents(String query) throws Exception {
+        List<StudentResult> all = getAllStudentsDecrypted();
+        if (query == null || query.trim().isEmpty()) {
+            return all;
+        }
+        String q = query.trim().toLowerCase();
+        List<StudentResult> filtered = new ArrayList<>();
+        for (StudentResult r : all) {
+            if (r.getStudentId().toLowerCase().contains(q) || r.getFullName().toLowerCase().contains(q) || r.getAcademicRank().toLowerCase().contains(q)) {
+                filtered.add(r);
+            }
+        }
+        return filtered;
+    }
+
+    public synchronized Map<String, Integer> getRankStatistics() throws Exception {
+        Map<String, Integer> map = new HashMap<>();
+        map.put("Xuất sắc", 0);
+        map.put("Giỏi", 0);
+        map.put("Khá", 0);
+        map.put("Trung bình", 0);
+        map.put("Yếu", 0);
+
+        List<StudentResult> list = getAllStudentsDecrypted();
+        for (StudentResult r : list) {
+            String rank = r.getAcademicRank();
+            map.put(rank, map.getOrDefault(rank, 0) + 1);
+        }
+        return map;
+    }
+
+    private double parseDoubleSafe(String val, double def) {
+        try {
+            return Double.parseDouble(val);
+        } catch (Exception e) {
+            return def;
+        }
+    }
+
     public static class EncryptedRecord {
         public String maSV;
         public String hoTenEncrypted;
@@ -245,7 +323,7 @@ public class DatabaseManager {
                 rec.diemTB = rs.getDouble("DiemTB");
 
                 try {
-                    rec.hoTenDecrypted = DESEncryption.decrypt(rec.hoTenEncrypted, desKey);
+                    rec.hoTenDecrypted = SecurityManager.decrypt(rec.hoTenEncrypted, desKey);
                 } catch (Exception ex) {
                     rec.hoTenDecrypted = "[Giải mã lỗi: " + ex.getMessage() + "]";
                 }
