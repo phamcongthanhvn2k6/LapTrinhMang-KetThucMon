@@ -1,6 +1,6 @@
 package com.qlsv;
 
-import com.formdev.flatlaf.FlatDarkLaf;
+import com.formdev.flatlaf.FlatLightLaf;
 import com.qlsv.client.ClientGUI;
 import com.qlsv.database.DatabaseManager;
 import com.qlsv.model.SqlConfig;
@@ -17,10 +17,10 @@ import java.io.File;
 public class GuiDemoAutomationRunner {
 
     public static void main(String[] args) {
-        System.out.println("========== KHỞI CHẠY GUI AUTOMATION CHO HỆ THỐNG NÂNG CẤP TOÀN DIỆN ==========");
+        System.out.println("========== KHỞI CHẠY CAPTURE MÀN HÌNH GIAO DIỆN CHUẨN TONE ĐỎ TRẮNG PTIT ==========");
 
         try {
-            FlatDarkLaf.setup();
+            FlatLightLaf.setup();
         } catch (Exception ignored) {}
 
         SwingUtilities.invokeLater(() -> {
@@ -28,7 +28,7 @@ public class GuiDemoAutomationRunner {
                 int port = 9876;
 
                 ServerGUI serverGUI = new ServerGUI();
-                serverGUI.setBounds(30, 30, 950, 700);
+                serverGUI.setSize(950, 720);
                 serverGUI.setVisible(true);
 
                 UDPServer udpServer = new UDPServer(port);
@@ -49,24 +49,32 @@ public class GuiDemoAutomationRunner {
                         new StudentData("SV003", "Phạm Minh Cường", 9.5, 10.0, 9.0));
 
                 ClientGUI clientGUI = new ClientGUI();
-                clientGUI.setBounds(1000, 30, 880, 700);
+                clientGUI.setSize(950, 720);
                 clientGUI.setVisible(true);
 
-                Timer timer = new Timer(1500, e -> {
+                Timer timer = new Timer(1200, e -> {
                     try {
-                        Rectangle screenBounds = new Rectangle(0, 0, 1920, 1080);
-                        GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
-                        GraphicsDevice gd = ge.getDefaultScreenDevice();
-                        if (gd != null && gd.getDisplayMode() != null) {
-                            screenBounds = new Rectangle(0, 0, gd.getDisplayMode().getWidth(), gd.getDisplayMode().getHeight());
-                        }
+                        BufferedImage combined = new BufferedImage(1920, 750, BufferedImage.TYPE_INT_RGB);
+                        Graphics2D g = combined.createGraphics();
+                        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                        g.setColor(new Color(245, 247, 250));
+                        g.fillRect(0, 0, 1920, 750);
 
-                        Robot robot = new Robot();
-                        BufferedImage screenshot = robot.createScreenCapture(screenBounds);
+                        // Paint Server GUI
+                        Graphics2D gServer = (Graphics2D) g.create(10, 10, 940, 730);
+                        serverGUI.paint(gServer);
+                        gServer.dispose();
 
-                        File outputFile = new File("C:/Users/LEGION/.gemini/antigravity-ide/brain/0b4aec84-87ec-47ae-a54c-e2aef6c01009/upgraded_gui_preview.png");
-                        ImageIO.write(screenshot, "png", outputFile);
-                        System.out.println("===> ĐÃ CHỤP MÀN HÌNH NÂNG CẤP THÀNH CÔNG: " + outputFile.getAbsolutePath());
+                        // Paint Client GUI
+                        Graphics2D gClient = (Graphics2D) g.create(960, 10, 940, 730);
+                        clientGUI.paint(gClient);
+                        gClient.dispose();
+
+                        g.dispose();
+
+                        File outputFile = new File("C:/Users/LEGION/.gemini/antigravity-ide/brain/0b4aec84-87ec-47ae-a54c-e2aef6c01009/ptit_gui_preview.png");
+                        ImageIO.write(combined, "png", outputFile);
+                        System.out.println("===> ĐÃ CHỤP MÀN HÌNH GIAO DIỆN CHUẨN THỰC TẾ PTIT THÀNH CÔNG: " + outputFile.getAbsolutePath());
 
                     } catch (Exception ex) {
                         ex.printStackTrace();

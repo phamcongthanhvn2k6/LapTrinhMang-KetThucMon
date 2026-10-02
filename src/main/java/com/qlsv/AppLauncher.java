@@ -1,6 +1,6 @@
 package com.qlsv;
 
-import com.formdev.flatlaf.FlatDarkLaf;
+import com.formdev.flatlaf.FlatLightLaf;
 import com.qlsv.client.ClientGUI;
 import com.qlsv.server.ServerGUI;
 
@@ -9,38 +9,65 @@ import java.awt.*;
 
 public class AppLauncher {
 
+    public static final Color PTIT_RED = new Color(200, 16, 46);       // #C8102E
+    public static final Color PTIT_DARK_RED = new Color(150, 10, 30);  // #960A1E
+    public static final Color PTIT_LIGHT_BG = new Color(248, 249, 250);
+
     public static void main(String[] args) {
         try {
-            FlatDarkLaf.setup();
+            FlatLightLaf.setup();
+            UIManager.put("Component.focusWidth", 1);
+            UIManager.put("Button.arc", 8);
+            UIManager.put("Component.arc", 8);
         } catch (Exception ignored) {
         }
 
         SwingUtilities.invokeLater(() -> {
-            JFrame frame = new JFrame("CHƯƠNG TRÌNH QUẢN LÝ SINH VIÊN (UDP - CLIENT/SERVER)");
-            frame.setSize(520, 320);
+            JFrame frame = new JFrame("HỌC VIỆN CÔNG NGHỆ BƯU CHÍNH VIỄN THÔNG - PTIT");
+            frame.setSize(560, 360);
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
             frame.setLocationRelativeTo(null);
 
-            JPanel panel = new JPanel(new BorderLayout(15, 15));
-            panel.setBorder(BorderFactory.createEmptyBorder(25, 25, 25, 25));
+            JPanel mainPanel = new JPanel(new BorderLayout());
+            mainPanel.setBackground(Color.WHITE);
 
-            JLabel lblTitle = new JLabel("ĐỀ TÀI 12: QUẢN LÝ SINH VIÊN VIA UDP", SwingConstants.CENTER);
-            lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 18));
-            lblTitle.setForeground(new Color(90, 160, 250));
+            // PTIT Header Banner (Red background, white text)
+            JPanel headerPanel = new JPanel(new BorderLayout());
+            headerPanel.setBackground(PTIT_RED);
+            headerPanel.setBorder(BorderFactory.createEmptyBorder(18, 20, 18, 20));
 
-            JLabel lblSub = new JLabel("<html><center>Mô hình Client-Server | Mã hóa DES | Kết nối CSDL SQL<br>Chọn giao diện ứng dụng bạn muốn khởi chạy:</center></html>", SwingConstants.CENTER);
+            JLabel lblTitle = new JLabel("HỌC VIỆN CÔNG NGHỆ BƯU CHÍNH VIỄN THÔNG", SwingConstants.CENTER);
+            lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 17));
+            lblTitle.setForeground(Color.WHITE);
+
+            JLabel lblSub = new JLabel("ĐỀ TÀI 12: CHƯƠNG TRÌNH QUẢN LÝ SINH VIÊN (UDP & MÃ HÓA)", SwingConstants.CENTER);
             lblSub.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+            lblSub.setForeground(new Color(255, 230, 230));
 
-            JPanel headerBox = new JPanel(new GridLayout(2, 1, 5, 5));
+            JPanel headerBox = new JPanel(new GridLayout(2, 1, 4, 4));
+            headerBox.setOpaque(false);
             headerBox.add(lblTitle);
             headerBox.add(lblSub);
-            panel.add(headerBox, BorderLayout.NORTH);
+            headerPanel.add(headerBox, BorderLayout.CENTER);
 
-            JPanel btnPanel = new JPanel(new GridLayout(3, 1, 10, 12));
+            mainPanel.add(headerPanel, BorderLayout.NORTH);
 
-            JButton btnBoth = new JButton("Khởi chạy CẢ HAI (Server GUI & Client GUI)");
+            // Content Body
+            JPanel contentPanel = new JPanel(new BorderLayout(15, 15));
+            contentPanel.setBorder(BorderFactory.createEmptyBorder(20, 25, 20, 25));
+            contentPanel.setBackground(Color.WHITE);
+
+            JLabel lblPrompt = new JLabel("Vui lòng chọn giao diện phân hệ bạn muốn khởi chạy:", SwingConstants.CENTER);
+            lblPrompt.setFont(new Font("Segoe UI", Font.BOLD, 13));
+            lblPrompt.setForeground(new Color(40, 40, 40));
+            contentPanel.add(lblPrompt, BorderLayout.NORTH);
+
+            JPanel btnPanel = new JPanel(new GridLayout(3, 1, 10, 10));
+            btnPanel.setOpaque(false);
+
+            JButton btnBoth = new JButton("Khởi Chạy CẢ HAI (Server GUI & Client GUI)");
             btnBoth.setFont(new Font("Segoe UI", Font.BOLD, 13));
-            btnBoth.setBackground(new Color(40, 167, 69));
+            btnBoth.setBackground(PTIT_RED);
             btnBoth.setForeground(Color.WHITE);
             btnBoth.setFocusPainted(false);
             btnBoth.addActionListener(e -> {
@@ -49,9 +76,9 @@ public class AppLauncher {
                 launchClient();
             });
 
-            JButton btnServer = new JButton("Chỉ chạy SERVER GUI");
+            JButton btnServer = new JButton("Khởi Chạy SERVER GUI (Quản lý UDP & CSDL)");
             btnServer.setFont(new Font("Segoe UI", Font.BOLD, 13));
-            btnServer.setBackground(new Color(0, 122, 255));
+            btnServer.setBackground(new Color(40, 40, 40));
             btnServer.setForeground(Color.WHITE);
             btnServer.setFocusPainted(false);
             btnServer.addActionListener(e -> {
@@ -59,9 +86,9 @@ public class AppLauncher {
                 launchServer();
             });
 
-            JButton btnClient = new JButton("Chỉ chạy CLIENT GUI");
+            JButton btnClient = new JButton("Khởi Chạy CLIENT GUI (Nhập liệu & Tra cứu)");
             btnClient.setFont(new Font("Segoe UI", Font.BOLD, 13));
-            btnClient.setBackground(new Color(108, 117, 125));
+            btnClient.setBackground(new Color(100, 100, 100));
             btnClient.setForeground(Color.WHITE);
             btnClient.setFocusPainted(false);
             btnClient.addActionListener(e -> {
@@ -73,9 +100,10 @@ public class AppLauncher {
             btnPanel.add(btnServer);
             btnPanel.add(btnClient);
 
-            panel.add(btnPanel, BorderLayout.CENTER);
+            contentPanel.add(btnPanel, BorderLayout.CENTER);
+            mainPanel.add(contentPanel, BorderLayout.CENTER);
 
-            frame.add(panel);
+            frame.add(mainPanel);
             frame.setVisible(true);
         });
     }
@@ -83,7 +111,7 @@ public class AppLauncher {
     private static void launchServer() {
         SwingUtilities.invokeLater(() -> {
             ServerGUI serverGUI = new ServerGUI();
-            serverGUI.setLocation(100, 100);
+            serverGUI.setLocation(80, 80);
             serverGUI.setVisible(true);
         });
     }
@@ -91,7 +119,7 @@ public class AppLauncher {
     private static void launchClient() {
         SwingUtilities.invokeLater(() -> {
             ClientGUI clientGUI = new ClientGUI();
-            clientGUI.setLocation(600, 100);
+            clientGUI.setLocation(650, 80);
             clientGUI.setVisible(true);
         });
     }
