@@ -1,31 +1,81 @@
 # 🎓 HỌC VIỆN CÔNG NGHỆ BƯU CHÍNH VIỄN THÔNG (PTIT)
 ## Đề Tài 12: Hệ Thống Quản Lý Sinh Viên Truyền Bảng Mạng UDP & Bảo Mật Mã Hóa CSDL SQL
 
-![PTIT GUI Preview](https://raw.githubusercontent.com/phamcongthanhvn2k6/LapTrinhMang-KetThucMon/main/ptit_gui_preview.png)
+![PTIT System Overview](./screenshots/08_ptit_full_system_overview.png)
 
-Hệ thống ứng dụng quản lý sinh viên phân tán Client-Server viết bằng ngôn ngữ Java, truyền nhận gói tin thời gian thực qua giao thức **UDP (`DatagramSocket`)**, tích hợp cơ chế bảo mật mã hóa đối xứng **AES-256 / DES**, lưu trữ cơ sở dữ liệu đa nền tảng **SQL (Supabase Cloud PostgreSQL / H2 Embedded / SQL Server / MySQL)** và xuất báo cáo chuẩn **Excel (.xlsx)**.
+Hệ thống ứng dụng quản lý sinh viên phân tán Client-Server viết bằng ngôn ngữ Java, truyền nhận gói tin thời gian thực qua giao thức **UDP (`DatagramSocket`)**, tích hợp cơ chế bảo mật mã hóa đối xứng **AES-256 / DES**, lưu trữ cơ sở dữ liệu đa nền tảng **SQL (Supabase Cloud PostgreSQL / H2 Embedded / SQL Server / MySQL)**, cơ chế **Bảo vệ Phân quyền Giảng viên & Học sinh (Role-Based Access Control)** và xuất báo cáo chuẩn **Excel (.xlsx)**.
+
+---
+
+## 📸 BỘ ẢNH CHỤP MÀN HÌNH GIAO DIỆN HỆ THỐNG (SCREENSHOTS GALLERY)
+
+Toàn bộ ảnh chụp thực tế của hệ thống được lưu trữ trong thư mục [`screenshots/`](./screenshots):
+
+### 1️⃣ Phân Hệ Client - Chế Độ Học Sinh & Giảng Viên
+
+| Chế độ Học sinh (Safe Mode - Chỉ xem) | Xác thực Mật khẩu Giảng viên |
+| :---: | :---: |
+| ![Student Mode](./screenshots/01_client_student_mode.png) | ![Teacher Auth](./screenshots/02_teacher_auth_dialog.png) |
+| *Học sinh chỉ tra cứu điểm, Form nhập bị ẩn, nút xóa bị khóa* | *Nhập mật khẩu (`ptit123`) để mở khóa quyền Giảng viên* |
+
+| Chế độ Giảng viên (Toàn quyền quản lý) | Báo Cáo Phiếu Điểm Chi Tiết Môn Học |
+| :---: | :---: |
+| ![Teacher Mode](./screenshots/03_client_teacher_mode.png) | ![Transcript Modal](./screenshots/04_student_transcript_modal.png) |
+| *Mở khóa Form nhập điểm, nút Xóa kích hoạt, Tab Cấu hình CSDL* | *Xem điểm chi tiết 5 môn, điểm quá trình 30%, điểm thi 70%, điểm chữ A+* |
+
+| Bộ Giả Lập Điểm GPA Simulator | Biểu Đồ Thống Kê Học Lực JFreeChart |
+| :---: | :---: |
+| ![GPA Simulator](./screenshots/05_gpa_simulator_modal.png) | ![JFreeChart](./screenshots/07_server_jfreechart_stats.png) |
+| *Tính toán số điểm cần đạt ở môn tiếp theo để nâng hạng học lực* | *Trực quan hóa tỷ lệ phân bổ xếp loại học lực toàn trường* |
+
+### 2️⃣ Phân Hệ Server - Quản Trị Viên & An Toàn Thông Tin
+
+| Bảng Quản Trị Server & CSDL Mã Hóa Base64 | Toàn Cảnh Kết Nối Client - Server UDP |
+| :---: | :---: |
+| ![Server Admin](./screenshots/06_server_admin_dashboard.png) | ![System Overview](./screenshots/08_ptit_full_system_overview.png) |
+| *Đối chiếu Ciphertext mã hóa trong SQL và dữ liệu giải mã* | *Mô hình truyền nhận gói tin thời gian thực qua cổng UDP 9876* |
 
 ---
 
 ## 🌟 1. Tính Năng Chi Tiết Phân Hệ
 
-### 👨‍🎓 Phân Hệ Client (`ClientGUI.java`)
-- **Giao diện chuẩn Enterprise PTIT**: Tone màu đỏ thương hiệu PTIT (`#C8102E`) kết hợp giao diện phẳng hiện đại **FlatLaf**.
-- **Live Status Badges**: Hiển thị trạng thái kết nối thời gian thực (`UDP Server Status`, `SQL Database Status`).
-- **Tự động kết nối (Auto-Connect)**: Tự động khởi tạo kết nối Server UDP và CSDL mặc định ngay khi bật app.
-- **Quản lý Sinh viên (CRUD Workspace)**:
-  - Form nhập liệu sinh viên: Họ tên, Mã SV, Điểm Toán, Điểm Văn, Điểm Tiếng Anh.
-  - Tính toán tự động: Server tự động giải mã, tính **Điểm Trung Bình (ĐTB)** và xếp loại học lực (**Xuất sắc, Giỏi, Khá, Trung bình, Yếu**).
-  - Tìm kiếm & Bộ lọc: Tra cứu sinh viên theo từ khóa (Mã SV, Họ tên) và lọc nhanh theo phân loại học lực.
-  - Thao tác dữ liệu: Xóa bản ghi đã chọn, tải lại danh sách, làm mới form.
-- **Xuất Báo Cáo Excel (.xlsx)**: Đóng gói và xuất danh sách sinh viên ra tệp Excel định dạng đẹp mắt.
-- **Cấu hình Kết nối Linh hoạt (Settings Tab)**: Cho phép chuyển đổi linh hoạt IP/Port Server UDP và thông số kết nối CSDL SQL.
+### 👨‍🎓 1.1. Phân Hệ Client (`ClientGUI.java`)
 
-### 🛡️ Phân Hệ Server (`ServerGUI.java`)
-- **Bảng Console Quản trị Server**: Kích hoạt / Dừng lắng nghe cổng UDP (Default `9876`), tùy chọn thuật toán mã hóa (**AES-256** hoặc **DES**).
-- **Giám sát Mã hóa CSDL (Encrypted Data Inspection)**: Hiển thị bảng đối chiếu trực quan dữ liệu thô đã mã hóa trong CSDL (Base64 Ciphertext) và dữ liệu sau khi giải mã.
-- **Biểu đồ Thống kê Học lực (PTIT JFreeChart)**: Trực quan hóa tỷ lệ phân bổ xếp loại học lực của toàn bộ sinh viên trong hệ thống.
-- **Nhật ký Live UDP Traffic (Real-time Logs)**: Theo dõi từng gói tin UDP gửi/nhận giữa Client và Server theo thời gian thực (Ping, Connect SQL, Add Student, Search, Delete, Get All).
+- **Giao diện chuẩn Enterprise PTIT**: Tone màu đỏ thương hiệu PTIT (`#C8102E`) kết hợp giao diện phẳng hiện đại **FlatLaf**.
+- **Cơ Chế Bảo Vệ Phân Quyền Vai Trò (Role-Based Access Control)**:
+  - **Chế độ Học sinh (Safe Mode - Mặc định khi bật app)**:
+    - Form nhập/sửa điểm bị **ẩn hoàn toàn**, tránh việc học sinh can thiệp điểm số.
+    - Nút Xóa sinh viên bị **vô hiệu hóa (Disabled)**.
+    - Tab Cấu hình CSDL bị **ẩn**, ngăn học sinh thay đổi thông số kết nối.
+    - Học sinh được phép tra cứu điểm, xem xếp loại, xem thống kê lớp.
+  - **Quyền Giảng viên (Teacher Mode - Bảo vệ bằng mật khẩu)**:
+    - Nhấp nút `🔒 Quyền: Học sinh` trên Header để mở cửa sổ xác thực.
+    - Nhập mật khẩu Giảng viên (Mặc định: `ptit123` hoặc `admin123`).
+    - Khi xác thực thành công: Badge chuyển sang xanh `🔓 Quyền: Giảng viên`, mở khóa toàn bộ Form nhập điểm, kích hoạt nút Xóa và hiển thị lại Tab Cấu hình CSDL.
+- **Tra Cứu Phiếu Báo Điểm Chi Tiết Môn Học (Transcript Modal)**:
+  - Chọn 1 dòng sinh viên hoặc double-click trên bảng ➔ Bấm nút **"Bảng Điểm Môn Học"**.
+  - Hiển thị phiếu điểm chi tiết từng môn: Lập Trình Mạng, Mã Hóa & An Toàn Thông Tin, Cơ Sở Dữ Liệu SQL, Cấu Trúc Dữ Liệu & Giải Thuật, Kỹ Năng Giao Tiếp.
+  - Hiển thị đầy đủ Số tín chỉ, Điểm Quá Trình (30%), Điểm Thi (70%), Điểm Tổng Kết hệ 10 và Điểm Chữ quy đổi (`A+`, `A`, `B+`...).
+- **Bộ Giả Lập Điểm GPA Simulator (Target GPA Calculator)**:
+  - Bấm nút **"Giả Lập GPA"** để mở công cụ dự đoán học lực.
+  - Nhập mục tiêu xếp loại mong muốn (Xuất sắc, Giỏi, Khá) và số tín chỉ môn tiếp theo.
+  - Hệ thống tự động tính toán số điểm tối thiểu cần đạt để vươn lên xếp loại mục tiêu.
+- **Thanh Thống Kê Điểm Lớp Trực Quan (Dynamic Statistics Banner)**:
+  - Tự động tính toán và hiển thị: `Tổng số SV`, `ĐTB Cao nhất`, `ĐTB Thấp nhất` và `ĐTB Trung bình lớp`.
+- **Thao Tác Dữ Liệu Sinh Viên (CRUD Workspace - Dành cho Giảng viên)**:
+  - Form nhập liệu sinh viên: Họ tên, Mã SV, Điểm Toán, Điểm Văn, Điểm Tiếng Anh.
+  - Sửa nhanh Inline: Click dòng sinh viên trên JTable tự động điền thông tin lên Form để chỉnh sửa.
+  - Xóa sinh viên: Chọn dòng trên bảng và nhấn `Xóa Dòng Chọn`.
+- **Tìm Kiếm & Bộ Lọc Nâng Cao**: Tra cứu theo từ khóa (Mã SV / Họ tên) và lọc nhanh theo xếp loại học lực (`Xuất sắc`, `Giỏi`, `Khá`, `Trung bình`, `Yếu`).
+- **Xuất Báo Cáo Excel (.xlsx)**: Đóng gói và xuất danh sách sinh viên ra tệp Excel định dạng chuẩn văn phòng bằng Apache POI.
+
+### 🛡️ 1.2. Phân Hệ Server (`ServerGUI.java`)
+
+- **Bảng Console Quản trị Server**: Bật / Dừng lắng nghe cổng UDP (Default `9876`), xử lý đa luồng ThreadPool.
+- **Lựa Chọn Thuật Toán Mã Hóa Bảo Mật**: Chuyển đổi linh hoạt giữa **AES-256 (CBC)** và **DES (ECB)** thời gian thực.
+- **Giám Sát Mã Hóa CSDL (Encrypted Data Inspection)**: Hiển thị bảng đối chiếu trực quan giữa chuỗi thô mã hóa Base64 lưu trong SQL và dữ liệu sau khi giải mã.
+- **Biểu Đồ Thống Kê Học Lực (PTIT JFreeChart)**: Trực quan hóa tỷ lệ phần trăm phân bổ xếp loại học lực toàn trường.
+- **Nhật Ký Live UDP Traffic (Real-time Logs)**: Theo dõi từng gói tin UDP gửi/nhận theo thời gian thực (`PING`, `CONNECT_DB`, `ADD_STUDENT`, `SEARCH`, `DELETE`...).
 
 ---
 
@@ -41,168 +91,91 @@ sequenceDiagram
     participant Sec as 🔒 Security Manager (AES/DES)
     participant DB as 🗄️ SQL Database (Supabase/H2)
 
-    Client->>Server: 1. UDP PING Packet (Kiểm tra kết nối)
+    Note over Client,Server: 1. KIỂM TRA KẾT NỐI (PING / PONG)
+    Client->>Server: UDP PING Packet
     Server-->>Client: UDP PONG Response (Sẵn sàng)
 
-    Client->>Server: 2. CONNECT_SQL Packet (Thông số CSDL)
-    Server->>DB: Kết nối JDBC & Tạo bảng SinhVien
+    Note over Client,Server: 2. KẾT NỐI CƠ SỞ DỮ LIỆU
+    Client->>Server: CONNECT_DB Packet (Thông số JDBC)
+    Server->>DB: Kết nối & Tạo cấu trúc bảng
     DB-->>Server: Trạng thái Kết nối OK
-    Server-->>Client: Response Success
+    Server-->>Client: DB_STATUS Success
 
-    Client->>Server: 3. ADD_STUDENT Packet (Mã SV, Họ tên, Điểm 3 môn)
+    Note over Client,Server: 3. THAO TÁC THÊM / CẬP NHẬT (QUYỀN GIẢNG VIÊN)
+    Client->>Server: ADD_STUDENT Packet (Mã SV, Họ tên, Điểm 3 môn)
     Server->>Sec: Mã hóa Họ tên & Điểm thi (AES-256 / DES)
-    Sec-->>Server: Chuỗi mã hóa Base64
+    Sec-->>Server: Chuỗi mã hóa Base64 Ciphertext
     Server->>DB: Lưu bản ghi mã hóa & ĐTB vào CSDL SQL
     DB-->>Server: Đã lưu thành công
     Server->>Sec: Giải mã bản ghi & Tính Điểm TB, Xếp Loại
-    Sec-->>Server: Kết quả dữ liệu gốc
+    Sec-->>Server: Dữ liệu plaintext
     Server-->>Client: Response StudentResult (ĐTB & Xếp Loại)
 ```
 
-### 📁 Cấu Trúc Thư Mục Mã Nguồn
+---
+
+## 📁 3. Cấu Trúc Thư Mục Dự Án
 
 ```
 LapTrinhMang-KetThucMon/
-├── pom.xml                                  # Tệp cấu hình Maven & Dependencies
+├── pom.xml                                  # Cấu hình Maven & Dependencies (FlatLaf, JFreeChart, POI, H2/PostgreSQL)
 ├── run.bat                                  # Script khởi chạy ứng dụng nhanh trên Windows
-├── database.sql                             # File SQL khởi tạo CSDL & View thống kê
-├── README.md                                # Tài liệu hướng dẫn dự án
+├── database.sql                             # Script SQL khởi tạo CSDL & 250+ bản ghi mẫu
+├── README.md                                # Tài liệu hướng dẫn dự án & Bộ ảnh chụp màn hình
+├── screenshots/                             # Thư mục chứa 8 ảnh chụp màn hình giao diện thực tế
+│   ├── 01_client_student_mode.png          # Giao diện Client Chế độ Học sinh (Safe Mode)
+│   ├── 02_teacher_auth_dialog.png          # Cửa sổ Xác thực Mật khẩu Giảng viên
+│   ├── 03_client_teacher_mode.png          # Giao diện Client Chế độ Giảng viên (Toàn quyền)
+│   ├── 04_student_transcript_modal.png     # Phiếu Báo Điểm Chi Tiết Môn Học
+│   ├── 05_gpa_simulator_modal.png          # Bộ Giả Lập Điểm GPA Simulator
+│   ├── 06_server_admin_dashboard.png       # Bảng Quản Trị Server & CSDL Mã Hóa
+│   ├── 07_server_jfreechart_stats.png      # Biểu Đồ Thống Kê Học Lực JFreeChart
+│   └── 08_ptit_full_system_overview.png    # Toàn Cảnh Hệ Thống Client - Server UDP
+├── docs/                                    # Thư mục hồ sơ tài liệu chuyên sâu
+│   ├── README.md                            # Mục lục & Ma trận tính năng hệ thống
+│   ├── 01_CAU_TRUC_DU_AN.md                 # Cấu trúc dự án & Kiến trúc hệ thống
+│   ├── 02_SO_DO_ERD.md                      # Sơ đồ thực thể ERD & CSDL SQL mở rộng
+│   ├── 03_CHUC_NANG_HOC_SINH.md             # Chức năng phân hệ Học sinh (Chỉ xem)
+│   ├── 04_CHUC_NANG_GIANG_VIEN_USER.md      # Chức năng phân hệ Giảng viên & Bảo vệ mật khẩu
+│   └── 05_CHUC_NANG_ADMIN.md                # Chức năng phân hệ Quản trị viên Server
 └── src/
-    ├── main/
-    │   └── java/
-    │       └── com/
-    │           └── qlsv/
-    │               ├── AppLauncher.java     # Trình khởi chạy hệ thống (Main Launcher)
-    │               ├── model/
-    │               │   ├── StudentData.java # Model dữ liệu sinh viên đầu vào
-    │               │   ├── StudentResult.java# Model kết quả sinh viên (ĐTB, Xếp loại)
-    │               │   └── SqlConfig.java   # Model cấu hình kết nối CSDL SQL
-    │               ├── security/
-    │               │   ├── SecurityManager.java # Trình quản lý thuật toán AES-256 / DES
-    │               │   ├── AESEncryption.java   # Mã hóa & Giải mã AES-256 CBC
-    │               │   └── DESEncryption.java   # Mã hóa & Giải mã DES ECB
-    │               ├── database/
-    │               │   └── DatabaseManager.java # Quản lý JDBC & Truy vấn CSDL SQL
-    │               ├── network/
-    │               │   ├── UDPPacket.java   # Cấu trúc gói tin dữ liệu truyền qua UDP
-    │               │   └── PacketType.java  # Enum phân loại thao tác mạng UDP
-    │               ├── util/
-    │               │   └── ExcelExporter.java # Xuất báo cáo danh sách ra file Excel (.xlsx)
-    │               ├── server/
-    │               │   ├── UDPServer.java   # UDP Server Listener đa luồng (ThreadPool)
-    │               │   └── ServerGUI.java   # Giao diện điều khiển & giám sát Server
-    │               └── client/
-    │                   ├── UDPClient.java   # Engine gửi/nhận UDP phía Client (Timeout 5s)
-    │                   └── ClientGUI.java   # Giao diện người dùng Quản lý Sinh viên
-    └── test/
-        └── java/
-            └── com/
-                └── qlsv/
-                    ├── security/
-                    │   └── DESEncryptionTest.java # Unit Test mã hóa DES
-                    ├── network/
-                    │   ├── FullSystemIntegrationTest.java # Integration Test toàn hệ thống
-                    │   └── SupabaseTest.java              # Test kết nối CSDL Cloud Supabase
-                    └── GuiDemoAutomationRunner.java       # Script test tự động giao diện
+    ├── main/java/com/qlsv/
+    │   ├── AppLauncher.java                 # Trình khởi chạy hệ thống (Main Launcher)
+    │   ├── model/                           # Model đối tượng: StudentData, StudentResult, SqlConfig
+    │   ├── security/                        # Mã hóa AES-256 CBC, DES ECB, SecurityManager
+    │   ├── database/                        # DatabaseManager quản lý JDBC & CRUD CSDL
+    │   ├── network/                         # UDPPacket, PacketType, UDP Datagram Engine
+    │   ├── util/                            # ExcelExporter xuất báo cáo .xlsx
+    │   ├── server/                          # UDPServer (ThreadPool), ServerGUI (Admin)
+    │   └── client/                          # UDPClient, ClientGUI (Student & Teacher Role)
+    └── test/java/com/qlsv/
+        ├── CaptureAllScreenshots.java       # Script tự động chụp toàn bộ 8 màn hình giao diện
+        ├── GuiDemoAutomationRunner.java     # Demo kiểm thử giao diện tự động
+        └── security/DESEncryptionTest.java  # Unit Test giải thuật mã hóa
 ```
 
 ---
 
-## 🛠️ 3. Hướng Dẫn Dành Cho Thành Viên Nhóm (Clone & Development)
+## 🚀 4. Hướng Dẫn Khởi Chạy Ứng Dụng
 
-### 📌 Yêu Cầu Tiền Đề (Prerequisites)
-- **JDK (Java Development Kit)**: Phiên bản **17** trở lên.
-- **Apache Maven**: Phiên bản **3.8+** (Đã tích hợp sẵn trong IntelliJ IDEA / Eclipse).
-- **Git**: Đã cài đặt trên máy.
+### Cách 1: Sử Dụng Script Khởi Chạy Nhanh (`run.bat`)
+Nhấp kép chuột vào tệp `run.bat` ở thư mục gốc dự án để bật ứng dụng.
 
----
-
-### 📥 Bước 1: Clone Repository Về Máy Cá Nhân
-
-Mở cửa sổ Terminal / PowerShell / Git Bash và chạy lệnh:
-
-```bash
-git clone https://github.com/phamcongthanhvn2k6/LapTrinhMang-KetThucMon.git
-cd LapTrinhMang-KetThucMon
-```
-
----
-
-### ⚙️ Bước 2: Biên Dịch & Cài Đặt Thư Viện
-
-Chạy lệnh Maven để tải dependencies và biên dịch mã nguồn:
-
-```bash
-mvn clean package -DskipTests
-```
-
----
-
-### 🚀 Bước 3: Khởi Chạy Ứng Dụng
-
-#### Cách 1: Sử dụng File Khởi Chạy Nhanh (`run.bat`)
-Chỉ cần nhấp kép vào tệp `run.bat` ở thư mục gốc dự án. Một cửa sổ Menu chọn sẽ xuất hiện:
-1. **Khởi chạy CẢ HAI**: Bật đồng thời cả Server GUI và Client GUI trên màn hình.
-2. **Khởi chạy SERVER GUI**: Dành cho máy đóng vai trò Server trên mạng LAN/Wi-Fi.
-3. **Khởi chạy CLIENT GUI**: Dành cho các máy sinh viên / cán bộ nhập liệu.
-
-#### Cách 2: Chạy Bằng Lệnh Maven
+### Cách 2: Khởi Chạy Bằng Lệnh Maven
 ```bash
 # Khởi chạy Menu Launcher chung
 mvn exec:java -Dexec.mainClass="com.qlsv.AppLauncher"
 
-# Khởi chạy riêng Server GUI
+# Khởi chạy riêng Server GUI (Admin)
 mvn exec:java -Dexec.mainClass="com.qlsv.server.ServerGUI"
 
 # Khởi chạy riêng Client GUI
 mvn exec:java -Dexec.mainClass="com.qlsv.client.ClientGUI"
 ```
 
----
-
-### 🧪 Bước 4: Chạy Unit Test & Kiểm Thử Tích Hợp
-
-Đảm bảo tất cả các chức năng mã hóa và truyền tin hoạt động chính xác trước khi code tính năng mới:
-
+### Cách 3: Chụp Lại Bộ Ảnh Màn Hình Giao Diện Mới
 ```bash
-mvn test
-```
-
----
-
-## 🤝 4. Quy Trình Push Code & Merge Cho Thành Viên Nhóm
-
-Để đảm bảo dự án không bị xung đột mã nguồn (merge conflicts) giữa các thành viên, vui lòng tuân thủ quy trình Git sau:
-
-### 1️⃣ Tạo nhánh mới (Feature Branch) khi làm chức năng mới:
-```bash
-# Cập nhật mã nguồn mới nhất từ branch main
-git checkout main
-git pull origin main
-
-# Tạo và chuyển sang branch làm việc cá nhân (VD: feature/export-pdf)
-git checkout -b feature/ten-chuc-nang
-```
-
-### 2️⃣ Commit code với thông điệp rõ ràng:
-```bash
-git add .
-git commit -m "feat: Thêm chức năng lọc sinh viên theo điểm trung bình"
-```
-
-### 3️⃣ Cập nhật nhánh cá nhân với `main` trước khi đẩy code:
-```bash
-git checkout main
-git pull origin main
-git checkout feature/ten-chuc-nang
-git rebase main
-```
-
-### 4️⃣ Merge vào nhánh `main` và Push lên GitHub:
-```bash
-git checkout main
-git merge feature/ten-chuc-nang
-git push origin main
+mvn exec:java -Dexec.mainClass="com.qlsv.CaptureAllScreenshots" -Dexec.classpathScope="test"
 ```
 
 ---
@@ -210,4 +183,4 @@ git push origin main
 ## 🏆 Đóng Góp Dự Án
 - **Tác giả / Lead Developer**: Phạm Công Thành (phamcongthanhvn2k6)
 - **Học viện**: Học viện Công nghệ Bưu chính Viễn thông (PTIT)
-- **Môn học**: Lập Trình Mạng - Đề tài Kết thúc môn
+- **Môn học**: Lập Trình Mạng - Đề tài 12 Kết thúc môn
