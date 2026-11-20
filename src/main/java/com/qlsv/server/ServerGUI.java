@@ -207,6 +207,17 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
         statusBar.add(lblServerStatus);
 
         add(statusBar, BorderLayout.SOUTH);
+
+        // Auto-connect to DB from db.properties if not connected
+        if (!DatabaseManager.getInstance().isConnected()) {
+            try {
+                com.qlsv.model.SqlConfig config = com.qlsv.database.DatabaseConfigLoader.loadConfig();
+                DatabaseManager.getInstance().connect(config);
+            } catch (Exception ignored) {}
+        }
+        refreshDataInspection();
+        updateChartPanel();
+        updateDbStatusLabel();
     }
 
     private void openAdvancedSettingsDialog() {

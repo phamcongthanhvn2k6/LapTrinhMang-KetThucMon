@@ -60,6 +60,19 @@ public class UDPServer {
         log(String.format("Server RUDP khởi chạy trên cổng %d với ThreadPool (20 Workers, Phân quyền RBAC, Chống trùng lặp ARQ)", port));
 
         serverThread = new Thread(() -> {
+            if (!DatabaseManager.getInstance().isConnected()) {
+                try {
+                    SqlConfig config = com.qlsv.database.DatabaseConfigLoader.loadConfig();
+                    DatabaseManager.getInstance().connect(config);
+                    log("Tự động kết nối CSDL (" + config.getDbType() + ") từ db.properties qua Connection Pool HikariCP thành công.");
+                    if (logListener != null) {
+                        logListener.onDataUpdated();
+                    }
+                } catch (Exception e) {
+                    log("Thông báo: CSDL chưa kết nối sẵn: " + e.getMessage());
+                }
+            }
+
             byte[] buffer = new byte[65507];
             while (running && !socket.isClosed()) {
                 try {
