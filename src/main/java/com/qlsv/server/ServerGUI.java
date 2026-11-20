@@ -12,6 +12,7 @@ import org.jfree.data.general.DefaultPieDataset;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
@@ -24,10 +25,9 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
     public static final Color PTIT_LIGHT_BG = new Color(245, 247, 250);
 
     private UDPServer udpServer;
-    private JTextField txtPort;
-    private JTextField txtDesKey;
-    private JComboBox<SecurityManager.EncryptionAlgo> cbAlgo;
+    private int serverPort = 9876;
     private JButton btnStartStop;
+    private JButton btnSettings;
     private JLabel lblServerStatus;
     private JLabel lblDbStatus;
 
@@ -39,8 +39,8 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
     private SimpleDateFormat dateFormat = new SimpleDateFormat("HH:mm:ss");
 
     public ServerGUI() {
-        setTitle("PTIT SERVER - Chương Trình Quản Lý Sinh Viên UDP");
-        setSize(1150, 720);
+        setTitle("PTIT - TRUNG TÂM QUẢN TRỊ MÁY CHỦ ĐÀO TẠO");
+        setSize(1160, 720);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
 
@@ -59,11 +59,11 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
         headerPanel.setBackground(PTIT_RED);
         headerPanel.setBorder(BorderFactory.createEmptyBorder(12, 20, 12, 20));
 
-        JLabel titleLabel = new JLabel("HỌC VIỆN CÔNG NGHỆ BƯU CHÍNH VIỄN THÔNG - SERVER UDP");
+        JLabel titleLabel = new JLabel("HỌC VIỆN CÔNG NGHỆ BƯU CHÍNH VIỄN THÔNG - TRUNG TÂM MÁY CHỦ");
         titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 17));
         titleLabel.setForeground(Color.WHITE);
 
-        JLabel subtitleLabel = new JLabel("Đề tài 12: Quản lý sinh viên | Bảo mật AES-256 / DES | Kết nối CSDL SQL");
+        JLabel subtitleLabel = new JLabel("Hệ Thống Quản Trị Cơ Sở Dữ Liệu & Dịch Vụ Đào Tạo Phân Tán");
         subtitleLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         subtitleLabel.setForeground(new Color(255, 230, 230));
 
@@ -73,47 +73,28 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
         titleBox.add(subtitleLabel);
 
         // Control Panel
-        JPanel controlPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        JPanel controlPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
         controlPanel.setOpaque(false);
 
-        JLabel lblAlgo = new JLabel("Thuật toán:");
-        lblAlgo.setForeground(Color.WHITE);
-        lblAlgo.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnSettings = new JButton("⚙️ Thiết Lập Nâng Cao");
+        btnSettings.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        btnSettings.setBackground(new Color(240, 240, 240));
+        btnSettings.setForeground(Color.DARK_GRAY);
+        btnSettings.setFocusPainted(false);
+        btnSettings.addActionListener(e -> openAdvancedSettingsDialog());
 
-        cbAlgo = new JComboBox<>(SecurityManager.EncryptionAlgo.values());
-        cbAlgo.setSelectedItem(SecurityManager.getCurrentAlgo());
-        cbAlgo.addActionListener(e -> SecurityManager.setCurrentAlgo((SecurityManager.EncryptionAlgo) cbAlgo.getSelectedItem()));
-
-        JLabel lblPort = new JLabel("Cổng UDP:");
-        lblPort.setForeground(Color.WHITE);
-        lblPort.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        txtPort = new JTextField("9876", 4);
-
-        JLabel lblKey = new JLabel("Khóa:");
-        lblKey.setForeground(Color.WHITE);
-        lblKey.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        txtDesKey = new JTextField(DatabaseManager.getInstance().getDesKey(), 8);
-
-        btnStartStop = new JButton("KÍCH HOẠT SERVER");
+        btnStartStop = new JButton("KHỞI CHẠY DỊCH VỤ MÁY CHỦ");
         btnStartStop.setFont(new Font("Segoe UI", Font.BOLD, 12));
         btnStartStop.setBackground(Color.WHITE);
         btnStartStop.setForeground(PTIT_RED);
         btnStartStop.setFocusPainted(false);
         btnStartStop.addActionListener(e -> toggleServer());
 
-        controlPanel.add(lblAlgo);
-        controlPanel.add(cbAlgo);
-        controlPanel.add(Box.createHorizontalStrut(10));
-        controlPanel.add(lblPort);
-        controlPanel.add(txtPort);
-        controlPanel.add(Box.createHorizontalStrut(10));
-        controlPanel.add(lblKey);
-        controlPanel.add(txtDesKey);
-        controlPanel.add(Box.createHorizontalStrut(15));
+        controlPanel.add(btnSettings);
         controlPanel.add(btnStartStop);
 
-        headerPanel.add(titleBox, BorderLayout.NORTH);
-        headerPanel.add(controlPanel, BorderLayout.SOUTH);
+        headerPanel.add(titleBox, BorderLayout.WEST);
+        headerPanel.add(controlPanel, BorderLayout.EAST);
         add(headerPanel, BorderLayout.NORTH);
 
         // Main Tabbed Pane
@@ -126,7 +107,7 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
         tabData.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
         String[] columnNames = {
-                "Mã SV", "Họ Tên (Mã Hóa Encrypted)", "Đ.Toán (Encrypted)", "Đ.Văn (Encrypted)", "Đ.Anh (Encrypted)", "Họ Tên (Giải Mã)", "ĐTB"
+                "Mã SV", "Họ Tên (Đã Bảo Mật)", "Đ.Toán (Bảo Mật)", "Đ.Văn (Bảo Mật)", "Đ.Anh (Bảo Mật)", "Họ Tên (Hiển Thị)", "Điểm TB"
         };
         tableModel = new DefaultTableModel(columnNames, 0) {
             @Override
@@ -145,7 +126,7 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
         JPanel tableActionBar = new JPanel(new FlowLayout(FlowLayout.LEFT));
         tableActionBar.setBackground(Color.WHITE);
 
-        JButton btnRefreshData = new JButton("Làm Mới CSDL Inspection");
+        JButton btnRefreshData = new JButton("Làm Mới Dữ Liệu");
         btnRefreshData.setBackground(PTIT_RED);
         btnRefreshData.setForeground(Color.WHITE);
         btnRefreshData.setFont(new Font("Segoe UI", Font.BOLD, 12));
@@ -183,16 +164,36 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
 
         JPanel logActionBar = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         logActionBar.setBackground(Color.WHITE);
+
+        JButton btnExportLog = new JButton("Xuất File Log (.log)");
+        btnExportLog.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        btnExportLog.addActionListener(e -> {
+            JFileChooser chooser = new JFileChooser();
+            chooser.setDialogTitle("Lưu Nhật Ký Hoạt Động");
+            chooser.setSelectedFile(new File("nhat_ky_he_thong.log"));
+            if (chooser.showSaveDialog(ServerGUI.this) == JFileChooser.APPROVE_OPTION) {
+                try (java.io.PrintWriter pw = new java.io.PrintWriter(chooser.getSelectedFile())) {
+                    pw.write(txtLog.getText());
+                    JOptionPane.showMessageDialog(ServerGUI.this, "Đã xuất file log thành công tại:\n" + chooser.getSelectedFile().getAbsolutePath(), "Thành Công", JOptionPane.INFORMATION_MESSAGE);
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(ServerGUI.this, "Lỗi xuất log: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        });
+
         JButton btnClearLog = new JButton("Xóa Nhật Ký");
+        btnClearLog.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         btnClearLog.addActionListener(e -> txtLog.setText(""));
+
+        logActionBar.add(btnExportLog);
         logActionBar.add(btnClearLog);
 
         tabLogs.add(scrollLog, BorderLayout.CENTER);
         tabLogs.add(logActionBar, BorderLayout.SOUTH);
 
-        tabbedPane.addTab("Dữ Liệu Mã Hóa CSDL Inspection", tabData);
-        tabbedPane.addTab("Biểu Đồ Thống Kê Học Lực (PTIT JFreeChart)", tabChart);
-        tabbedPane.addTab("Nhật Ký Gói Tin UDP (Live Logs)", tabLogs);
+        tabbedPane.addTab("Kiểm Tra An Toàn Dữ Liệu", tabData);
+        tabbedPane.addTab("Biểu Đồ Thống Kê Học Lực", tabChart);
+        tabbedPane.addTab("Nhật Ký Hoạt Động Hệ Thống", tabLogs);
 
         add(tabbedPane, BorderLayout.CENTER);
 
@@ -200,12 +201,61 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
         JPanel statusBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 5));
         statusBar.setBackground(Color.WHITE);
         statusBar.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, new Color(220, 220, 220)));
-        lblServerStatus = new JLabel("Trạng thái Server: Đã dừng");
+        lblServerStatus = new JLabel("Trạng thái: Dịch vụ máy chủ đang tạm dừng");
         lblServerStatus.setFont(new Font("Segoe UI", Font.BOLD, 12));
         lblServerStatus.setForeground(PTIT_RED);
         statusBar.add(lblServerStatus);
 
         add(statusBar, BorderLayout.SOUTH);
+    }
+
+    private void openAdvancedSettingsDialog() {
+        JDialog d = new JDialog(this, "Thiết Lập Tham Số Nâng Cao", true);
+        d.setSize(420, 260);
+        d.setLocationRelativeTo(this);
+        d.setLayout(new BorderLayout(10, 10));
+
+        JPanel p = new JPanel(new GridLayout(3, 2, 10, 12));
+        p.setBorder(BorderFactory.createEmptyBorder(15, 20, 10, 20));
+
+        JTextField tfPort = new JTextField(String.valueOf(serverPort));
+        JComboBox<SecurityManager.EncryptionAlgo> cbAlgo = new JComboBox<>(SecurityManager.EncryptionAlgo.values());
+        cbAlgo.setSelectedItem(SecurityManager.getCurrentAlgo());
+        JTextField tfKey = new JTextField(DatabaseManager.getInstance().getDesKey());
+
+        p.add(new JLabel("Cổng kết nối nội bộ:"));
+        p.add(tfPort);
+        p.add(new JLabel("Cơ chế bảo vệ dữ liệu:"));
+        p.add(cbAlgo);
+        p.add(new JLabel("Khóa bảo mật:"));
+        p.add(tfKey);
+
+        d.add(p, BorderLayout.CENTER);
+
+        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 10));
+        JButton btnSave = new JButton("Lưu Thiết Lập");
+        btnSave.setBackground(PTIT_RED);
+        btnSave.setForeground(Color.WHITE);
+        btnSave.addActionListener(e -> {
+            try {
+                this.serverPort = Integer.parseInt(tfPort.getText().trim());
+                SecurityManager.setCurrentAlgo((SecurityManager.EncryptionAlgo) cbAlgo.getSelectedItem());
+                DatabaseManager.getInstance().setDesKey(tfKey.getText().trim());
+                JOptionPane.showMessageDialog(d, "Đã lưu thiết lập tham số thành công!");
+                d.dispose();
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(d, "Lỗi nhập tham số: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+
+        JButton btnCancel = new JButton("Hủy");
+        btnCancel.addActionListener(e -> d.dispose());
+
+        btnPanel.add(btnSave);
+        btnPanel.add(btnCancel);
+        d.add(btnPanel, BorderLayout.SOUTH);
+
+        d.setVisible(true);
     }
 
     private void updateChartPanel() {
@@ -245,34 +295,26 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
     private void toggleServer() {
         if (udpServer != null && udpServer.isRunning()) {
             udpServer.stop();
-            btnStartStop.setText("KÍCH HOẠT SERVER");
+            btnStartStop.setText("KHỞI CHẠY DỊCH VỤ MÁY CHỦ");
             btnStartStop.setBackground(Color.WHITE);
             btnStartStop.setForeground(PTIT_RED);
-            lblServerStatus.setText("Trạng thái Server: Đã dừng");
+            lblServerStatus.setText("Trạng thái: Dịch vụ máy chủ đang tạm dừng");
             lblServerStatus.setForeground(PTIT_RED);
-            txtPort.setEnabled(true);
-            txtDesKey.setEnabled(true);
-            cbAlgo.setEnabled(true);
+            btnSettings.setEnabled(true);
         } else {
             try {
-                int port = Integer.parseInt(txtPort.getText().trim());
-                String desKey = txtDesKey.getText().trim();
-                DatabaseManager.getInstance().setDesKey(desKey);
-
-                udpServer = new UDPServer(port);
+                udpServer = new UDPServer(serverPort);
                 udpServer.setLogListener(this);
                 udpServer.start();
 
-                btnStartStop.setText("DỪNG SERVER");
+                btnStartStop.setText("TẠM DỪNG DỊCH VỤ MÁY CHỦ");
                 btnStartStop.setBackground(PTIT_DARK_RED);
                 btnStartStop.setForeground(Color.WHITE);
-                lblServerStatus.setText("Trạng thái Server: Đang lắng nghe cổng UDP " + port + " (Multi-threaded ThreadPool)");
+                lblServerStatus.setText("Trạng thái: Máy chủ đang hoạt động và sẵn sàng phục vụ kết nối");
                 lblServerStatus.setForeground(new Color(40, 167, 69));
-                txtPort.setEnabled(false);
-                txtDesKey.setEnabled(false);
-                cbAlgo.setEnabled(false);
+                btnSettings.setEnabled(false);
             } catch (Exception ex) {
-                JOptionPane.showMessageDialog(this, "Không thể khởi động Server: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(this, "Không thể khởi động máy chủ: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
             }
         }
     }
@@ -312,13 +354,13 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
             }
             updateDbStatusLabel();
         } catch (Exception e) {
-            onLog("Lỗi tải bảng dữ liệu inspection: " + e.getMessage());
+            onLog("Lỗi tải bảng dữ liệu: " + e.getMessage());
         }
     }
 
     private void updateDbStatusLabel() {
         if (DatabaseManager.getInstance().isConnected()) {
-            lblDbStatus.setText("Trạng thái CSDL: ĐÃ KẾT NỐI (Mã hóa " + SecurityManager.getCurrentAlgo() + ")");
+            lblDbStatus.setText("Trạng thái CSDL: ĐÃ KẾT NỐI (Dữ liệu được bảo vệ an toàn)");
             lblDbStatus.setForeground(new Color(40, 167, 69));
         } else {
             lblDbStatus.setText("Trạng thái CSDL: CHƯA KẾT NỐI");

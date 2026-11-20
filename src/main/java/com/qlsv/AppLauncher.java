@@ -40,7 +40,7 @@ public class AppLauncher {
             lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 17));
             lblTitle.setForeground(Color.WHITE);
 
-            JLabel lblSub = new JLabel("ĐỀ TÀI 12: CHƯƠNG TRÌNH QUẢN LÝ SINH VIÊN (UDP & MÃ HÓA)", SwingConstants.CENTER);
+            JLabel lblSub = new JLabel("HỆ THỐNG QUẢN LÝ THÔNG TIN & ĐÀO TẠO SINH VIÊN", SwingConstants.CENTER);
             lblSub.setFont(new Font("Segoe UI", Font.PLAIN, 12));
             lblSub.setForeground(new Color(255, 230, 230));
 
@@ -57,7 +57,7 @@ public class AppLauncher {
             contentPanel.setBorder(BorderFactory.createEmptyBorder(20, 25, 20, 25));
             contentPanel.setBackground(Color.WHITE);
 
-            JLabel lblPrompt = new JLabel("Vui lòng chọn giao diện phân hệ bạn muốn khởi chạy:", SwingConstants.CENTER);
+            JLabel lblPrompt = new JLabel("Vui lòng chọn phân hệ bạn muốn khởi chạy:", SwingConstants.CENTER);
             lblPrompt.setFont(new Font("Segoe UI", Font.BOLD, 13));
             lblPrompt.setForeground(new Color(40, 40, 40));
             contentPanel.add(lblPrompt, BorderLayout.NORTH);
@@ -65,7 +65,7 @@ public class AppLauncher {
             JPanel btnPanel = new JPanel(new GridLayout(3, 1, 10, 10));
             btnPanel.setOpaque(false);
 
-            JButton btnBoth = new JButton("Khởi Chạy CẢ HAI (Server GUI & Client GUI)");
+            JButton btnBoth = new JButton("Khởi Chạy Toàn Bộ Hệ Thống (Máy Chủ & Ứng Dụng)");
             btnBoth.setFont(new Font("Segoe UI", Font.BOLD, 13));
             btnBoth.setBackground(PTIT_RED);
             btnBoth.setForeground(Color.WHITE);
@@ -76,7 +76,7 @@ public class AppLauncher {
                 launchClient();
             });
 
-            JButton btnServer = new JButton("Khởi Chạy SERVER GUI (Quản lý UDP & CSDL)");
+            JButton btnServer = new JButton("Khởi Chạy Bảng Quản Trị Máy Chủ");
             btnServer.setFont(new Font("Segoe UI", Font.BOLD, 13));
             btnServer.setBackground(new Color(40, 40, 40));
             btnServer.setForeground(Color.WHITE);
@@ -86,7 +86,7 @@ public class AppLauncher {
                 launchServer();
             });
 
-            JButton btnClient = new JButton("Khởi Chạy CLIENT GUI (Nhập liệu & Tra cứu)");
+            JButton btnClient = new JButton("Khởi Chạy Cổng Thông Tin Người Dùng");
             btnClient.setFont(new Font("Segoe UI", Font.BOLD, 13));
             btnClient.setBackground(new Color(100, 100, 100));
             btnClient.setForeground(Color.WHITE);

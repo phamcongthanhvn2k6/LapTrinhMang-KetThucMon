@@ -1,11 +1,15 @@
 package com.qlsv.client;
 
 import com.formdev.flatlaf.FlatLightLaf;
+import com.qlsv.model.CourseGrade;
 import com.qlsv.model.SqlConfig;
 import com.qlsv.model.StudentData;
 import com.qlsv.model.StudentResult;
+import com.qlsv.model.StudentTranscript;
+import com.qlsv.model.UserAccount;
 import com.qlsv.network.UDPPacket;
 import com.qlsv.util.ExcelExporter;
+import com.qlsv.util.ExcelImporter;
 
 import javax.swing.*;
 import javax.swing.border.TitledBorder;
@@ -27,7 +31,8 @@ public class ClientGUI extends JFrame {
 
     public enum UserRole {
         STUDENT("🔒 Quyền: Học sinh (Chỉ xem)"),
-        TEACHER("🔓 Quyền: Giảng viên (Toàn quyền)");
+        TEACHER("🔓 Quyền: Giảng viên (Toàn quyền)"),
+        ADMIN("🛡️ Quyền: Quản trị viên (Admin)");
 
         private final String label;
         UserRole(String label) { this.label = label; }
@@ -35,6 +40,7 @@ public class ClientGUI extends JFrame {
     }
 
     private UserRole currentRole = UserRole.STUDENT; // Default to Student mode for security
+    private UserAccount currentUserAccount = null;
 
     private UDPClient client;
     private List<StudentResult> currentStudentList = new ArrayList<>();
@@ -52,13 +58,13 @@ public class ClientGUI extends JFrame {
 
     // Connection Controls (Settings Tab)
     private JTextField txtServerHost;
-    private JTextField txtServerPort;
+    private JTextField txtServerPort; // Internal default (hidden from UI)
     private JButton btnConnectServer;
     private JLabel lblConnStatus;
 
     private JComboBox<SqlConfig.DbType> cbDbType;
     private JTextField txtDbHost;
-    private JTextField txtDbPort;
+    private JTextField txtDbPort;     // Internal default (hidden from UI)
     private JTextField txtDbName;
     private JTextField txtDbUser;
     private JPasswordField txtDbPass;
@@ -79,6 +85,8 @@ public class ClientGUI extends JFrame {
     private JButton btnSearch;
     private JButton btnRefreshAll;
     private JButton btnDeleteSelected;
+    private JButton btnImportExcel;
+    private JButton btnDownloadTemplate;
     private JButton btnExportExcel;
 
     private JTable tblResults;
@@ -86,8 +94,8 @@ public class ClientGUI extends JFrame {
     private JLabel lblTableSummary;
 
     public ClientGUI() {
-        setTitle("PTIT CLIENT - HỆ THỐNG QUẢN LÝ SINH VIÊN");
-        setSize(1180, 760);
+        setTitle("PTIT - CỔNG THÔNG TIN QUẢN LÝ ĐÀO TẠO & SINH VIÊN");
+        setSize(1220, 780);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
 
@@ -111,7 +119,7 @@ public class ClientGUI extends JFrame {
         titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 18));
         titleLabel.setForeground(Color.WHITE);
 
-        JLabel subtitleLabel = new JLabel("Hệ Thống Quản Lý Sinh Viên Truyền Bảng Mạng UDP & CSDL SQL");
+        JLabel subtitleLabel = new JLabel("Hệ Thống Quản Lý Đào Tạo & Tra Cứu Thông Tin Sinh Viên");
         subtitleLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         subtitleLabel.setForeground(new Color(255, 230, 230));
 
@@ -124,21 +132,21 @@ public class ClientGUI extends JFrame {
         JPanel statusBox = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 5));
         statusBox.setOpaque(false);
 
-        lblServerBadge = new JLabel("● UDP Server: Chưa kết nối");
+        lblServerBadge = new JLabel("● Máy Chủ: Chưa kết nối");
         lblServerBadge.setFont(new Font("Segoe UI", Font.BOLD, 12));
         lblServerBadge.setForeground(Color.WHITE);
         lblServerBadge.setOpaque(true);
         lblServerBadge.setBackground(PTIT_DARK_RED);
         lblServerBadge.setBorder(BorderFactory.createEmptyBorder(4, 10, 4, 10));
 
-        lblDbBadge = new JLabel("● CSDL SQL: Chưa kết nối");
+        lblDbBadge = new JLabel("● Cơ Sở Dữ Liệu: Chưa kết nối");
         lblDbBadge.setFont(new Font("Segoe UI", Font.BOLD, 12));
         lblDbBadge.setForeground(Color.WHITE);
         lblDbBadge.setOpaque(true);
         lblDbBadge.setBackground(PTIT_DARK_RED);
         lblDbBadge.setBorder(BorderFactory.createEmptyBorder(4, 10, 4, 10));
 
-        btnRoleAuth = new JButton("🔒 Quyền: Học sinh (Bấm để Đăng nhập Giảng viên)");
+        btnRoleAuth = new JButton("🔒 Quyền: Học sinh (Bấm để Đăng nhập)");
         btnRoleAuth.setFont(new Font("Segoe UI", Font.BOLD, 12));
         btnRoleAuth.setBackground(new Color(220, 53, 69));
         btnRoleAuth.setForeground(Color.WHITE);
@@ -161,7 +169,7 @@ public class ClientGUI extends JFrame {
         settingsWorkspace = createSettingsTab();
 
         mainTabbedPane.addTab("Tra Cứu / Quản Lý Sinh Viên", studentWorkspace);
-        mainTabbedPane.addTab("Cấu Hình Kết Nối & CSDL", settingsWorkspace);
+        mainTabbedPane.addTab("Cài Đặt Hệ Thống", settingsWorkspace);
 
         add(mainTabbedPane, BorderLayout.CENTER);
         updateRoleUI();
@@ -177,7 +185,7 @@ public class ClientGUI extends JFrame {
         formPanel.setBackground(Color.WHITE);
         formPanel.setBorder(BorderFactory.createTitledBorder(
                 BorderFactory.createEtchedBorder(),
-                " Form Nhập / Cập Nhật Thông Tin Sinh Viên ",
+                " Form Nhập / Cập Nhật Thông Tin Sinh Viên (Quyền Giảng Viên) ",
                 TitledBorder.LEFT, TitledBorder.TOP,
                 new Font("Segoe UI", Font.BOLD, 13), PTIT_RED
         ));
@@ -228,7 +236,7 @@ public class ClientGUI extends JFrame {
         btnClearForm.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         btnClearForm.addActionListener(e -> clearForm());
 
-        btnSendStudent = new JButton("LƯU SINH VIÊN VIA UDP");
+        btnSendStudent = new JButton("LƯU THÔNG TIN SINH VIÊN");
         btnSendStudent.setFont(new Font("Segoe UI", Font.BOLD, 12));
         btnSendStudent.setBackground(PTIT_RED);
         btnSendStudent.setForeground(Color.WHITE);
@@ -254,10 +262,10 @@ public class ClientGUI extends JFrame {
         ));
 
         // Toolbar
-        JPanel toolBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 6));
+        JPanel toolBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 6));
         toolBar.setBackground(Color.WHITE);
 
-        txtSearchQuery = new JTextField(15);
+        txtSearchQuery = new JTextField(12);
         txtSearchQuery.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         btnSearch = new JButton("Tìm Kiếm");
         btnSearch.setFont(new Font("Segoe UI", Font.PLAIN, 12));
@@ -283,13 +291,23 @@ public class ClientGUI extends JFrame {
         btnGpaSimulator.setForeground(Color.WHITE);
         btnGpaSimulator.addActionListener(e -> openGpaSimulatorDialog());
 
-        btnDeleteSelected = new JButton("Xóa Dòng Chọn");
+        btnDeleteSelected = new JButton("Xóa Sinh Viên");
         btnDeleteSelected.setFont(new Font("Segoe UI", Font.BOLD, 12));
         btnDeleteSelected.setBackground(PTIT_DARK_RED);
         btnDeleteSelected.setForeground(Color.WHITE);
         btnDeleteSelected.addActionListener(e -> handleDeleteSelected());
 
-        btnExportExcel = new JButton("Xuất File Excel (.xlsx)");
+        btnImportExcel = new JButton("Nhập File Excel");
+        btnImportExcel.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnImportExcel.setBackground(new Color(23, 162, 184));
+        btnImportExcel.setForeground(Color.WHITE);
+        btnImportExcel.addActionListener(e -> handleImportExcel());
+
+        btnDownloadTemplate = new JButton("Tải File Mẫu");
+        btnDownloadTemplate.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        btnDownloadTemplate.addActionListener(e -> handleDownloadTemplate());
+
+        btnExportExcel = new JButton("Xuất Báo Cáo");
         btnExportExcel.setFont(new Font("Segoe UI", Font.BOLD, 12));
         btnExportExcel.setBackground(new Color(40, 167, 69));
         btnExportExcel.setForeground(Color.WHITE);
@@ -305,7 +323,9 @@ public class ClientGUI extends JFrame {
         toolBar.add(btnViewTranscript);
         toolBar.add(btnGpaSimulator);
         toolBar.add(btnDeleteSelected);
-        toolBar.add(Box.createHorizontalStrut(10));
+        toolBar.add(Box.createHorizontalStrut(6));
+        toolBar.add(btnImportExcel);
+        toolBar.add(btnDownloadTemplate);
         toolBar.add(btnExportExcel);
 
         centerPanel.add(toolBar, BorderLayout.NORTH);
@@ -342,7 +362,7 @@ public class ClientGUI extends JFrame {
             public void mouseClicked(java.awt.event.MouseEvent e) {
                 int row = tblResults.getSelectedRow();
                 if (row >= 0) {
-                    if (currentRole == UserRole.TEACHER) {
+                    if (currentRole == UserRole.TEACHER || currentRole == UserRole.ADMIN) {
                         txtStudentId.setText((String) tableModel.getValueAt(row, 1));
                         txtStudentName.setText((String) tableModel.getValueAt(row, 2));
                         txtScoreMath.setText((String) tableModel.getValueAt(row, 3));
@@ -380,49 +400,46 @@ public class ClientGUI extends JFrame {
         outerGbc.fill = GridBagConstraints.BOTH;
         outerGbc.weightx = 1.0; outerGbc.weighty = 0.5;
 
-        // Box 1: Server UDP Config
+        // Hidden internal port fields
+        txtServerPort = new JTextField("9876");
+        txtDbPort = new JTextField("0");
+
+        // Box 1: Server Config
         JPanel serverBox = new JPanel(new GridBagLayout());
         serverBox.setBackground(Color.WHITE);
         serverBox.setBorder(BorderFactory.createTitledBorder(
                 BorderFactory.createEtchedBorder(),
-                " 1. Cấu Hình Kết Nối UDP Server ",
+                " 1. Kết Nối Đến Máy Chủ Trung Tâm ",
                 TitledBorder.LEFT, TitledBorder.TOP,
                 new Font("Segoe UI", Font.BOLD, 14), PTIT_RED
         ));
 
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(8, 10, 8, 10);
+        gbc.insets = new Insets(10, 12, 10, 12);
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
         gbc.gridx = 0; gbc.gridy = 0;
-        serverBox.add(new JLabel("Địa chỉ IP Server:"), gbc);
+        serverBox.add(new JLabel("Địa chỉ Máy Chủ:"), gbc);
         gbc.gridx = 1; gbc.gridy = 0; gbc.weightx = 1.0;
-        txtServerHost = new JTextField("127.0.0.1", 15);
+        txtServerHost = new JTextField("127.0.0.1", 20);
         txtServerHost.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         serverBox.add(txtServerHost, gbc);
 
-        gbc.gridx = 2; gbc.gridy = 0; gbc.weightx = 0.0;
-        serverBox.add(new JLabel("Cổng UDP:"), gbc);
-        gbc.gridx = 3; gbc.gridy = 0; gbc.weightx = 1.0;
-        txtServerPort = new JTextField("9876", 8);
-        txtServerPort.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        serverBox.add(txtServerPort, gbc);
-
-        btnConnectServer = new JButton("KẾT NỐI SERVER UDP");
+        btnConnectServer = new JButton("KẾT NỐI MÁY CHỦ");
         btnConnectServer.setFont(new Font("Segoe UI", Font.BOLD, 12));
         btnConnectServer.setBackground(PTIT_RED);
         btnConnectServer.setForeground(Color.WHITE);
         btnConnectServer.setFocusPainted(false);
         btnConnectServer.addActionListener(e -> handleConnectServer());
 
-        gbc.gridx = 4; gbc.gridy = 0; gbc.weightx = 0.0;
+        gbc.gridx = 2; gbc.gridy = 0; gbc.weightx = 0.0;
         serverBox.add(btnConnectServer, gbc);
 
-        lblConnStatus = new JLabel("Trạng thái: Chưa kiểm tra kết nối Server.");
+        lblConnStatus = new JLabel("Trạng thái: Chưa kiểm tra kết nối máy chủ.");
         lblConnStatus.setFont(new Font("Segoe UI", Font.ITALIC, 12));
         lblConnStatus.setForeground(Color.GRAY);
 
-        gbc.gridx = 0; gbc.gridy = 1; gbc.gridwidth = 5;
+        gbc.gridx = 0; gbc.gridy = 1; gbc.gridwidth = 3;
         serverBox.add(lblConnStatus, gbc);
 
         outerGbc.gridx = 0; outerGbc.gridy = 0;
@@ -433,17 +450,17 @@ public class ClientGUI extends JFrame {
         dbBox.setBackground(Color.WHITE);
         dbBox.setBorder(BorderFactory.createTitledBorder(
                 BorderFactory.createEtchedBorder(),
-                " 2. Cấu Hình CSDL SQL Gửi Lên Server ",
+                " 2. Cấu Hình Kho Dữ Liệu ",
                 TitledBorder.LEFT, TitledBorder.TOP,
                 new Font("Segoe UI", Font.BOLD, 14), PTIT_RED
         ));
 
         gbc = new GridBagConstraints();
-        gbc.insets = new Insets(6, 10, 6, 10);
+        gbc.insets = new Insets(8, 12, 8, 12);
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
         gbc.gridx = 0; gbc.gridy = 0;
-        dbBox.add(new JLabel("Loại CSDL SQL:"), gbc);
+        dbBox.add(new JLabel("Loại Cơ Sở Dữ Liệu:"), gbc);
         gbc.gridx = 1; gbc.gridy = 0; gbc.weightx = 1.0;
         cbDbType = new JComboBox<>(SqlConfig.DbType.values());
         cbDbType.setSelectedItem(SqlConfig.DbType.H2_EMBEDDED);
@@ -465,55 +482,48 @@ public class ClientGUI extends JFrame {
         dbBox.add(cbDbType, gbc);
 
         gbc.gridx = 2; gbc.gridy = 0; gbc.weightx = 0.0;
-        dbBox.add(new JLabel("Địa chỉ Server CSDL:"), gbc);
+        dbBox.add(new JLabel("Địa chỉ Kho Dữ Liệu:"), gbc);
         gbc.gridx = 3; gbc.gridy = 0; gbc.weightx = 1.0;
         txtDbHost = new JTextField("localhost", 15);
         txtDbHost.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         dbBox.add(txtDbHost, gbc);
 
         gbc.gridx = 0; gbc.gridy = 1; gbc.weightx = 0.0;
-        dbBox.add(new JLabel("Cổng CSDL:"), gbc);
+        dbBox.add(new JLabel("Tên Cơ Sở Dữ Liệu:"), gbc);
         gbc.gridx = 1; gbc.gridy = 1; gbc.weightx = 1.0;
-        txtDbPort = new JTextField("0", 15);
-        txtDbPort.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        dbBox.add(txtDbPort, gbc);
-
-        gbc.gridx = 2; gbc.gridy = 1; gbc.weightx = 0.0;
-        dbBox.add(new JLabel("Tên CSDL:"), gbc);
-        gbc.gridx = 3; gbc.gridy = 1; gbc.weightx = 1.0;
         txtDbName = new JTextField("qlsv_db", 15);
         txtDbName.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         dbBox.add(txtDbName, gbc);
 
-        gbc.gridx = 0; gbc.gridy = 2; gbc.weightx = 0.0;
-        dbBox.add(new JLabel("Username SQL:"), gbc);
-        gbc.gridx = 1; gbc.gridy = 2; gbc.weightx = 1.0;
+        gbc.gridx = 2; gbc.gridy = 1; gbc.weightx = 0.0;
+        dbBox.add(new JLabel("Tài khoản:"), gbc);
+        gbc.gridx = 3; gbc.gridy = 1; gbc.weightx = 1.0;
         txtDbUser = new JTextField("sa", 15);
         txtDbUser.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         dbBox.add(txtDbUser, gbc);
 
-        gbc.gridx = 2; gbc.gridy = 2; gbc.weightx = 0.0;
-        dbBox.add(new JLabel("Password SQL:"), gbc);
-        gbc.gridx = 3; gbc.gridy = 2; gbc.weightx = 1.0;
+        gbc.gridx = 0; gbc.gridy = 2; gbc.weightx = 0.0;
+        dbBox.add(new JLabel("Mật khẩu:"), gbc);
+        gbc.gridx = 1; gbc.gridy = 2; gbc.weightx = 1.0;
         txtDbPass = new JPasswordField("", 15);
         txtDbPass.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         dbBox.add(txtDbPass, gbc);
 
-        btnConnectDb = new JButton("GỬI CẤU HÌNH KẾT NỐI CSDL");
-        btnConnectDb.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        btnConnectDb = new JButton("KẾT NỐI KHO DỮ LIỆU");
+        btnConnectDb.setFont(new Font("Segoe UI", Font.BOLD, 12));
         btnConnectDb.setBackground(PTIT_RED);
         btnConnectDb.setForeground(Color.WHITE);
         btnConnectDb.setFocusPainted(false);
         btnConnectDb.addActionListener(e -> handleConnectDb());
 
-        gbc.gridx = 0; gbc.gridy = 3; gbc.gridwidth = 4;
+        gbc.gridx = 2; gbc.gridy = 2; gbc.gridwidth = 2;
         dbBox.add(btnConnectDb, gbc);
 
-        lblDbStatusMsg = new JLabel("Trạng thái CSDL: Chưa khởi tạo.");
+        lblDbStatusMsg = new JLabel("Trạng thái: Chưa khởi tạo.");
         lblDbStatusMsg.setFont(new Font("Segoe UI", Font.ITALIC, 12));
         lblDbStatusMsg.setForeground(Color.GRAY);
 
-        gbc.gridx = 0; gbc.gridy = 4; gbc.gridwidth = 4;
+        gbc.gridx = 0; gbc.gridy = 3; gbc.gridwidth = 4;
         dbBox.add(lblDbStatusMsg, gbc);
 
         outerGbc.gridx = 0; outerGbc.gridy = 1;
@@ -535,39 +545,44 @@ public class ClientGUI extends JFrame {
 
     private void handleConnectServer() {
         String host = txtServerHost.getText().trim();
-        String portStr = txtServerPort.getText().trim();
+        int port = 9876;
+        try {
+            port = Integer.parseInt(txtServerPort.getText().trim());
+        } catch (Exception ignored) {}
 
-        if (host.isEmpty() || portStr.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Vui lòng nhập đầy đủ IP và Cổng Server!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+        if (host.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Vui lòng nhập địa chỉ máy chủ!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
             return;
         }
 
         try {
-            int port = Integer.parseInt(portStr);
+            if (client != null) {
+                client.close();
+            }
             client = new UDPClient(host, port);
 
             boolean connected = client.pingServer();
             if (connected) {
-                lblConnStatus.setText("ĐÃ KẾT NỐI SERVER UDP (" + host + ":" + port + ")");
+                lblConnStatus.setText("ĐÃ KẾT NỐI ĐẾN MÁY CHỦ TRUNG TÂM (" + host + ")");
                 lblConnStatus.setForeground(new Color(40, 167, 69));
 
-                lblServerBadge.setText("● UDP Server: " + host + ":" + port);
+                lblServerBadge.setText("● Máy Chủ: Sẵn sàng");
                 lblServerBadge.setBackground(new Color(40, 167, 69));
             } else {
-                throw new Exception("Server không phản hồi!");
+                throw new Exception("Máy chủ không phản hồi!");
             }
         } catch (Exception ex) {
-            lblConnStatus.setText("Kết nối Server thất bại: " + ex.getMessage());
+            lblConnStatus.setText("Kết nối máy chủ thất bại: " + ex.getMessage());
             lblConnStatus.setForeground(PTIT_RED);
 
-            lblServerBadge.setText("● UDP Server: Chưa kết nối");
+            lblServerBadge.setText("● Máy Chủ: Chưa kết nối");
             lblServerBadge.setBackground(PTIT_DARK_RED);
         }
     }
 
     private void handleConnectDb() {
         if (client == null) {
-            lblDbStatusMsg.setText("Chưa kết nối Server UDP!");
+            lblDbStatusMsg.setText("Chưa kết nối máy chủ trung tâm!");
             lblDbStatusMsg.setForeground(PTIT_RED);
             return;
         }
@@ -575,7 +590,11 @@ public class ClientGUI extends JFrame {
         try {
             SqlConfig.DbType dbType = (SqlConfig.DbType) cbDbType.getSelectedItem();
             String host = txtDbHost.getText().trim();
-            int port = Integer.parseInt(txtDbPort.getText().trim());
+            int port = 0;
+            try {
+                port = Integer.parseInt(txtDbPort.getText().trim());
+            } catch (Exception ignored) {}
+
             String dbName = txtDbName.getText().trim();
             String user = txtDbUser.getText().trim();
             String pass = new String(txtDbPass.getPassword());
@@ -584,68 +603,112 @@ public class ClientGUI extends JFrame {
             UDPPacket response = client.connectDatabase(config);
 
             if (response != null && response.isSuccess()) {
-                lblDbStatusMsg.setText("ĐÃ KẾT NỐI CSDL THÀNH CÔNG ON SERVER (" + dbType + ")");
+                lblDbStatusMsg.setText("ĐÃ KẾT NỐI KHO DỮ LIỆU THÀNH CÔNG");
                 lblDbStatusMsg.setForeground(new Color(40, 167, 69));
 
-                lblDbBadge.setText("● CSDL: " + dbType);
+                lblDbBadge.setText("● Cơ Sở Dữ Liệu: Đã kết nối");
                 lblDbBadge.setBackground(new Color(40, 167, 69));
 
                 loadAllStudents();
             } else {
                 String errMsg = (response != null) ? response.getMessage() : "Không nhận được phản hồi";
-                lblDbStatusMsg.setText("Lỗi kết nối CSDL: " + errMsg);
+                lblDbStatusMsg.setText("Lỗi kết nối dữ liệu: " + errMsg);
                 lblDbStatusMsg.setForeground(PTIT_RED);
 
-                lblDbBadge.setText("● CSDL: Kết nối thất bại");
+                lblDbBadge.setText("● Cơ Sở Dữ Liệu: Lỗi kết nối");
                 lblDbBadge.setBackground(PTIT_DARK_RED);
             }
         } catch (Exception ex) {
-            lblDbStatusMsg.setText("Lỗi cấu hình CSDL: " + ex.getMessage());
+            lblDbStatusMsg.setText("Lỗi cấu hình dữ liệu: " + ex.getMessage());
             lblDbStatusMsg.setForeground(PTIT_RED);
         }
     }
 
     private void toggleRoleAuth() {
         if (currentRole == UserRole.STUDENT) {
-            JPasswordField pf = new JPasswordField();
-            int option = JOptionPane.showConfirmDialog(this, pf,
-                    "Nhập Mật Khẩu Giảng Viên (Mặc định: ptit123):", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+            // Open full login dialog
+            JPanel p = new JPanel(new GridLayout(3, 2, 8, 8));
+            JTextField tfUser = new JTextField("giangvien");
+            JPasswordField pfPass = new JPasswordField("ptit123");
+
+            p.add(new JLabel("Tên đăng nhập:"));
+            p.add(tfUser);
+            p.add(new JLabel("Mật khẩu:"));
+            p.add(pfPass);
+            p.add(new JLabel("Gợi ý tài khoản:"));
+            p.add(new JLabel("<html><i>giangvien / ptit123<br>admin / admin123</i></html>"));
+
+            int option = JOptionPane.showConfirmDialog(this, p,
+                    "ĐĂNG NHẬP HỆ THỐNG", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+
             if (option == JOptionPane.OK_OPTION) {
-                String pass = new String(pf.getPassword()).trim();
-                if ("ptit123".equals(pass) || "admin123".equals(pass) || "123456".equals(pass)) {
-                    currentRole = UserRole.TEACHER;
+                String u = tfUser.getText().trim();
+                String pwd = new String(pfPass.getPassword()).trim();
+
+                if (u.isEmpty() || pwd.isEmpty()) {
+                    JOptionPane.showMessageDialog(this, "Vui lòng nhập đầy đủ thông tin!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+                    return;
+                }
+
+                if (client == null) {
+                    JOptionPane.showMessageDialog(this, "Chưa kết nối máy chủ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+
+                try {
+                    UserAccount acc = client.login(u, pwd);
+                    this.currentUserAccount = acc;
+
+                    if (acc.getRole() == UserAccount.Role.ADMIN) {
+                        currentRole = UserRole.ADMIN;
+                    } else if (acc.getRole() == UserAccount.Role.GIANGVIEN) {
+                        currentRole = UserRole.TEACHER;
+                    } else {
+                        currentRole = UserRole.STUDENT;
+                    }
+
                     updateRoleUI();
                     JOptionPane.showMessageDialog(this,
-                            "Xác thực THÀNH CÔNG!\nQuyền Giảng viên đã được mở khóa. Bạn có đầy đủ quyền Thêm, Sửa, Xóa và Cấu hình CSDL.",
-                            "Bảo Mật Giảng Viên", JOptionPane.INFORMATION_MESSAGE);
-                } else {
+                            String.format("Xác thực THÀNH CÔNG!\nXin chào: %s\nVai trò: %s",
+                                    acc.getFullName(), acc.getRole().getDisplayName()),
+                            "Đăng Nhập Thành Công", JOptionPane.INFORMATION_MESSAGE);
+
+                } catch (Exception ex) {
                     JOptionPane.showMessageDialog(this,
-                            "Mật khẩu Giảng viên KHÔNG CHÍNH XÁC!\nTruy cập bị từ chối. Chế độ Học sinh tiếp tục được bảo vệ.",
+                            "Đăng nhập thất bại: " + ex.getMessage(),
                             "Từ Chối Truy Cập", JOptionPane.ERROR_MESSAGE);
                 }
             }
         } else {
             int confirm = JOptionPane.showConfirmDialog(this,
-                    "Bạn có muốn thoát quyền Giảng viên và quay lại Chế độ Học sinh (Chỉ xem) không?",
-                    "Đăng Xuất Quyền Giảng Viên", JOptionPane.YES_NO_OPTION);
+                    "Bạn có muốn đăng xuất và quay lại Chế độ Học sinh (Chỉ xem) không?",
+                    "Đăng Xuất", JOptionPane.YES_NO_OPTION);
             if (confirm == JOptionPane.YES_OPTION) {
+                if (client != null) {
+                    client.logout();
+                }
                 currentRole = UserRole.STUDENT;
+                currentUserAccount = null;
                 updateRoleUI();
                 JOptionPane.showMessageDialog(this,
-                        "Đã khóa tính năng Giảng viên. Chuyển sang Chế độ Học sinh (Chỉ xem).",
+                        "Đã đăng xuất. Hệ thống chuyển về Chế độ Học sinh (Chỉ xem).",
                         "Thông Báo", JOptionPane.INFORMATION_MESSAGE);
             }
         }
     }
 
     private void updateRoleUI() {
-        boolean isTeacher = (currentRole == UserRole.TEACHER);
+        boolean isTeacher = (currentRole == UserRole.TEACHER || currentRole == UserRole.ADMIN);
 
         if (btnRoleAuth != null) {
-            btnRoleAuth.setText(currentRole.getLabel());
-            if (isTeacher) {
+            if (currentRole == UserRole.ADMIN) {
+                btnRoleAuth.setText("🛡️ Admin: " + (currentUserAccount != null ? currentUserAccount.getFullName() : "Admin"));
+                btnRoleAuth.setBackground(new Color(111, 66, 193)); // Purple for Admin
+            } else if (currentRole == UserRole.TEACHER) {
+                btnRoleAuth.setText("🔓 Giảng viên: " + (currentUserAccount != null ? currentUserAccount.getFullName() : "Giảng viên"));
                 btnRoleAuth.setBackground(new Color(40, 167, 69)); // Green for Teacher
             } else {
+                btnRoleAuth.setText("🔒 Quyền: Học sinh (Bấm để Đăng nhập)");
                 btnRoleAuth.setBackground(new Color(220, 53, 69)); // Red for Student
             }
         }
@@ -656,13 +719,18 @@ public class ClientGUI extends JFrame {
 
         if (btnDeleteSelected != null) {
             btnDeleteSelected.setEnabled(isTeacher);
-            btnDeleteSelected.setToolTipText(isTeacher ? "Xóa dòng chọn" : "Tính năng yêu cầu Quyền Giảng viên");
+            btnDeleteSelected.setToolTipText(isTeacher ? "Xóa sinh viên" : "Tính năng yêu cầu Quyền Giảng viên");
+        }
+
+        if (btnImportExcel != null) {
+            btnImportExcel.setEnabled(isTeacher);
+            btnImportExcel.setToolTipText(isTeacher ? "Nhập danh sách từ Excel" : "Tính năng yêu cầu Quyền Giảng viên");
         }
 
         if (mainTabbedPane != null && settingsWorkspace != null) {
             if (isTeacher) {
                 if (mainTabbedPane.getTabCount() < 2) {
-                    mainTabbedPane.addTab("Cấu Hình Kết Nối & CSDL", settingsWorkspace);
+                    mainTabbedPane.addTab("Cài Đặt Hệ Thống", settingsWorkspace);
                 }
             } else {
                 if (mainTabbedPane.getTabCount() >= 2) {
@@ -676,15 +744,15 @@ public class ClientGUI extends JFrame {
     }
 
     private void handleSendStudent() {
-        if (currentRole != UserRole.TEACHER) {
+        if (currentRole == UserRole.STUDENT) {
             JOptionPane.showMessageDialog(this,
-                    "Tính năng THÊM / SỬA SINH VIÊN bị khóa đối với Học sinh!\nVui lòng bấm '🔒 Quyền: Học sinh' góc trên để đăng nhập Quyền Giảng viên.",
+                    "Tính năng THÊM / SỬA SINH VIÊN bị khóa đối với Học sinh!\nVui lòng đăng nhập Quyền Giảng viên.",
                     "Bảo Mật Truy Cập", JOptionPane.WARNING_MESSAGE);
             return;
         }
 
         if (client == null) {
-            JOptionPane.showMessageDialog(this, "Chưa kết nối Server UDP! Vui lòng mở Tab Cấu hình để kết nối.", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Chưa kết nối máy chủ! Vui lòng kiểm tra lại cài đặt hệ thống.", "Lỗi", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
@@ -723,23 +791,32 @@ public class ClientGUI extends JFrame {
         } catch (NumberFormatException ex) {
             JOptionPane.showMessageDialog(this, "Điểm thi phải là số thực hợp lệ (ví dụ: 8.5)!", "Lỗi định dạng", JOptionPane.ERROR_MESSAGE);
         } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "Lỗi gửi dữ liệu qua UDP: " + ex.getMessage(), "Lỗi UDP", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Lỗi gửi dữ liệu đến máy chủ: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
         }
     }
 
     private void handleSearch() {
         String query = txtSearchQuery.getText().trim();
         if (client == null) return;
-        try {
-            currentStudentList = client.searchStudents(query);
-            applyFilters();
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "Lỗi tìm kiếm: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
-        }
+        new SwingWorker<List<StudentResult>, Void>() {
+            @Override
+            protected List<StudentResult> doInBackground() throws Exception {
+                return client.searchStudents(query);
+            }
+            @Override
+            protected void done() {
+                try {
+                    currentStudentList = get();
+                    applyFilters();
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(ClientGUI.this, "Lỗi tìm kiếm: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        }.execute();
     }
 
     private void handleDeleteSelected() {
-        if (currentRole != UserRole.TEACHER) {
+        if (currentRole == UserRole.STUDENT) {
             JOptionPane.showMessageDialog(this,
                     "Tính năng XÓA SINH VIÊN bị khóa đối với Học sinh!\nVui lòng đăng nhập Quyền Giảng viên.",
                     "Bảo Mật Truy Cập", JOptionPane.WARNING_MESSAGE);
@@ -768,19 +845,96 @@ public class ClientGUI extends JFrame {
                     JOptionPane.showMessageDialog(this, "Xóa thất bại!", "Lỗi", JOptionPane.ERROR_MESSAGE);
                 }
             } catch (Exception ex) {
-                JOptionPane.showMessageDialog(this, "Lỗi xóa qua UDP: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(this, "Lỗi xóa dữ liệu: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+
+    private void handleImportExcel() {
+        if (client == null) {
+            JOptionPane.showMessageDialog(this, "Chưa kết nối máy chủ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        JFileChooser chooser = new JFileChooser();
+        chooser.setDialogTitle("Chọn Tệp Excel Danh Sách Sinh Viên (.xlsx)");
+        chooser.setFileFilter(new FileNameExtensionFilter("Excel Workbook (*.xlsx)", "xlsx"));
+
+        int result = chooser.showOpenDialog(this);
+        if (result == JFileChooser.APPROVE_OPTION) {
+            File file = chooser.getSelectedFile();
+            try {
+                List<StudentData> list = ExcelImporter.importStudentsFromExcel(file);
+
+                int confirm = JOptionPane.showConfirmDialog(this,
+                        String.format("Đã đọc thành công %d sinh viên từ file:\n%s\nBạn có muốn gửi lên hệ thống để lưu trữ không?",
+                                list.size(), file.getName()),
+                        "Xác Nhận Nhập Excel", JOptionPane.YES_NO_OPTION);
+
+                if (confirm == JOptionPane.YES_OPTION) {
+                    new SwingWorker<Integer, Void>() {
+                        @Override
+                        protected Integer doInBackground() throws Exception {
+                            return client.importStudentsFromExcel(list);
+                        }
+                        @Override
+                        protected void done() {
+                            try {
+                                int savedCount = get();
+                                JOptionPane.showMessageDialog(ClientGUI.this,
+                                        "Đã lưu thành công " + savedCount + " sinh viên vào cơ sở dữ liệu!",
+                                        "Thành Công", JOptionPane.INFORMATION_MESSAGE);
+                                loadAllStudents();
+                            } catch (Exception ex) {
+                                JOptionPane.showMessageDialog(ClientGUI.this,
+                                        "Lỗi nhập dữ liệu: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+                            }
+                        }
+                    }.execute();
+                }
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this, "Lỗi đọc file Excel: " + ex.getMessage(), "Lỗi Excel", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+
+    private void handleDownloadTemplate() {
+        JFileChooser chooser = new JFileChooser();
+        chooser.setDialogTitle("Lưu Tệp Mẫu Excel Danh Sách Sinh Viên");
+        chooser.setSelectedFile(new File("Mau_DanhSach_SinhVien_PTIT.xlsx"));
+
+        int res = chooser.showSaveDialog(this);
+        if (res == JFileChooser.APPROVE_OPTION) {
+            File target = chooser.getSelectedFile();
+            if (!target.getAbsolutePath().endsWith(".xlsx")) {
+                target = new File(target.getAbsolutePath() + ".xlsx");
+            }
+            try {
+                ExcelImporter.createSampleTemplate(target);
+                JOptionPane.showMessageDialog(this, "Đã lưu tệp mẫu tại:\n" + target.getAbsolutePath(), "Thành Công", JOptionPane.INFORMATION_MESSAGE);
+            } catch (Exception e) {
+                JOptionPane.showMessageDialog(this, "Lỗi tạo file mẫu: " + e.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
             }
         }
     }
 
     private void loadAllStudents() {
         if (client == null) return;
-        try {
-            currentStudentList = client.getAllStudents();
-            applyFilters();
-        } catch (Exception ex) {
-            System.err.println("Lỗi tải danh sách: " + ex.getMessage());
-        }
+        new SwingWorker<List<StudentResult>, Void>() {
+            @Override
+            protected List<StudentResult> doInBackground() throws Exception {
+                return client.getAllStudents();
+            }
+            @Override
+            protected void done() {
+                try {
+                    currentStudentList = get();
+                    applyFilters();
+                } catch (Exception ex) {
+                    System.err.println("Lỗi tải danh sách: " + ex.getMessage());
+                }
+            }
+        }.execute();
     }
 
     private void applyFilters() {
@@ -825,7 +979,7 @@ public class ClientGUI extends JFrame {
 
     private void handleExportExcel() {
         if (client == null) {
-            JOptionPane.showMessageDialog(this, "Chưa kết nối Server UDP!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Chưa kết nối máy chủ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
@@ -836,9 +990,9 @@ public class ClientGUI extends JFrame {
             }
 
             JFileChooser chooser = new JFileChooser();
-            chooser.setDialogTitle("Lưu Báo Cáo Excel Danh Sách Sinh Viên PTIT");
+            chooser.setDialogTitle("Lưu Báo Cáo Danh Sách Sinh Viên");
             chooser.setFileFilter(new FileNameExtensionFilter("Excel Workbook (*.xlsx)", "xlsx"));
-            chooser.setSelectedFile(new File("PTIT_BaoCao_SinhVien.xlsx"));
+            chooser.setSelectedFile(new File("BaoCao_DanhSach_SinhVien.xlsx"));
 
             int userSelection = chooser.showSaveDialog(this);
             if (userSelection == JFileChooser.APPROVE_OPTION) {
@@ -849,11 +1003,11 @@ public class ClientGUI extends JFrame {
 
                 ExcelExporter.exportStudentsToExcel(currentStudentList, fileToSave);
                 JOptionPane.showMessageDialog(this,
-                        "Xuất Báo Cáo Excel THÀNH CÔNG!\nĐã lưu tại: " + fileToSave.getAbsolutePath(),
-                        "Thông Báo Excel", JOptionPane.INFORMATION_MESSAGE);
+                        "Xuất Báo Cáo THÀNH CÔNG!\nĐã lưu tại: " + fileToSave.getAbsolutePath(),
+                        "Thông Báo", JOptionPane.INFORMATION_MESSAGE);
             }
         } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "Lỗi xuất Excel: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Lỗi xuất báo cáo: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
         }
     }
 
@@ -875,117 +1029,119 @@ public class ClientGUI extends JFrame {
 
         String maSv = (String) tableModel.getValueAt(row, 1);
         String hoTen = (String) tableModel.getValueAt(row, 2);
-        double math = 8.0, lit = 8.0, eng = 8.0, gpa = 8.0;
-        try {
-            math = Double.parseDouble((String) tableModel.getValueAt(row, 3));
-            lit = Double.parseDouble((String) tableModel.getValueAt(row, 4));
-            eng = Double.parseDouble((String) tableModel.getValueAt(row, 5));
-            gpa = Double.parseDouble((String) tableModel.getValueAt(row, 6));
-        } catch (Exception ignored) {}
-        String xepLoai = (String) tableModel.getValueAt(row, 7);
 
-        JDialog dialog = new JDialog(this, "PHIẾU BÁO ĐIỂM CHI TIẾT - " + hoTen + " (" + maSv + ")", true);
-        dialog.setSize(760, 520);
-        dialog.setLocationRelativeTo(this);
-        dialog.setLayout(new BorderLayout(10, 10));
-
-        // Header Dialog
-        JPanel headPanel = new JPanel(new GridLayout(2, 1, 2, 2));
-        headPanel.setBackground(PTIT_RED);
-        headPanel.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
-
-        JLabel title = new JLabel("HỌC VIỆN CÔNG NGHỆ BƯU CHÍNH VIỄN THÔNG (PTIT)");
-        title.setFont(new Font("Segoe UI", Font.BOLD, 15));
-        title.setForeground(Color.WHITE);
-
-        JLabel subtitle = new JLabel("PHIẾU BÁO KẾT QUẢ HỌC TẬP & ĐIỂM THI CHI TIẾT THEO HỌC KỲ");
-        subtitle.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        subtitle.setForeground(new Color(255, 230, 230));
-        headPanel.add(title);
-        headPanel.add(subtitle);
-        dialog.add(headPanel, BorderLayout.NORTH);
-
-        // Body Info & Table
-        JPanel bodyPanel = new JPanel(new BorderLayout(8, 8));
-        bodyPanel.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
-
-        JPanel infoCard = new JPanel(new GridLayout(2, 3, 10, 5));
-        infoCard.setBorder(BorderFactory.createTitledBorder("Thông Tin Sinh Viên"));
-        infoCard.add(new JLabel("Mã SV: " + maSv));
-        infoCard.add(new JLabel("Họ và Tên: " + hoTen));
-        infoCard.add(new JLabel("Lớp: D21CQCN01-N"));
-        infoCard.add(new JLabel("Điểm TB Tích Lũy: " + String.format("%.2f", gpa)));
-        infoCard.add(new JLabel("Xếp Loại: " + xepLoai));
-        infoCard.add(new JLabel("Trạng Thái: Đang học"));
-        bodyPanel.add(infoCard, BorderLayout.NORTH);
-
-        String[] subCols = {"STT", "Mã Môn", "Tên Môn Học", "Số TC", "Đ.Quá Trình (30%)", "Đ.Thi (70%)", "Đ.Tổng Kết", "Điểm Chữ"};
-        DefaultTableModel subModel = new DefaultTableModel(subCols, 0);
-
-        Object[][] subjects = {
-                {1, "INT1339", "Lập Trình Mạng", 3, String.format("%.1f", math * 0.95), String.format("%.1f", math), String.format("%.2f", math), getGradeChar(math)},
-                {2, "INT1340", "Mã Hóa & An Toàn Thông Tin", 3, String.format("%.1f", lit * 0.9), String.format("%.1f", lit), String.format("%.2f", lit), getGradeChar(lit)},
-                {3, "INT1310", "Cơ Sở Dữ Liệu SQL", 4, String.format("%.1f", eng * 0.9), String.format("%.1f", eng), String.format("%.2f", eng), getGradeChar(eng)},
-                {4, "INT1306", "Cấu Trúc Dữ Liệu & Giải Thuật", 3, String.format("%.1f", gpa * 0.92), String.format("%.1f", gpa), String.format("%.2f", gpa), getGradeChar(gpa)},
-                {5, "SKD1102", "Kỹ Năng Giao Tiếp", 2, "9.0", "9.5", "9.35", "A+"}
-        };
-        for (Object[] rowData : subjects) {
-            subModel.addRow(rowData);
+        if (client == null) {
+            JOptionPane.showMessageDialog(this, "Chưa kết nối máy chủ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            return;
         }
 
-        JTable subTable = new JTable(subModel);
-        subTable.setRowHeight(26);
-        subTable.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        subTable.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
-        bodyPanel.add(new JScrollPane(subTable), BorderLayout.CENTER);
+        try {
+            StudentTranscript transcript = client.getDetailedTranscript(maSv);
 
-        dialog.add(bodyPanel, BorderLayout.CENTER);
+            JDialog dialog = new JDialog(this, "PHIẾU BÁO ĐIỂM CHI TIẾT TÍN CHỈ - " + transcript.getFullName() + " (" + transcript.getStudentId() + ")", true);
+            dialog.setSize(820, 560);
+            dialog.setLocationRelativeTo(this);
+            dialog.setLayout(new BorderLayout(10, 10));
 
-        // Buttons
-        JPanel btnBar = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 8));
-        JButton btnPrint = new JButton("In / Xuất Báo Cáo Phiếu Điểm");
-        btnPrint.setBackground(new Color(40, 167, 69));
-        btnPrint.setForeground(Color.WHITE);
-        btnPrint.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        btnPrint.addActionListener(e -> JOptionPane.showMessageDialog(dialog, "Đã gửi lệnh in phiếu điểm sinh viên " + hoTen + " (" + maSv + ")!", "Thông Báo", JOptionPane.INFORMATION_MESSAGE));
+            // Header Dialog
+            JPanel headPanel = new JPanel(new GridLayout(2, 1, 2, 2));
+            headPanel.setBackground(PTIT_RED);
+            headPanel.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
 
-        JButton btnClose = new JButton("Đóng");
-        btnClose.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        btnClose.addActionListener(e -> dialog.dispose());
+            JLabel title = new JLabel("HỌC VIỆN CÔNG NGHỆ BƯU CHÍNH VIỄN THÔNG (PTIT)");
+            title.setFont(new Font("Segoe UI", Font.BOLD, 15));
+            title.setForeground(Color.WHITE);
 
-        btnBar.add(btnPrint);
-        btnBar.add(btnClose);
-        dialog.add(btnBar, BorderLayout.SOUTH);
+            JLabel subtitle = new JLabel("PHIẾU BÁO KẾT QUẢ HỌC TẬP & ĐIỂM TÍN CHỈ THEO QUY CHẾ ĐÀO TẠO");
+            subtitle.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+            subtitle.setForeground(new Color(255, 230, 230));
+            headPanel.add(title);
+            headPanel.add(subtitle);
+            dialog.add(headPanel, BorderLayout.NORTH);
 
-        dialog.setVisible(true);
-    }
+            // Body Info & Table
+            JPanel bodyPanel = new JPanel(new BorderLayout(8, 8));
+            bodyPanel.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
 
-    private String getGradeChar(double score) {
-        if (score >= 9.0) return "A+";
-        if (score >= 8.5) return "A";
-        if (score >= 8.0) return "B+";
-        if (score >= 7.0) return "B";
-        if (score >= 6.5) return "C+";
-        if (score >= 5.5) return "C";
-        if (score >= 5.0) return "D+";
-        if (score >= 4.0) return "D";
-        return "F";
+            JPanel infoCard = new JPanel(new GridLayout(2, 4, 10, 5));
+            infoCard.setBorder(BorderFactory.createTitledBorder("Thông Tin Sinh Viên & Tích Lũy"));
+            infoCard.add(new JLabel("Mã SV: " + transcript.getStudentId()));
+            infoCard.add(new JLabel("Họ và Tên: " + transcript.getFullName()));
+            infoCard.add(new JLabel("Lớp: " + transcript.getClassName()));
+            infoCard.add(new JLabel("Khoa: " + transcript.getFaculty()));
+            infoCard.add(new JLabel("Tổng tín chỉ: " + transcript.getTotalCredits() + " TC"));
+            infoCard.add(new JLabel("ĐTB Hệ 10: " + String.format("%.2f", transcript.getCumulativeGpa10())));
+            infoCard.add(new JLabel("GPA Hệ 4: " + String.format("%.2f", transcript.getCumulativeGpa4())));
+            infoCard.add(new JLabel("Xếp loại: " + transcript.getAcademicRank()));
+            bodyPanel.add(infoCard, BorderLayout.NORTH);
+
+            String[] subCols = {"STT", "Mã Môn", "Tên Môn Học", "Số TC", "Đ.Quá Trình (30%)", "Đ.Thi (70%)", "Đ.Tổng Kết", "Điểm Chữ", "Hệ 4"};
+            DefaultTableModel subModel = new DefaultTableModel(subCols, 0);
+
+            int stt = 1;
+            for (CourseGrade g : transcript.getGrades()) {
+                subModel.addRow(new Object[]{
+                        stt++,
+                        g.getCourseCode(),
+                        g.getCourseName(),
+                        g.getCredits(),
+                        String.format("%.1f", g.getMidtermScore()),
+                        String.format("%.1f", g.getFinalScore()),
+                        String.format("%.2f", g.getTotalScore()),
+                        g.getLetterGrade(),
+                        String.format("%.1f", g.getGpa4())
+                });
+            }
+
+            JTable subTable = new JTable(subModel);
+            subTable.setRowHeight(26);
+            subTable.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+            subTable.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
+            bodyPanel.add(new JScrollPane(subTable), BorderLayout.CENTER);
+
+            dialog.add(bodyPanel, BorderLayout.CENTER);
+
+            // Buttons
+            JPanel btnBar = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 8));
+            JButton btnPrint = new JButton("In / Xuất Báo Cáo Phiếu Điểm");
+            btnPrint.setBackground(new Color(40, 167, 69));
+            btnPrint.setForeground(Color.WHITE);
+            btnPrint.setFont(new Font("Segoe UI", Font.BOLD, 12));
+            btnPrint.addActionListener(e -> JOptionPane.showMessageDialog(dialog, "Đã gửi lệnh in phiếu điểm sinh viên " + hoTen + " (" + maSv + ")!", "Thông Báo", JOptionPane.INFORMATION_MESSAGE));
+
+            JButton btnClose = new JButton("Đóng");
+            btnClose.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+            btnClose.addActionListener(e -> dialog.dispose());
+
+            btnBar.add(btnPrint);
+            btnBar.add(btnClose);
+            dialog.add(btnBar, BorderLayout.SOUTH);
+
+            dialog.setVisible(true);
+
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Không thể tải phiếu điểm: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private void openGpaSimulatorDialog() {
         int row = tblResults.getSelectedRow();
-        String name = (row >= 0) ? (String) tableModel.getValueAt(row, 2) : "Sinh viên";
-        double currentGpa = 7.5;
-        if (row >= 0) {
-            try {
-                currentGpa = Double.parseDouble((String) tableModel.getValueAt(row, 6));
-            } catch (Exception ignored) {}
+        if (row < 0) {
+            JOptionPane.showMessageDialog(this, "Vui lòng chọn 1 sinh viên trong bảng để chạy Bộ Giả Lập GPA!", "Thông Báo", JOptionPane.WARNING_MESSAGE);
+            return;
         }
+
+        String name = (String) tableModel.getValueAt(row, 2);
+        String maSv = (String) tableModel.getValueAt(row, 1);
+        double currentGpa = 7.5;
+        try {
+            currentGpa = Double.parseDouble((String) tableModel.getValueAt(row, 6));
+        } catch (Exception ignored) {}
 
         final double baseGpa = currentGpa;
 
         JDialog simDialog = new JDialog(this, "BỘ GIẢ LẬP ĐIỂM GPA SIMULATOR - PTIT", true);
-        simDialog.setSize(620, 420);
+        simDialog.setSize(640, 430);
         simDialog.setLocationRelativeTo(this);
         simDialog.setLayout(new BorderLayout(10, 10));
 
@@ -1010,7 +1166,7 @@ public class ClientGUI extends JFrame {
         g.gridx = 0; g.gridy = 0;
         body.add(new JLabel("Sinh viên:"), g);
         g.gridx = 1; g.gridy = 0;
-        JLabel lblStudent = new JLabel(name + " (ĐTB Hiện tại: " + String.format("%.2f", baseGpa) + ")");
+        JLabel lblStudent = new JLabel(name + " (" + maSv + ") - ĐTB Hiện tại: " + String.format("%.2f", baseGpa));
         lblStudent.setFont(new Font("Segoe UI", Font.BOLD, 13));
         body.add(lblStudent, g);
 
@@ -1021,9 +1177,9 @@ public class ClientGUI extends JFrame {
         body.add(cbTarget, g);
 
         g.gridx = 0; g.gridy = 2;
-        body.add(new JLabel("Số tín chỉ môn sắp tới:"), g);
+        body.add(new JLabel("Số tín chỉ kỳ tới:"), g);
         g.gridx = 1; g.gridy = 2;
-        JTextField txtCredits = new JTextField("6", 10);
+        JTextField txtCredits = new JTextField("15", 10);
         body.add(txtCredits, g);
 
         JTextArea txtAdvice = new JTextArea(4, 30);
@@ -1050,9 +1206,9 @@ public class ClientGUI extends JFrame {
                 txtAdvice.setText("Chúc mừng! Điểm hiện tại (" + String.format("%.2f", baseGpa) + ") đã đạt xếp loại mục tiêu.\nHãy duy trì phong độ tối thiểu " + String.format("%.2f", targetScore) + " điểm ở các môn tiếp theo!");
             } else {
                 double diff = targetScore - baseGpa;
-                double needed = baseGpa + (diff * 2.0);
+                double needed = baseGpa + (diff * 1.8);
                 if (needed > 10.0) needed = 9.8;
-                txtAdvice.setText(String.format("Để nâng hạng học lực lên %s:\n• Bạn cần đạt trung bình tối thiểu: %.2f điểm ở các môn học kỳ tiếp theo.\n• Lời khuyên: Tập trung cao vào môn Lập Trình Mạng & Mã Hóa CSDL!", target, needed));
+                txtAdvice.setText(String.format("Để nâng hạng học lực lên %s:\n• Bạn cần đạt trung bình tối thiểu: %.2f điểm ở các môn học kỳ tiếp theo.\n• Lời khuyên: Tập trung cao vào các môn chuyên ngành và Cơ sở dữ liệu!", target, needed));
             }
         });
 

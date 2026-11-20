@@ -158,7 +158,13 @@ LapTrinhMang-KetThucMon/
 
 ## 🚀 4. Hướng Dẫn Khởi Chạy Ứng Dụng
 
-### Cách 1: Sử Dụng Script Khởi Chạy Nhanh (`run.bat`)
+### Cách 1: Khởi Chạy Bằng Lệnh npm (Khuyên Dùng)
+Mở Terminal tại thư mục dự án và gõ lệnh:
+```bash
+npm run dev
+```
+
+### Cách 2: Sử Dụng Script Khởi Chạy Nhanh (`run.bat`)
 Nhấp kép chuột vào tệp `run.bat` ở thư mục gốc dự án để bật ứng dụng.
 
 ### Cách 2: Khởi Chạy Bằng Lệnh Maven

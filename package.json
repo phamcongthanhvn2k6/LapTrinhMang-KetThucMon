@@ -1,0 +1,20 @@
+{
+  "name": "lap-trinh-mang-ptit",
+  "version": "1.0.0",
+  "description": "Hệ Thống Quản Lý Đào Tạo & Sinh Viên Phân Tán PTIT",
+  "main": "run.bat",
+  "scripts": {
+    "dev": "run.bat",
+    "start": "run.bat",
+    "build": "\"C:\\Program Files\\JetBrains\\IntelliJ IDEA 2024.3.2.2\\plugins\\maven\\lib\\maven3\\bin\\mvn.cmd\" package -DskipTests",
+    "test": "\"C:\\Program Files\\JetBrains\\IntelliJ IDEA 2024.3.2.2\\plugins\\maven\\lib\\maven3\\bin\\mvn.cmd\" test"
+  },
+  "keywords": [
+    "ptit",
+    "student-management",
+    "rudp",
+    "java"
+  ],
+  "author": "PTIT",
+  "license": "ISC"
+}
