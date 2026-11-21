@@ -276,6 +276,8 @@ public class ClientGUI extends JFrame {
 
         txtSearchQuery = new JTextField(12);
         txtSearchQuery.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        txtSearchQuery.setToolTipText("Nhập Mã SV hoặc Tên rồi nhấn Enter để tìm kiếm");
+        txtSearchQuery.addActionListener(e -> handleSearch());
         btnSearch = new JButton("Tìm Kiếm");
         btnSearch.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         btnSearch.addActionListener(e -> handleSearch());
@@ -577,6 +579,8 @@ public class ClientGUI extends JFrame {
 
                 lblServerBadge.setText("● Máy Chủ: Sẵn sàng");
                 lblServerBadge.setBackground(new Color(40, 167, 69));
+
+                loadAllStudents();
             } else {
                 throw new Exception("Máy chủ không phản hồi!");
             }
@@ -677,6 +681,7 @@ public class ClientGUI extends JFrame {
                     }
 
                     updateRoleUI();
+                    loadAllStudents();
                     JOptionPane.showMessageDialog(this,
                             String.format("Xác thực THÀNH CÔNG!\nXin chào: %s\nVai trò: %s",
                                     acc.getFullName(), acc.getRole().getDisplayName()),
