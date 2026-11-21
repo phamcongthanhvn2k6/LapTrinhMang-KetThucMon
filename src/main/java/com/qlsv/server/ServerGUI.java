@@ -41,7 +41,7 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
     public ServerGUI() {
         setTitle("PTIT - TRUNG TÂM QUẢN TRỊ MÁY CHỦ ĐÀO TẠO");
         setSize(1160, 720);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setLocationRelativeTo(null);
 
         try {
@@ -218,6 +218,18 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
         refreshDataInspection();
         updateChartPanel();
         updateDbStatusLabel();
+
+        // Tự động khởi chạy Server RUDP ngay khi giao diện sẵn sàng
+        toggleServer();
+
+        addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override
+            public void windowClosing(java.awt.event.WindowEvent e) {
+                if (udpServer != null && udpServer.isRunning()) {
+                    udpServer.stop();
+                }
+            }
+        });
     }
 
     private void openAdvancedSettingsDialog() {

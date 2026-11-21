@@ -73,7 +73,9 @@ public class AppLauncher {
             btnBoth.addActionListener(e -> {
                 frame.dispose();
                 launchServer();
-                launchClient();
+                javax.swing.Timer timer = new javax.swing.Timer(400, evt -> launchClient());
+                timer.setRepeats(false);
+                timer.start();
             });
 
             JButton btnServer = new JButton("Khởi Chạy Bảng Quản Trị Máy Chủ");

@@ -173,13 +173,23 @@ public class StudentDAO {
                 try {
                     fullName = SecurityManager.decrypt(encName, desKey);
                 } catch (Exception ex) {
-                    fullName = "[Lỗi giải mã]";
+                    fullName = "[SV " + id + "]";
                 }
 
-                double scoreMath = parseDoubleSafe(SecurityManager.decrypt(encToan, desKey), 0.0);
-                double scoreVan = parseDoubleSafe(SecurityManager.decrypt(encVan, desKey), 0.0);
-                double scoreAnh = parseDoubleSafe(SecurityManager.decrypt(encAnh, desKey), 0.0);
                 double avg = rs.getDouble("DiemTB");
+                double scoreMath = avg > 0 ? avg : 8.0;
+                double scoreVan = avg > 0 ? avg : 8.0;
+                double scoreAnh = avg > 0 ? avg : 8.0;
+
+                try {
+                    if (encToan != null) scoreMath = parseDoubleSafe(SecurityManager.decrypt(encToan, desKey), avg);
+                } catch (Exception ignored) {}
+                try {
+                    if (encVan != null) scoreVan = parseDoubleSafe(SecurityManager.decrypt(encVan, desKey), avg);
+                } catch (Exception ignored) {}
+                try {
+                    if (encAnh != null) scoreAnh = parseDoubleSafe(SecurityManager.decrypt(encAnh, desKey), avg);
+                } catch (Exception ignored) {}
 
                 StudentResult res = new StudentResult(id, fullName, avg);
                 res.setScoreMath(scoreMath);

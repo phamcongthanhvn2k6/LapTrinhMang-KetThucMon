@@ -96,8 +96,17 @@ public class ClientGUI extends JFrame {
     public ClientGUI() {
         setTitle("PTIT - CỔNG THÔNG TIN QUẢN LÝ ĐÀO TẠO & SINH VIÊN");
         setSize(1220, 780);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setLocationRelativeTo(null);
+
+        addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override
+            public void windowClosing(java.awt.event.WindowEvent e) {
+                if (client != null) {
+                    client.close();
+                }
+            }
+        });
 
         try {
             FlatLightLaf.setup();
