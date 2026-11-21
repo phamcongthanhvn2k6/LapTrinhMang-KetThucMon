@@ -121,12 +121,42 @@ public class UDPPacket {
 
     public byte[] toBytes() {
         String json = gson.toJson(this);
-        return json.getBytes(StandardCharsets.UTF_8);
+        byte[] raw = json.getBytes(StandardCharsets.UTF_8);
+        if (raw.length > 512) {
+            try {
+                java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+                try (java.util.zip.GZIPOutputStream gzip = new java.util.zip.GZIPOutputStream(baos)) {
+                    gzip.write(raw);
+                }
+                return baos.toByteArray();
+            } catch (Exception e) {
+                return raw;
+            }
+        }
+        return raw;
     }
 
     public static UDPPacket fromBytes(byte[] data, int length) {
-        String json = new String(data, 0, length, StandardCharsets.UTF_8).trim();
-        return gson.fromJson(json, UDPPacket.class);
+        if (data == null || length <= 0) return null;
+        try {
+            if (length >= 2 && data[0] == (byte) 0x1f && data[1] == (byte) 0x8b) {
+                java.io.ByteArrayInputStream bais = new java.io.ByteArrayInputStream(data, 0, length);
+                try (java.util.zip.GZIPInputStream gzip = new java.util.zip.GZIPInputStream(bais);
+                     java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream()) {
+                    byte[] buf = new byte[4096];
+                    int n;
+                    while ((n = gzip.read(buf)) != -1) {
+                        baos.write(buf, 0, n);
+                    }
+                    String json = baos.toString(StandardCharsets.UTF_8);
+                    return gson.fromJson(json, UDPPacket.class);
+                }
+            }
+            String json = new String(data, 0, length, StandardCharsets.UTF_8).trim();
+            return gson.fromJson(json, UDPPacket.class);
+        } catch (Exception ex) {
+            return null;
+        }
     }
 
     // Getters and Setters
