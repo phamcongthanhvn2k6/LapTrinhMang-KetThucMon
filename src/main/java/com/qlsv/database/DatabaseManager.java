@@ -188,6 +188,20 @@ public class DatabaseManager {
         return studentDAO.searchStudents(query, desKey);
     }
 
+    public com.qlsv.model.PageResult<StudentResult> getStudentsPaged(int page, int pageSize) throws Exception {
+        if (!isConnected()) {
+            return new com.qlsv.model.PageResult<>(List.of(), page, pageSize, 0);
+        }
+        return studentDAO.getStudentsPaged(page, pageSize, desKey);
+    }
+
+    public com.qlsv.model.PageResult<StudentResult> searchStudentsPaged(String query, int page, int pageSize) throws Exception {
+        if (!isConnected()) {
+            return new com.qlsv.model.PageResult<>(List.of(), page, pageSize, 0);
+        }
+        return studentDAO.searchStudentsPaged(query, page, pageSize, desKey);
+    }
+
     public Map<String, Integer> getRankStatistics() throws Exception {
         return studentDAO.getRankStatistics(desKey);
     }

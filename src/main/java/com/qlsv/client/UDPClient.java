@@ -15,6 +15,7 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketTimeoutException;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -123,6 +124,17 @@ public class UDPClient implements AutoCloseable {
         UDPPacket request = UDPPacket.createDeleteRequest(studentId, sessionToken);
         UDPPacket response = sendAndReceiveWithRetry(request, MAX_RETRIES);
         return response != null && response.isSuccess();
+    }
+
+    public com.qlsv.model.PageResult<StudentResult> getStudentsPage(int page, int pageSize, String query) throws Exception {
+        com.qlsv.model.PageRequest req = new com.qlsv.model.PageRequest(page, pageSize, query);
+        UDPPacket request = UDPPacket.createGetPageRequest(req, sessionToken);
+        UDPPacket response = sendAndReceiveWithRetry(request, MAX_RETRIES);
+        if (response != null && response.isSuccess()) {
+            Type pageType = new TypeToken<com.qlsv.model.PageResult<StudentResult>>() {}.getType();
+            return gson.fromJson(response.getPayload(), pageType);
+        }
+        return new com.qlsv.model.PageResult<>(Collections.emptyList(), page, pageSize, 0);
     }
 
     public List<StudentResult> getAllStudents() throws Exception {

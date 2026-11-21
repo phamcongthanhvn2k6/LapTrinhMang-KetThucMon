@@ -27,7 +27,11 @@ public class ExcelExporter {
 
         // Header Row
         Row headerRow = sheet.createRow(0);
-        String[] headers = {"STT", "Mã SV", "Họ VÀ Tên", "Điểm Toán", "Điểm Văn", "Điểm Anh", "Điểm TB", "Xếp Loại"};
+        String[] headers = {
+                "STT", "Mã SV", "Họ và Tên", "Lớp Học Phần",
+                "Chuyên Cần (10%)", "Giữa Kỳ (20%)", "Cuối Kỳ (70%)",
+                "Điểm HP (10)", "GPA Hệ 4", "Điểm Chữ", "Xếp Loại", "Trạng Thái"
+        };
         for (int i = 0; i < headers.length; i++) {
             Cell cell = headerRow.createCell(i);
             cell.setCellValue(headers[i]);
@@ -41,11 +45,15 @@ public class ExcelExporter {
             row.createCell(0).setCellValue(rowNum);
             row.createCell(1).setCellValue(s.getStudentId());
             row.createCell(2).setCellValue(s.getFullName());
-            row.createCell(3).setCellValue(s.getScoreMath());
-            row.createCell(4).setCellValue(s.getScoreLiterature());
-            row.createCell(5).setCellValue(s.getScoreEnglish());
-            row.createCell(6).setCellValue(s.getAverageScore());
-            row.createCell(7).setCellValue(s.getAcademicRank());
+            row.createCell(3).setCellValue(s.getClassName() != null ? s.getClassName() : "D21CQCN01-N");
+            row.createCell(4).setCellValue(s.getScoreCC());
+            row.createCell(5).setCellValue(s.getScoreGK());
+            row.createCell(6).setCellValue(s.getScoreCK());
+            row.createCell(7).setCellValue(s.getAverageScore());
+            row.createCell(8).setCellValue(s.getGpa4());
+            row.createCell(9).setCellValue(s.getLetterGrade());
+            row.createCell(10).setCellValue(s.getAcademicRankCredit());
+            row.createCell(11).setCellValue(s.getAcademicStatus());
             rowNum++;
         }
 

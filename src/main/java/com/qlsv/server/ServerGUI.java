@@ -107,7 +107,7 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
         tabData.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
         String[] columnNames = {
-                "Mã SV", "Họ Tên (Đã Bảo Mật)", "Đ.Toán (Bảo Mật)", "Đ.Văn (Bảo Mật)", "Đ.Anh (Bảo Mật)", "Họ Tên (Hiển Thị)", "Điểm TB"
+                "Mã SV", "Họ Tên (Mã Hóa DES)", "Chuyên Cần (10% Enc)", "Giữa Kỳ (20% Enc)", "Thi Kết Thúc (70% Enc)", "Họ Tên (Giải Mã)", "Điểm HP (10)"
         };
         tableModel = new DefaultTableModel(columnNames, 0) {
             @Override

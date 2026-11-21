@@ -93,6 +93,18 @@ public class ClientGUI extends JFrame {
     private DefaultTableModel tableModel;
     private JLabel lblTableSummary;
 
+    // Pagination Controls
+    private int currentPage = 1;
+    private int pageSize = 20;
+    private int totalPages = 1;
+    private int totalStudents = 0;
+    private JButton btnFirstPage;
+    private JButton btnPrevPage;
+    private JButton btnNextPage;
+    private JButton btnLastPage;
+    private JLabel lblPageInfo;
+    private JComboBox<String> cbPageSize;
+
     public ClientGUI() {
         setTitle("PTIT - CỔNG THÔNG TIN QUẢN LÝ ĐÀO TẠO & SINH VIÊN");
         setSize(1220, 780);
@@ -155,7 +167,7 @@ public class ClientGUI extends JFrame {
         lblDbBadge.setBackground(PTIT_DARK_RED);
         lblDbBadge.setBorder(BorderFactory.createEmptyBorder(4, 10, 4, 10));
 
-        btnRoleAuth = new JButton("🔒 Quyền: Học sinh (Bấm để Đăng nhập)");
+        btnRoleAuth = new JButton("[Quyền: Học Sinh - Nhấn để Đăng nhập]");
         btnRoleAuth.setFont(new Font("Segoe UI", Font.BOLD, 12));
         btnRoleAuth.setBackground(new Color(220, 53, 69));
         btnRoleAuth.setForeground(Color.WHITE);
@@ -218,21 +230,21 @@ public class ClientGUI extends JFrame {
         formPanel.add(txtStudentId, gbc);
 
         gbc.gridx = 0; gbc.gridy = 1; gbc.weightx = 0.0;
-        formPanel.add(new JLabel("Điểm Toán:"), gbc);
+        formPanel.add(new JLabel("Điểm Chuyên cần (10%):"), gbc);
         gbc.gridx = 1; gbc.gridy = 1; gbc.weightx = 1.0;
         txtScoreMath = new JTextField(10);
         txtScoreMath.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         formPanel.add(txtScoreMath, gbc);
 
         gbc.gridx = 2; gbc.gridy = 1; gbc.weightx = 0.0;
-        formPanel.add(new JLabel("Điểm Văn:"), gbc);
+        formPanel.add(new JLabel("Điểm Giữa kỳ (20%):"), gbc);
         gbc.gridx = 3; gbc.gridy = 1; gbc.weightx = 1.0;
         txtScoreLit = new JTextField(10);
         txtScoreLit.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         formPanel.add(txtScoreLit, gbc);
 
         gbc.gridx = 0; gbc.gridy = 2; gbc.weightx = 0.0;
-        formPanel.add(new JLabel("Điểm Anh:"), gbc);
+        formPanel.add(new JLabel("Điểm Thi kết thúc (70%):"), gbc);
         gbc.gridx = 1; gbc.gridy = 2; gbc.weightx = 1.0;
         txtScoreEng = new JTextField(10);
         txtScoreEng.setFont(new Font("Segoe UI", Font.PLAIN, 13));
@@ -282,7 +294,9 @@ public class ClientGUI extends JFrame {
         btnSearch.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         btnSearch.addActionListener(e -> handleSearch());
 
-        cbFilterRank = new JComboBox<>(new String[]{"Tất cả xếp loại", "Xuất sắc", "Giỏi", "Khá", "Trung bình", "Yếu"});
+        cbFilterRank = new JComboBox<>(new String[]{
+                "Tất cả xếp loại", "Xuất sắc (A/A+)", "Giỏi (B+)", "Khá (B)", "Trung bình (C/D)", "Cảnh báo học vụ (Yếu/Kém)"
+        });
         cbFilterRank.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         cbFilterRank.addActionListener(e -> applyFilters());
 
@@ -342,7 +356,11 @@ public class ClientGUI extends JFrame {
         centerPanel.add(toolBar, BorderLayout.NORTH);
 
         // Table
-        String[] columnNames = {"STT", "Mã Sinh Viên", "Họ Tên Sinh Viên", "Đ.Toán", "Đ.Văn", "Đ.Anh", "Điểm TB", "Xếp Loại"};
+        String[] columnNames = {
+                "STT", "Mã SV", "Họ và Tên", "Lớp Học Phần",
+                "Chuyên Cần (10%)", "Giữa Kỳ (20%)", "Thi Kết Thúc (70%)",
+                "Điểm HP (10)", "GPA Hệ 4", "Điểm Chữ", "Xếp Loại", "Trạng Thái"
+        };
         tableModel = new DefaultTableModel(columnNames, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -352,20 +370,71 @@ public class ClientGUI extends JFrame {
         tblResults = new JTable(tableModel);
         tblResults.setRowHeight(28);
         tblResults.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        tblResults.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 13));
+        tblResults.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
         tblResults.getTableHeader().setBackground(new Color(240, 242, 245));
         tblResults.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
-        // Alignment
+        // Alignment & Widths
         DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
         centerRenderer.setHorizontalAlignment(JLabel.CENTER);
-        tblResults.getColumnModel().getColumn(0).setCellRenderer(centerRenderer);
-        tblResults.getColumnModel().getColumn(1).setCellRenderer(centerRenderer);
-        tblResults.getColumnModel().getColumn(3).setCellRenderer(centerRenderer);
-        tblResults.getColumnModel().getColumn(4).setCellRenderer(centerRenderer);
-        tblResults.getColumnModel().getColumn(5).setCellRenderer(centerRenderer);
-        tblResults.getColumnModel().getColumn(6).setCellRenderer(centerRenderer);
-        tblResults.getColumnModel().getColumn(7).setCellRenderer(centerRenderer);
+        for (int col = 0; col < columnNames.length; col++) {
+            if (col != 2) {
+                tblResults.getColumnModel().getColumn(col).setCellRenderer(centerRenderer);
+            }
+        }
+
+        // Custom Highlight Renderer for Trạng Thái (Col 11) and Xếp Loại (Col 10)
+        tblResults.getColumnModel().getColumn(10).setCellRenderer(new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+                Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                setHorizontalAlignment(JLabel.CENTER);
+                String val = value != null ? value.toString() : "";
+                if (!isSelected) {
+                    if (val.contains("Xuất sắc") || val.contains("Giỏi")) {
+                        setForeground(new Color(0, 130, 50));
+                        setFont(getFont().deriveFont(Font.BOLD));
+                    } else if (val.contains("Yếu") || val.contains("Kém")) {
+                        setForeground(new Color(200, 16, 46));
+                        setFont(getFont().deriveFont(Font.BOLD));
+                    } else {
+                        setForeground(Color.BLACK);
+                    }
+                }
+                return c;
+            }
+        });
+
+        tblResults.getColumnModel().getColumn(11).setCellRenderer(new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+                Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                setHorizontalAlignment(JLabel.CENTER);
+                String val = value != null ? value.toString() : "";
+                if (!isSelected) {
+                    if (val.contains("Cảnh báo")) {
+                        setForeground(new Color(200, 16, 46));
+                        setFont(getFont().deriveFont(Font.BOLD));
+                    } else {
+                        setForeground(new Color(0, 120, 40));
+                    }
+                }
+                return c;
+            }
+        });
+
+        tblResults.getColumnModel().getColumn(0).setPreferredWidth(45);
+        tblResults.getColumnModel().getColumn(1).setPreferredWidth(90);
+        tblResults.getColumnModel().getColumn(2).setPreferredWidth(170);
+        tblResults.getColumnModel().getColumn(3).setPreferredWidth(110);
+        tblResults.getColumnModel().getColumn(4).setPreferredWidth(110);
+        tblResults.getColumnModel().getColumn(5).setPreferredWidth(100);
+        tblResults.getColumnModel().getColumn(6).setPreferredWidth(110);
+        tblResults.getColumnModel().getColumn(7).setPreferredWidth(90);
+        tblResults.getColumnModel().getColumn(8).setPreferredWidth(75);
+        tblResults.getColumnModel().getColumn(9).setPreferredWidth(75);
+        tblResults.getColumnModel().getColumn(10).setPreferredWidth(100);
+        tblResults.getColumnModel().getColumn(11).setPreferredWidth(125);
 
         // Click row: In Teacher Mode -> Auto-fill form. Double-click -> Open detailed transcript dialog
         tblResults.addMouseListener(new java.awt.event.MouseAdapter() {
@@ -374,11 +443,11 @@ public class ClientGUI extends JFrame {
                 int row = tblResults.getSelectedRow();
                 if (row >= 0) {
                     if (currentRole == UserRole.TEACHER || currentRole == UserRole.ADMIN) {
-                        txtStudentId.setText((String) tableModel.getValueAt(row, 1));
-                        txtStudentName.setText((String) tableModel.getValueAt(row, 2));
-                        txtScoreMath.setText((String) tableModel.getValueAt(row, 3));
-                        txtScoreLit.setText((String) tableModel.getValueAt(row, 4));
-                        txtScoreEng.setText((String) tableModel.getValueAt(row, 5));
+                        txtStudentId.setText(String.valueOf(tableModel.getValueAt(row, 1)));
+                        txtStudentName.setText(String.valueOf(tableModel.getValueAt(row, 2)));
+                        txtScoreMath.setText(String.valueOf(tableModel.getValueAt(row, 4)));
+                        txtScoreLit.setText(String.valueOf(tableModel.getValueAt(row, 5)));
+                        txtScoreEng.setText(String.valueOf(tableModel.getValueAt(row, 6)));
                     }
                     if (e.getClickCount() == 2) {
                         openTranscriptDialog();
@@ -390,11 +459,84 @@ public class ClientGUI extends JFrame {
         JScrollPane scrollPane = new JScrollPane(tblResults);
         centerPanel.add(scrollPane, BorderLayout.CENTER);
 
-        // Footer Summary
+        // Pagination & Footer Bar
+        JPanel bottomBar = new JPanel(new BorderLayout(10, 0));
+        bottomBar.setBackground(Color.WHITE);
+        bottomBar.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(1, 0, 0, 0, new Color(225, 225, 225)),
+                BorderFactory.createEmptyBorder(6, 12, 6, 12)
+        ));
+
+        JPanel paginationPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        paginationPanel.setOpaque(false);
+
+        btnFirstPage = new JButton("<< Đầu");
+        btnFirstPage.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        btnFirstPage.addActionListener(e -> {
+            if (currentPage > 1) {
+                currentPage = 1;
+                loadAllStudents();
+            }
+        });
+
+        btnPrevPage = new JButton("< Trước");
+        btnPrevPage.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        btnPrevPage.addActionListener(e -> {
+            if (currentPage > 1) {
+                currentPage--;
+                loadAllStudents();
+            }
+        });
+
+        lblPageInfo = new JLabel("Trang 1 / 1");
+        lblPageInfo.setFont(new Font("Segoe UI", Font.BOLD, 12));
+
+        btnNextPage = new JButton("Sau >");
+        btnNextPage.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        btnNextPage.addActionListener(e -> {
+            if (currentPage < totalPages) {
+                currentPage++;
+                loadAllStudents();
+            }
+        });
+
+        btnLastPage = new JButton("Cuối >>");
+        btnLastPage.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        btnLastPage.addActionListener(e -> {
+            if (currentPage < totalPages) {
+                currentPage = totalPages;
+                loadAllStudents();
+            }
+        });
+
+        cbPageSize = new JComboBox<>(new String[]{"20 SV / Trang", "50 SV / Trang", "100 SV / Trang"});
+        cbPageSize.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        cbPageSize.addActionListener(e -> {
+            int idx = cbPageSize.getSelectedIndex();
+            if (idx == 1) pageSize = 50;
+            else if (idx == 2) pageSize = 100;
+            else pageSize = 20;
+            currentPage = 1;
+            loadAllStudents();
+        });
+
+        paginationPanel.add(btnFirstPage);
+        paginationPanel.add(btnPrevPage);
+        paginationPanel.add(Box.createHorizontalStrut(5));
+        paginationPanel.add(lblPageInfo);
+        paginationPanel.add(Box.createHorizontalStrut(5));
+        paginationPanel.add(btnNextPage);
+        paginationPanel.add(btnLastPage);
+        paginationPanel.add(Box.createHorizontalStrut(15));
+        paginationPanel.add(new JLabel("Hiển thị:"));
+        paginationPanel.add(cbPageSize);
+
         lblTableSummary = new JLabel("Tổng số: 0 sinh viên", SwingConstants.RIGHT);
         lblTableSummary.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        lblTableSummary.setBorder(BorderFactory.createEmptyBorder(4, 10, 4, 10));
-        centerPanel.add(lblTableSummary, BorderLayout.SOUTH);
+
+        bottomBar.add(paginationPanel, BorderLayout.WEST);
+        bottomBar.add(lblTableSummary, BorderLayout.EAST);
+        centerPanel.add(bottomBar, BorderLayout.SOUTH);
 
         panel.add(centerPanel, BorderLayout.CENTER);
 
@@ -719,10 +861,10 @@ public class ClientGUI extends JFrame {
                 btnRoleAuth.setText("🛡️ Admin: " + (currentUserAccount != null ? currentUserAccount.getFullName() : "Admin"));
                 btnRoleAuth.setBackground(new Color(111, 66, 193)); // Purple for Admin
             } else if (currentRole == UserRole.TEACHER) {
-                btnRoleAuth.setText("🔓 Giảng viên: " + (currentUserAccount != null ? currentUserAccount.getFullName() : "Giảng viên"));
+                btnRoleAuth.setText("[Giảng viên: " + (currentUserAccount != null ? currentUserAccount.getFullName() : "Giảng viên") + "]");
                 btnRoleAuth.setBackground(new Color(40, 167, 69)); // Green for Teacher
             } else {
-                btnRoleAuth.setText("🔒 Quyền: Học sinh (Bấm để Đăng nhập)");
+                btnRoleAuth.setText("[Quyền: Học sinh - Nhấn để Đăng nhập]");
                 btnRoleAuth.setBackground(new Color(220, 53, 69)); // Red for Student
             }
         }
@@ -810,23 +952,8 @@ public class ClientGUI extends JFrame {
     }
 
     private void handleSearch() {
-        String query = txtSearchQuery.getText().trim();
-        if (client == null) return;
-        new SwingWorker<List<StudentResult>, Void>() {
-            @Override
-            protected List<StudentResult> doInBackground() throws Exception {
-                return client.searchStudents(query);
-            }
-            @Override
-            protected void done() {
-                try {
-                    currentStudentList = get();
-                    applyFilters();
-                } catch (Exception ex) {
-                    JOptionPane.showMessageDialog(ClientGUI.this, "Lỗi tìm kiếm: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
-                }
-            }
-        }.execute();
+        currentPage = 1;
+        loadAllStudents();
     }
 
     private void handleDeleteSelected() {
@@ -934,49 +1061,81 @@ public class ClientGUI extends JFrame {
 
     private void loadAllStudents() {
         if (client == null) return;
-        new SwingWorker<List<StudentResult>, Void>() {
+        String query = txtSearchQuery != null ? txtSearchQuery.getText().trim() : "";
+        new SwingWorker<com.qlsv.model.PageResult<StudentResult>, Void>() {
             @Override
-            protected List<StudentResult> doInBackground() throws Exception {
-                return client.getAllStudents();
+            protected com.qlsv.model.PageResult<StudentResult> doInBackground() throws Exception {
+                return client.getStudentsPage(currentPage, pageSize, query);
             }
             @Override
             protected void done() {
                 try {
-                    currentStudentList = get();
+                    com.qlsv.model.PageResult<StudentResult> res = get();
+                    currentPage = res.getCurrentPage();
+                    totalPages = res.getTotalPages();
+                    totalStudents = res.getTotalItems();
+                    currentStudentList = res.getItems();
+                    updatePaginationUI();
                     applyFilters();
                 } catch (Exception ex) {
-                    System.err.println("Lỗi tải danh sách: " + ex.getMessage());
+                    System.err.println("Lỗi tải phân trang: " + ex.getMessage());
                 }
             }
         }.execute();
+    }
+
+    private void updatePaginationUI() {
+        if (lblPageInfo != null) {
+            lblPageInfo.setText(String.format("Trang %d / %d", currentPage, totalPages));
+        }
+        if (btnFirstPage != null) btnFirstPage.setEnabled(currentPage > 1);
+        if (btnPrevPage != null) btnPrevPage.setEnabled(currentPage > 1);
+        if (btnNextPage != null) btnNextPage.setEnabled(currentPage < totalPages);
+        if (btnLastPage != null) btnLastPage.setEnabled(currentPage < totalPages);
+        if (lblTableSummary != null) {
+            lblTableSummary.setText(String.format("Tổng số: %d sinh viên trên hệ thống (Trang %d/%d)", totalStudents, currentPage, totalPages));
+        }
     }
 
     private void applyFilters() {
         String filterRank = (String) cbFilterRank.getSelectedItem();
         List<StudentResult> filtered = currentStudentList;
 
-        if (filterRank != null && !filterRank.equalsIgnoreCase("Tất cả xếp loại")) {
+        if (filterRank != null && !filterRank.equalsIgnoreCase("Tất cả xếp loại") && filtered != null) {
             filtered = currentStudentList.stream()
-                    .filter(s -> s.getAcademicRank() != null && s.getAcademicRank().equalsIgnoreCase(filterRank))
+                    .filter(s -> {
+                        if (filterRank.contains("Xuất sắc")) return s.getAcademicRankCredit().equals("Xuất sắc");
+                        if (filterRank.contains("Giỏi")) return s.getAcademicRankCredit().equals("Giỏi");
+                        if (filterRank.contains("Khá")) return s.getAcademicRankCredit().equals("Khá");
+                        if (filterRank.contains("Trung bình")) return s.getAcademicRankCredit().equals("Trung bình");
+                        if (filterRank.contains("Cảnh báo")) return s.getAcademicStatus().contains("Cảnh báo") || s.getAcademicRankCredit().equals("Yếu") || s.getAcademicRankCredit().equals("Kém");
+                        return true;
+                    })
                     .collect(Collectors.toList());
         }
 
         tableModel.setRowCount(0);
-        int stt = 1;
-        for (StudentResult s : filtered) {
-            tableModel.addRow(new Object[]{
-                    stt++,
-                    s.getStudentId(),
-                    s.getFullName(),
-                    String.format("%.1f", s.getScoreMath()),
-                    String.format("%.1f", s.getScoreLiterature()),
-                    String.format("%.1f", s.getScoreEnglish()),
-                    String.format("%.2f", s.getAverageScore()),
-                    s.getAcademicRank()
-            });
+        int stt = (currentPage - 1) * pageSize + 1;
+        if (filtered != null) {
+            for (StudentResult s : filtered) {
+                tableModel.addRow(new Object[]{
+                        stt++,
+                        s.getStudentId(),
+                        s.getFullName(),
+                        s.getClassName() != null && !s.getClassName().isEmpty() ? s.getClassName() : "D21CQCN01-N",
+                        String.format("%.2f", s.getScoreCC()),
+                        String.format("%.2f", s.getScoreGK()),
+                        String.format("%.2f", s.getScoreCK()),
+                        String.format("%.2f", s.getAverageScore()),
+                        String.format("%.2f", s.getGpa4()),
+                        s.getLetterGrade(),
+                        s.getAcademicRankCredit(),
+                        s.getAcademicStatus()
+                });
+            }
         }
-        double maxGpa = 0.0, minGpa = 10.0, sumGpa = 0.0;
-        if (!filtered.isEmpty()) {
+        if (filtered != null && !filtered.isEmpty()) {
+            double maxGpa = 0.0, minGpa = 10.0, sumGpa = 0.0;
             for (StudentResult s : filtered) {
                 double avg = s.getAverageScore();
                 if (avg > maxGpa) maxGpa = avg;
@@ -984,10 +1143,10 @@ public class ClientGUI extends JFrame {
                 sumGpa += avg;
             }
             double classAvg = sumGpa / filtered.size();
-            lblTableSummary.setText(String.format("Tổng số: %d / %d sinh viên  |  ĐTB Cao nhất: %.2f  |  ĐTB Thấp nhất: %.2f  |  ĐTB Trung bình lớp: %.2f",
-                    filtered.size(), currentStudentList.size(), maxGpa, minGpa, classAvg));
+            lblTableSummary.setText(String.format("Hiển thị: %d SV / %d tổng số  |  Trang %d / %d  |  ĐTB Học Phần: %.2f",
+                    filtered.size(), totalStudents, currentPage, totalPages, classAvg));
         } else {
-            lblTableSummary.setText("Tổng số: 0 sinh viên");
+            lblTableSummary.setText(String.format("Tổng số: %d sinh viên trên hệ thống (Không có dữ liệu phù hợp)", totalStudents));
         }
     }
 
@@ -1149,7 +1308,7 @@ public class ClientGUI extends JFrame {
         String maSv = (String) tableModel.getValueAt(row, 1);
         double currentGpa = 7.5;
         try {
-            currentGpa = Double.parseDouble((String) tableModel.getValueAt(row, 6));
+            currentGpa = Double.parseDouble(String.valueOf(tableModel.getValueAt(row, 7)));
         } catch (Exception ignored) {}
 
         final double baseGpa = currentGpa;

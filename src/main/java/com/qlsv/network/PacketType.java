@@ -14,6 +14,8 @@ public enum PacketType {
     SEARCH_STUDENTS,    // Client searches students by query/filters
     GET_ALL_STUDENTS,   // Client fetches all student records
     STUDENTS_LIST,      // Server returns array of student records
+    GET_STUDENTS_PAGE,  // Client fetches a paginated slice of students
+    STUDENTS_PAGE_RESULT,// Server returns paginated PageResult
     GET_TRANSCRIPT,     // Client fetches full transcript with course grades
     TRANSCRIPT_RESULT,  // Server returns full transcript object
     IMPORT_EXCEL,       // Client sends list of students from Excel for bulk insert

@@ -36,18 +36,13 @@ public class SupabaseTest {
                     StudentResult result = DatabaseManager.getInstance().saveStudentEncryptedAndCalculateResult(student);
                     System.out.printf("Đã lưu CSDL Supabase thành công: Mã SV=%s | ĐTB=%.2f\n", result.getStudentId(), result.getAverageScore());
 
-                    java.util.List<StudentResult> all = DatabaseManager.getInstance().getAllStudentsDecrypted();
-                    System.out.println("===> SỐ LƯỢNG SINH VIÊN TRUY VẤN ĐƯỢC: " + all.size());
-                    
-                    com.google.gson.Gson gson = new com.google.gson.Gson();
-                    com.qlsv.network.UDPPacket respPacket = com.qlsv.network.UDPPacket.createStudentsListResponse(true, "Tải danh sách thành công", gson.toJson(all));
-                    byte[] bytes = respPacket.toBytes();
-                    System.out.println("===> KÍCH THƯỚC GÓI TIN UDP (BYTES): " + bytes.length);
-
-                    com.qlsv.network.UDPPacket decodedPacket = com.qlsv.network.UDPPacket.fromBytes(bytes, bytes.length);
-                    java.lang.reflect.Type listType = new com.google.gson.reflect.TypeToken<java.util.List<StudentResult>>() {}.getType();
-                    java.util.List<StudentResult> decodedList = gson.fromJson(decodedPacket.getPayload(), listType);
-                    System.out.println("===> GIẢI NÉN VÀ GIẢI MÃ THÀNH CÔNG: " + decodedList.size() + " SINH VIÊN!");
+                    com.qlsv.model.PageResult<StudentResult> p1 = DatabaseManager.getInstance().getStudentsPaged(1, 20);
+                    System.out.printf("===> TEST PHÂN TRANG: Trang %d/%d | Tổng số SV: %d | Số SV trang 1: %d\n",
+                            p1.getCurrentPage(), p1.getTotalPages(), p1.getTotalItems(), p1.getItems().size());
+                    for (int i = 0; i < Math.min(3, p1.getItems().size()); i++) {
+                        StudentResult s = p1.getItems().get(i);
+                        System.out.printf("   [SV#%d] %s - %s - ĐTB: %.2f\n", i+1, s.getStudentId(), s.getFullName(), s.getAverageScore());
+                    }
                     connected = true;
                     break;
                 }

@@ -233,6 +233,24 @@ public class UDPServer {
                     }
                     break;
 
+                case GET_STUDENTS_PAGE:
+                    try {
+                        com.qlsv.model.PageRequest pageReq = gson.fromJson(packet.getPayload(), com.qlsv.model.PageRequest.class);
+                        if (pageReq == null) {
+                            pageReq = new com.qlsv.model.PageRequest(1, 20);
+                        }
+                        com.qlsv.model.PageResult<StudentResult> pageResult;
+                        if (pageReq.getQuery() != null && !pageReq.getQuery().trim().isEmpty()) {
+                            pageResult = DatabaseManager.getInstance().searchStudentsPaged(pageReq.getQuery(), pageReq.getPage(), pageReq.getPageSize());
+                        } else {
+                            pageResult = DatabaseManager.getInstance().getStudentsPaged(pageReq.getPage(), pageReq.getPageSize());
+                        }
+                        responsePacket = UDPPacket.createPageResult(true, "Tải phân trang thành công", gson.toJson(pageResult));
+                    } catch (Exception ex) {
+                        responsePacket = UDPPacket.createError("Lỗi phân trang: " + ex.getMessage());
+                    }
+                    break;
+
                 case GET_ALL_STUDENTS:
                     try {
                         List<StudentResult> list = DatabaseManager.getInstance().getAllStudentsDecrypted();

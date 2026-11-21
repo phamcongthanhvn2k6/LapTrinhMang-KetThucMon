@@ -93,6 +93,14 @@ public class UDPPacket {
         return new UDPPacket(PacketType.STUDENTS_LIST, success, message, listJson);
     }
 
+    public static UDPPacket createGetPageRequest(com.qlsv.model.PageRequest pageReq, String token) {
+        return new UDPPacket(PacketType.GET_STUDENTS_PAGE, true, "Get Page", gson.toJson(pageReq), token);
+    }
+
+    public static UDPPacket createPageResult(boolean success, String message, String pageResultJson) {
+        return new UDPPacket(PacketType.STUDENTS_PAGE_RESULT, success, message, pageResultJson);
+    }
+
     public static UDPPacket createGetTranscript(String studentId, String token) {
         return new UDPPacket(PacketType.GET_TRANSCRIPT, true, "Get Transcript", studentId, token);
     }

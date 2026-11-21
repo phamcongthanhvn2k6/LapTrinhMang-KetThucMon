@@ -67,11 +67,7 @@ public class CaptureAllScreenshots {
                 serverGUI.setLocationRelativeTo(null);
                 serverGUI.setVisible(true);
 
-                // Kích hoạt Server UDP
-                UDPServer udpServer = new UDPServer(9876);
-                udpServer.setLogListener(serverGUI);
-                udpServer.start();
-
+                // Server UDP đã được ServerGUI tự động khởi chạy trong toggleServer()
                 // Nạp dữ liệu vào bảng Server
                 Method refreshServerMethod = ServerGUI.class.getDeclaredMethod("refreshDataInspection");
                 refreshServerMethod.setAccessible(true);

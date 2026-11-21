@@ -218,6 +218,83 @@ public class StudentDAO {
         return filtered;
     }
 
+    public com.qlsv.model.PageResult<StudentResult> getStudentsPaged(int page, int pageSize, String desKey) throws Exception {
+        if (page < 1) page = 1;
+        if (pageSize <= 0) pageSize = 20;
+
+        int totalCount = 0;
+        String countSql = "SELECT COUNT(*) FROM SinhVien";
+        try (Connection conn = ConnectionPool.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(countSql)) {
+            if (rs.next()) {
+                totalCount = rs.getInt(1);
+            }
+        }
+
+        int offset = (page - 1) * pageSize;
+        List<StudentResult> list = new ArrayList<>();
+        String sql = "SELECT MaSV, HoTenEncrypted, DiemToanEncrypted, DiemVanEncrypted, DiemAnhEncrypted, DiemTB FROM SinhVien ORDER BY MaSV ASC LIMIT ? OFFSET ?";
+
+        try (Connection conn = ConnectionPool.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, pageSize);
+            stmt.setInt(2, offset);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    String id = rs.getString("MaSV");
+                    String encName = rs.getString("HoTenEncrypted");
+                    String encToan = rs.getString("DiemToanEncrypted");
+                    String encVan = rs.getString("DiemVanEncrypted");
+                    String encAnh = rs.getString("DiemAnhEncrypted");
+
+                    String fullName;
+                    try {
+                        fullName = SecurityManager.decrypt(encName, desKey);
+                    } catch (Exception ex) {
+                        fullName = "[SV " + id + "]";
+                    }
+
+                    double avg = rs.getDouble("DiemTB");
+                    double scoreMath = avg > 0 ? avg : 8.0;
+                    double scoreVan = avg > 0 ? avg : 8.0;
+                    double scoreAnh = avg > 0 ? avg : 8.0;
+
+                    try {
+                        if (encToan != null) scoreMath = parseDoubleSafe(SecurityManager.decrypt(encToan, desKey), avg);
+                    } catch (Exception ignored) {}
+                    try {
+                        if (encVan != null) scoreVan = parseDoubleSafe(SecurityManager.decrypt(encVan, desKey), avg);
+                    } catch (Exception ignored) {}
+                    try {
+                        if (encAnh != null) scoreAnh = parseDoubleSafe(SecurityManager.decrypt(encAnh, desKey), avg);
+                    } catch (Exception ignored) {}
+
+                    StudentResult res = new StudentResult(id, fullName, avg);
+                    res.setScoreMath(scoreMath);
+                    res.setScoreLiterature(scoreVan);
+                    res.setScoreEnglish(scoreAnh);
+                    list.add(res);
+                }
+            }
+        }
+        return new com.qlsv.model.PageResult<>(list, page, pageSize, totalCount);
+    }
+
+    public com.qlsv.model.PageResult<StudentResult> searchStudentsPaged(String query, int page, int pageSize, String desKey) throws Exception {
+        if (query == null || query.trim().isEmpty()) {
+            return getStudentsPaged(page, pageSize, desKey);
+        }
+        List<StudentResult> filtered = searchStudents(query, desKey);
+        if (page < 1) page = 1;
+        if (pageSize <= 0) pageSize = 20;
+
+        int fromIndex = Math.min((page - 1) * pageSize, filtered.size());
+        int toIndex = Math.min(fromIndex + pageSize, filtered.size());
+        List<StudentResult> sub = filtered.subList(fromIndex, toIndex);
+        return new com.qlsv.model.PageResult<>(sub, page, pageSize, filtered.size());
+    }
+
     public Map<String, Integer> getRankStatistics(String desKey) throws Exception {
         Map<String, Integer> map = new HashMap<>();
         map.put("Xuất sắc", 0);

@@ -99,6 +99,80 @@ public class StudentResult implements Serializable {
         return academicRank;
     }
 
+    public String getId() {
+        return studentId;
+    }
+
+    public String getName() {
+        return fullName;
+    }
+
+    public double getScoreCC() {
+        return scoreMath;
+    }
+
+    public void setScoreCC(double scoreCC) {
+        this.scoreMath = scoreCC;
+    }
+
+    public double getScoreGK() {
+        return scoreLiterature;
+    }
+
+    public void setScoreGK(double scoreGK) {
+        this.scoreLiterature = scoreGK;
+    }
+
+    public double getScoreCK() {
+        return scoreEnglish;
+    }
+
+    public void setScoreCK(double scoreCK) {
+        this.scoreEnglish = scoreCK;
+    }
+
+    public double getGpa4() {
+        double s = averageScore;
+        if (s >= 8.5) return 4.0;
+        if (s >= 8.0) return 3.5;
+        if (s >= 7.0) return 3.0;
+        if (s >= 6.5) return 2.5;
+        if (s >= 5.5) return 2.0;
+        if (s >= 5.0) return 1.5;
+        if (s >= 4.0) return 1.0;
+        return 0.0;
+    }
+
+    public String getLetterGrade() {
+        double s = averageScore;
+        if (s >= 9.0) return "A+";
+        if (s >= 8.5) return "A";
+        if (s >= 8.0) return "B+";
+        if (s >= 7.0) return "B";
+        if (s >= 6.5) return "C+";
+        if (s >= 5.5) return "C";
+        if (s >= 5.0) return "D+";
+        if (s >= 4.0) return "D";
+        return "F";
+    }
+
+    public String getAcademicRankCredit() {
+        double g = getGpa4();
+        if (g >= 3.6) return "Xuất sắc";
+        if (g >= 3.2) return "Giỏi";
+        if (g >= 2.5) return "Khá";
+        if (g >= 2.0) return "Trung bình";
+        if (g >= 1.0) return "Yếu";
+        return "Kém";
+    }
+
+    public String getAcademicStatus() {
+        if (averageScore < 4.0 || getGpa4() < 1.0) {
+            return "Cảnh báo học vụ";
+        }
+        return "Đang học";
+    }
+
     public void setAcademicRank(String academicRank) {
         this.academicRank = academicRank;
     }
