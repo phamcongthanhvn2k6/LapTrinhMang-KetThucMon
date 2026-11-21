@@ -105,6 +105,22 @@ public class ClientGUI extends JFrame {
     private JLabel lblPageInfo;
     private JComboBox<String> cbPageSize;
 
+    // Student Portal Controls
+    private JTextField txtPortalSearchMaSV;
+    private JLabel lblPortalHoTen;
+    private JLabel lblPortalMaSV;
+    private JLabel lblPortalLop;
+    private JLabel lblPortalKhoa;
+    private JLabel lblPortalNienKhoa;
+    private JLabel lblPortalStatus;
+    private JLabel lblPortalCredits;
+    private JLabel lblPortalGpa10;
+    private JLabel lblPortalGpa4;
+    private JLabel lblPortalRank;
+    private DefaultTableModel portalTableModel;
+    private JTable tblPortalGrades;
+    private StudentTranscript currentPortalTranscript;
+
     public ClientGUI() {
         setTitle("PTIT - CỔNG THÔNG TIN QUẢN LÝ ĐÀO TẠO & SINH VIÊN");
         setSize(1220, 780);
@@ -186,11 +202,13 @@ public class ClientGUI extends JFrame {
         mainTabbedPane = new JTabbedPane();
         mainTabbedPane.setFont(new Font("Segoe UI", Font.BOLD, 13));
 
-        JPanel studentWorkspace = createStudentWorkspaceTab();
+        JPanel studentPortalTab = createStudentPortalTab();
+        JPanel managementWorkspace = createStudentWorkspaceTab();
         settingsWorkspace = createSettingsTab();
 
-        mainTabbedPane.addTab("Tra Cứu / Quản Lý Sinh Viên", studentWorkspace);
-        mainTabbedPane.addTab("Cài Đặt Hệ Thống", settingsWorkspace);
+        mainTabbedPane.addTab("🎓 Cổng Thông Tin Sinh Viên", studentPortalTab);
+        mainTabbedPane.addTab("📋 Quản Lý Đào Tạo & Lớp Học Phần", managementWorkspace);
+        mainTabbedPane.addTab("⚙️ Cài Đặt Hệ Thống", settingsWorkspace);
 
         add(mainTabbedPane, BorderLayout.CENTER);
         updateRoleUI();
@@ -689,9 +707,6 @@ public class ClientGUI extends JFrame {
         SwingUtilities.invokeLater(() -> {
             try {
                 handleConnectServer();
-                if (client != null) {
-                    handleConnectDb();
-                }
             } catch (Exception ignored) {}
         });
     }
@@ -722,7 +737,11 @@ public class ClientGUI extends JFrame {
                 lblServerBadge.setText("● Máy Chủ: Sẵn sàng");
                 lblServerBadge.setBackground(new Color(40, 167, 69));
 
+                lblDbBadge.setText("● Cơ Sở Dữ Liệu: Đã kết nối");
+                lblDbBadge.setBackground(new Color(40, 167, 69));
+
                 loadAllStudents();
+                loadStudentPortal("SV001");
             } else {
                 throw new Exception("Máy chủ không phản hồi!");
             }
@@ -824,6 +843,14 @@ public class ClientGUI extends JFrame {
 
                     updateRoleUI();
                     loadAllStudents();
+                    if (currentRole == UserRole.TEACHER || currentRole == UserRole.ADMIN) {
+                        mainTabbedPane.setSelectedIndex(1); // Quản lý
+                    } else {
+                        mainTabbedPane.setSelectedIndex(0); // Cổng sinh viên
+                        if (acc.getStudentId() != null && !acc.getStudentId().isEmpty()) {
+                            loadStudentPortal(acc.getStudentId());
+                        }
+                    }
                     JOptionPane.showMessageDialog(this,
                             String.format("Xác thực THÀNH CÔNG!\nXin chào: %s\nVai trò: %s",
                                     acc.getFullName(), acc.getRole().getDisplayName()),
@@ -881,18 +908,6 @@ public class ClientGUI extends JFrame {
         if (btnImportExcel != null) {
             btnImportExcel.setEnabled(isTeacher);
             btnImportExcel.setToolTipText(isTeacher ? "Nhập danh sách từ Excel" : "Tính năng yêu cầu Quyền Giảng viên");
-        }
-
-        if (mainTabbedPane != null && settingsWorkspace != null) {
-            if (isTeacher) {
-                if (mainTabbedPane.getTabCount() < 2) {
-                    mainTabbedPane.addTab("Cài Đặt Hệ Thống", settingsWorkspace);
-                }
-            } else {
-                if (mainTabbedPane.getTabCount() >= 2) {
-                    mainTabbedPane.remove(1); // Remove Settings tab for Student mode
-                }
-            }
         }
 
         revalidate();
@@ -1394,6 +1409,378 @@ public class ClientGUI extends JFrame {
         simDialog.add(bottom, BorderLayout.SOUTH);
 
         simDialog.setVisible(true);
+    }
+
+    private JPanel createStudentPortalTab() {
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBackground(PTIT_LIGHT_BG);
+        panel.setBorder(BorderFactory.createEmptyBorder(12, 14, 12, 14));
+
+        // 1. Top Card: Quick Search & Profile Box & 4 KPI Cards
+        JPanel northPanel = new JPanel(new BorderLayout(8, 8));
+        northPanel.setOpaque(false);
+
+        // Search Bar for Student
+        JPanel searchBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
+        searchBar.setBackground(Color.WHITE);
+        searchBar.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(225, 225, 225)),
+                BorderFactory.createEmptyBorder(4, 10, 4, 10)
+        ));
+
+        searchBar.add(new JLabel("Mã Sinh Viên cần tra cứu:"));
+        txtPortalSearchMaSV = new JTextField("SV001", 10);
+        txtPortalSearchMaSV.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        txtPortalSearchMaSV.addActionListener(e -> loadStudentPortal(txtPortalSearchMaSV.getText().trim()));
+        searchBar.add(txtPortalSearchMaSV);
+
+        JButton btnPortalSearch = new JButton("Xem Hồ Sơ");
+        btnPortalSearch.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnPortalSearch.setBackground(PTIT_RED);
+        btnPortalSearch.setForeground(Color.WHITE);
+        btnPortalSearch.addActionListener(e -> loadStudentPortal(txtPortalSearchMaSV.getText().trim()));
+        searchBar.add(btnPortalSearch);
+
+        JButton btnReloadPortal = new JButton("Làm Mới");
+        btnReloadPortal.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        btnReloadPortal.addActionListener(e -> loadStudentPortal(txtPortalSearchMaSV.getText().trim()));
+        searchBar.add(btnReloadPortal);
+
+        northPanel.add(searchBar, BorderLayout.NORTH);
+
+        // Profile & KPI Container (Split in 2 sides: Left Info, Right KPI Cards)
+        JPanel profileContainer = new JPanel(new GridLayout(1, 2, 12, 0));
+        profileContainer.setOpaque(false);
+
+        // Left Card: Student Info Card
+        JPanel infoCard = new JPanel(new GridLayout(4, 2, 6, 6));
+        infoCard.setBackground(Color.WHITE);
+        infoCard.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(220, 224, 230)),
+                BorderFactory.createEmptyBorder(10, 14, 10, 14)
+        ));
+
+        lblPortalHoTen = new JLabel("Vũ Khánh Bích");
+        lblPortalHoTen.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        lblPortalHoTen.setForeground(PTIT_RED);
+
+        lblPortalMaSV = new JLabel("SV001");
+        lblPortalMaSV.setFont(new Font("Segoe UI", Font.BOLD, 13));
+
+        lblPortalLop = new JLabel("D21CQCN01-N");
+        lblPortalLop.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+
+        lblPortalKhoa = new JLabel("Công nghệ Thông tin 1");
+        lblPortalKhoa.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+
+        infoCard.add(new JLabel("Họ và Tên:"));
+        infoCard.add(lblPortalHoTen);
+        infoCard.add(new JLabel("Mã Sinh Viên:"));
+        infoCard.add(lblPortalMaSV);
+        infoCard.add(new JLabel("Lớp Niên Chế:"));
+        infoCard.add(lblPortalLop);
+        infoCard.add(new JLabel("Khoa Quản Lý:"));
+        infoCard.add(lblPortalKhoa);
+
+        // Right Card: 4 KPI Cards (GridLayout 2x2)
+        JPanel kpiContainer = new JPanel(new GridLayout(2, 2, 10, 10));
+        kpiContainer.setOpaque(false);
+
+        lblPortalCredits = new JLabel("15 / 132 TC", SwingConstants.CENTER);
+        lblPortalGpa10 = new JLabel("8.52 / 10.0", SwingConstants.CENTER);
+        lblPortalGpa4 = new JLabel("3.60 / 4.00", SwingConstants.CENTER);
+        lblPortalRank = new JLabel("Xuất sắc", SwingConstants.CENTER);
+
+        kpiContainer.add(createKpiCard("TÍN CHỈ TÍCH LŨY", lblPortalCredits, new Color(0, 123, 255)));
+        kpiContainer.add(createKpiCard("ĐTB HỌC KỲ (10)", lblPortalGpa10, new Color(111, 66, 193)));
+        kpiContainer.add(createKpiCard("GPA TÍCH LŨY (HỆ 4)", lblPortalGpa4, new Color(40, 167, 69)));
+        kpiContainer.add(createKpiCard("XẾP LOẠI HỌC LỰC", lblPortalRank, PTIT_RED));
+
+        profileContainer.add(infoCard);
+        profileContainer.add(kpiContainer);
+        northPanel.add(profileContainer, BorderLayout.CENTER);
+
+        panel.add(northPanel, BorderLayout.NORTH);
+
+        // 2. Center: Grade Table
+        String[] portalCols = {
+                "STT", "Mã Học Phần", "Tên Học Phần", "Số TC",
+                "Chuyên Cần (10%)", "Giữa Kỳ (20%)", "Thi Kết Thúc (70%)",
+                "Điểm HP (10)", "GPA Hệ 4", "Điểm Chữ", "Kết Quả"
+        };
+        portalTableModel = new DefaultTableModel(portalCols, 0) {
+            @Override
+            public boolean isCellEditable(int r, int c) {
+                return false;
+            }
+        };
+        tblPortalGrades = new JTable(portalTableModel);
+        tblPortalGrades.setRowHeight(30);
+        tblPortalGrades.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        tblPortalGrades.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
+        tblPortalGrades.getTableHeader().setBackground(new Color(240, 242, 245));
+
+        DefaultTableCellRenderer centerR = new DefaultTableCellRenderer();
+        centerR.setHorizontalAlignment(JLabel.CENTER);
+        for (int c = 0; c < portalCols.length; c++) {
+            if (c != 2) {
+                tblPortalGrades.getColumnModel().getColumn(c).setCellRenderer(centerR);
+            }
+        }
+
+        // Color renderer for Kết Quả (Col 10)
+        tblPortalGrades.getColumnModel().getColumn(10).setCellRenderer(new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int col) {
+                Component comp = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, col);
+                setHorizontalAlignment(JLabel.CENTER);
+                String val = value != null ? value.toString() : "";
+                if (!isSelected) {
+                    if (val.equalsIgnoreCase("ĐẠT")) {
+                        setForeground(new Color(40, 167, 69));
+                        setFont(getFont().deriveFont(Font.BOLD));
+                    } else {
+                        setForeground(new Color(220, 53, 69));
+                        setFont(getFont().deriveFont(Font.BOLD));
+                    }
+                }
+                return comp;
+            }
+        });
+
+        tblPortalGrades.getColumnModel().getColumn(0).setPreferredWidth(45);
+        tblPortalGrades.getColumnModel().getColumn(1).setPreferredWidth(100);
+        tblPortalGrades.getColumnModel().getColumn(2).setPreferredWidth(250);
+        tblPortalGrades.getColumnModel().getColumn(3).setPreferredWidth(65);
+        tblPortalGrades.getColumnModel().getColumn(4).setPreferredWidth(110);
+        tblPortalGrades.getColumnModel().getColumn(5).setPreferredWidth(110);
+        tblPortalGrades.getColumnModel().getColumn(6).setPreferredWidth(115);
+        tblPortalGrades.getColumnModel().getColumn(7).setPreferredWidth(95);
+        tblPortalGrades.getColumnModel().getColumn(8).setPreferredWidth(80);
+        tblPortalGrades.getColumnModel().getColumn(9).setPreferredWidth(75);
+        tblPortalGrades.getColumnModel().getColumn(10).setPreferredWidth(90);
+
+        JScrollPane scroll = new JScrollPane(tblPortalGrades);
+        scroll.setBorder(BorderFactory.createTitledBorder(
+                BorderFactory.createEtchedBorder(),
+                " Bảng Điểm Kết Quả Học Tập Tín Chỉ Sinh Viên ",
+                TitledBorder.LEFT, TitledBorder.TOP,
+                new Font("Segoe UI", Font.BOLD, 13), PTIT_RED
+        ));
+        panel.add(scroll, BorderLayout.CENTER);
+
+        // 3. South Action Bar
+        JPanel southBar = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 8));
+        southBar.setBackground(Color.WHITE);
+        southBar.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(1, 0, 0, 0, new Color(225, 225, 225)),
+                BorderFactory.createEmptyBorder(4, 10, 4, 10)
+        ));
+
+        JButton btnPortalGpaSim = new JButton("Giả Lập GPA Mục Tiêu");
+        btnPortalGpaSim.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnPortalGpaSim.setBackground(new Color(111, 66, 193));
+        btnPortalGpaSim.setForeground(Color.WHITE);
+        btnPortalGpaSim.addActionListener(e -> {
+            if (currentPortalTranscript != null) {
+                openGpaSimulatorForTranscript(currentPortalTranscript);
+            }
+        });
+
+        JButton btnPortalExport = new JButton("Xuất Phiếu Báo Điểm (Excel)");
+        btnPortalExport.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnPortalExport.setBackground(new Color(40, 167, 69));
+        btnPortalExport.setForeground(Color.WHITE);
+        btnPortalExport.addActionListener(e -> exportPortalTranscript());
+
+        southBar.add(btnPortalGpaSim);
+        southBar.add(btnPortalExport);
+        panel.add(southBar, BorderLayout.SOUTH);
+
+        return panel;
+    }
+
+    private JPanel createKpiCard(String title, JLabel valueLabel, Color accentColor) {
+        JPanel card = new JPanel(new BorderLayout(4, 4));
+        card.setBackground(Color.WHITE);
+        card.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(3, 0, 0, 0, accentColor),
+                BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(new Color(228, 230, 235)),
+                        BorderFactory.createEmptyBorder(8, 10, 8, 10)
+                )
+        ));
+
+        JLabel lblTitle = new JLabel(title, SwingConstants.CENTER);
+        lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        lblTitle.setForeground(new Color(110, 115, 125));
+
+        valueLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        valueLabel.setForeground(accentColor);
+
+        card.add(lblTitle, BorderLayout.NORTH);
+        card.add(valueLabel, BorderLayout.CENTER);
+        return card;
+    }
+
+    public void loadStudentPortal(String maSv) {
+        if (client == null || maSv == null || maSv.trim().isEmpty()) return;
+        final String targetMaSv = maSv.trim().toUpperCase();
+        new SwingWorker<StudentTranscript, Void>() {
+            @Override
+            protected StudentTranscript doInBackground() throws Exception {
+                return client.getDetailedTranscript(targetMaSv);
+            }
+            @Override
+            protected void done() {
+                try {
+                    StudentTranscript t = get();
+                    currentPortalTranscript = t;
+                    updateStudentPortalUI(t);
+                } catch (Exception ex) {
+                    System.err.println("Lỗi tải hồ sơ sinh viên: " + ex.getMessage());
+                }
+            }
+        }.execute();
+    }
+
+    private void updateStudentPortalUI(StudentTranscript t) {
+        if (t == null) return;
+        if (lblPortalHoTen != null) lblPortalHoTen.setText(t.getFullName());
+        if (lblPortalMaSV != null) lblPortalMaSV.setText(t.getStudentId());
+        if (lblPortalLop != null) lblPortalLop.setText(t.getClassName() != null ? t.getClassName() : "D21CQCN01-N");
+        if (lblPortalKhoa != null) lblPortalKhoa.setText(t.getFaculty() != null ? t.getFaculty() : "Công nghệ Thông tin 1");
+        if (lblPortalCredits != null) lblPortalCredits.setText(t.getTotalCredits() + " / 132 TC");
+        if (lblPortalGpa10 != null) lblPortalGpa10.setText(String.format("%.2f / 10.0", t.getCumulativeGpa10()));
+        if (lblPortalGpa4 != null) lblPortalGpa4.setText(String.format("%.2f / 4.00", t.getCumulativeGpa4()));
+        if (lblPortalRank != null) lblPortalRank.setText(t.getAcademicRank() != null ? t.getAcademicRank() : "Khá");
+        if (txtPortalSearchMaSV != null && !txtPortalSearchMaSV.getText().equalsIgnoreCase(t.getStudentId())) {
+            txtPortalSearchMaSV.setText(t.getStudentId());
+        }
+
+        if (portalTableModel != null) {
+            portalTableModel.setRowCount(0);
+            int stt = 1;
+            for (CourseGrade g : t.getGrades()) {
+                portalTableModel.addRow(new Object[]{
+                        stt++,
+                        g.getCourseCode(),
+                        g.getCourseName(),
+                        g.getCredits(),
+                        String.format("%.2f", g.getScoreProcess()),
+                        String.format("%.2f", g.getScoreExam()),
+                        String.format("%.2f", g.getTotalScore()),
+                        String.format("%.2f", g.getTotalScore()),
+                        String.format("%.2f", g.getGpa4()),
+                        g.getLetterGrade(),
+                        g.isPassed() ? "ĐẠT" : "HỌC LẠI"
+                });
+            }
+        }
+    }
+
+    private void exportPortalTranscript() {
+        if (currentPortalTranscript == null) {
+            JOptionPane.showMessageDialog(this, "Chưa có dữ liệu bảng điểm để xuất!", "Thông Báo", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        try {
+            JFileChooser chooser = new JFileChooser();
+            chooser.setDialogTitle("Lưu Phiếu Báo Điểm Cá Nhân");
+            chooser.setSelectedFile(new File("PhieuDiem_" + currentPortalTranscript.getStudentId() + ".xlsx"));
+            if (chooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
+                File file = chooser.getSelectedFile();
+                if (!file.getAbsolutePath().endsWith(".xlsx")) {
+                    file = new File(file.getAbsolutePath() + ".xlsx");
+                }
+                ExcelExporter.exportTranscriptToExcel(currentPortalTranscript, file);
+                JOptionPane.showMessageDialog(this, "Đã xuất phiếu điểm thành công:\n" + file.getAbsolutePath(), "Thành Công", JOptionPane.INFORMATION_MESSAGE);
+            }
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Lỗi xuất phiếu điểm: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void openGpaSimulatorForTranscript(StudentTranscript t) {
+        if (t == null) return;
+        JDialog simDialog = new JDialog(this, "BỘ GIẢ LẬP ĐIỂM GPA SIMULATOR - " + t.getFullName(), true);
+        simDialog.setSize(640, 430);
+        simDialog.setLocationRelativeTo(this);
+        simDialog.setLayout(new BorderLayout(10, 10));
+
+        JPanel head = new JPanel(new GridLayout(2, 1));
+        head.setBackground(PTIT_RED);
+        head.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
+        JLabel lblT = new JLabel("BỘ GIẢ LẬP ĐIỂM GPA & DỰ ĐOÁN HỌC LỰC MỤC TIÊU");
+        lblT.setFont(new Font("Segoe UI", Font.BOLD, 15));
+        lblT.setForeground(Color.WHITE);
+        JLabel lblSub = new JLabel("Sinh viên: " + t.getFullName() + " (" + t.getStudentId() + ") | CPA Hệ 4: " + String.format("%.2f", t.getCumulativeGpa4()));
+        lblSub.setForeground(new Color(255, 230, 230));
+        head.add(lblT);
+        head.add(lblSub);
+        simDialog.add(head, BorderLayout.NORTH);
+
+        JPanel body = new JPanel(new GridBagLayout());
+        body.setBorder(BorderFactory.createEmptyBorder(15, 20, 15, 20));
+        GridBagConstraints g = new GridBagConstraints();
+        g.insets = new Insets(8, 10, 8, 10);
+        g.fill = GridBagConstraints.HORIZONTAL;
+
+        g.gridx = 0; g.gridy = 0;
+        body.add(new JLabel("Mục tiêu xếp loại:"), g);
+        g.gridx = 1; g.gridy = 0;
+        JComboBox<String> cbTarget = new JComboBox<>(new String[]{"Xuất sắc (CPA >= 3.6)", "Giỏi (CPA >= 3.2)", "Khá (CPA >= 2.5)"});
+        body.add(cbTarget, g);
+
+        g.gridx = 0; g.gridy = 1;
+        body.add(new JLabel("Số tín chỉ kỳ tới:"), g);
+        g.gridx = 1; g.gridy = 1;
+        JTextField txtCredits = new JTextField("15", 10);
+        body.add(txtCredits, g);
+
+        JTextArea txtAdvice = new JTextArea(4, 30);
+        txtAdvice.setEditable(false);
+        txtAdvice.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        txtAdvice.setBackground(new Color(245, 248, 255));
+        txtAdvice.setBorder(BorderFactory.createTitledBorder("Kết Quả Dự Đoán Lộ Trình"));
+        txtAdvice.setText("Nhấn nút 'Tính Toán Lộ Trình' bên dưới để nhận kết quả phân tích.");
+
+        g.gridx = 0; g.gridy = 2; g.gridwidth = 2;
+        body.add(txtAdvice, g);
+        simDialog.add(body, BorderLayout.CENTER);
+
+        JPanel bottom = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 8));
+        JButton btnCalc = new JButton("Tính Toán Lộ Trình");
+        btnCalc.setBackground(PTIT_RED);
+        btnCalc.setForeground(Color.WHITE);
+        btnCalc.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnCalc.addActionListener(e -> {
+            String target = (String) cbTarget.getSelectedItem();
+            double targetScore = target.contains("3.6") ? 3.6 : (target.contains("3.2") ? 3.2 : 2.5);
+            double baseGpa = t.getCumulativeGpa4();
+            if (baseGpa >= targetScore) {
+                txtAdvice.setText("Chúc mừng! CPA hiện tại (" + String.format("%.2f", baseGpa) + ") đã đạt mức mục tiêu (" + target + ").\nHãy duy trì phong độ tối thiểu 3.0 ở các môn tiếp theo!");
+            } else {
+                double diff = targetScore - baseGpa;
+                double needed = baseGpa + (diff * 1.6);
+                if (needed > 4.0) needed = 3.9;
+                txtAdvice.setText(String.format("Để nâng hạng học lực lên %s:\n• Bạn cần đạt GPA trung bình tối thiểu: %.2f (Thang 4) ở kỳ tới.\n• Lời khuyên: Cố gắng đạt điểm A ở các môn 3 và 4 tín chỉ!", target, needed));
+            }
+        });
+
+        JButton btnClose = new JButton("Đóng");
+        btnClose.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        btnClose.addActionListener(e -> simDialog.dispose());
+
+        bottom.add(btnCalc);
+        bottom.add(btnClose);
+        simDialog.add(bottom, BorderLayout.SOUTH);
+
+        simDialog.setVisible(true);
+    }
+
+    public JTabbedPane getMainTabbedPane() {
+        return mainTabbedPane;
     }
 
     public static void main(String[] args) {

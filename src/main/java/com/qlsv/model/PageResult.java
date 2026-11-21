@@ -79,3 +79,4 @@ public class PageResult<T> implements Serializable {
         return currentPage < totalPages;
     }
 }
+

@@ -114,4 +114,16 @@ public class CourseGrade implements Serializable {
     public void setGpa4(double gpa4) {
         this.gpa4 = gpa4;
     }
+
+    public double getScoreProcess() {
+        return midtermScore;
+    }
+
+    public double getScoreExam() {
+        return finalScore;
+    }
+
+    public boolean isPassed() {
+        return totalScore >= 4.0;
+    }
 }

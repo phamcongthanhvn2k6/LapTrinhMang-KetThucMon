@@ -24,7 +24,7 @@ public class AppLauncher {
 
         SwingUtilities.invokeLater(() -> {
             JFrame frame = new JFrame("HỌC VIỆN CÔNG NGHỆ BƯU CHÍNH VIỄN THÔNG - PTIT");
-            frame.setSize(560, 360);
+            frame.setSize(580, 420);
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
             frame.setLocationRelativeTo(null);
 
@@ -54,7 +54,7 @@ public class AppLauncher {
 
             // Content Body
             JPanel contentPanel = new JPanel(new BorderLayout(15, 15));
-            contentPanel.setBorder(BorderFactory.createEmptyBorder(20, 25, 20, 25));
+            contentPanel.setBorder(BorderFactory.createEmptyBorder(18, 25, 18, 25));
             contentPanel.setBackground(Color.WHITE);
 
             JLabel lblPrompt = new JLabel("Vui lòng chọn phân hệ bạn muốn khởi chạy:", SwingConstants.CENTER);
@@ -62,10 +62,10 @@ public class AppLauncher {
             lblPrompt.setForeground(new Color(40, 40, 40));
             contentPanel.add(lblPrompt, BorderLayout.NORTH);
 
-            JPanel btnPanel = new JPanel(new GridLayout(3, 1, 10, 10));
+            JPanel btnPanel = new JPanel(new GridLayout(4, 1, 10, 10));
             btnPanel.setOpaque(false);
 
-            JButton btnBoth = new JButton("Khởi Chạy Toàn Bộ Hệ Thống (Máy Chủ & Ứng Dụng)");
+            JButton btnBoth = new JButton("1. Khởi Chạy Toàn Bộ Hệ Thống (Server & Cổng Sinh Viên)");
             btnBoth.setFont(new Font("Segoe UI", Font.BOLD, 13));
             btnBoth.setBackground(PTIT_RED);
             btnBoth.setForeground(Color.WHITE);
@@ -73,14 +73,34 @@ public class AppLauncher {
             btnBoth.addActionListener(e -> {
                 frame.dispose();
                 launchServer();
-                javax.swing.Timer timer = new javax.swing.Timer(400, evt -> launchClient());
+                javax.swing.Timer timer = new javax.swing.Timer(400, evt -> launchClient(0));
                 timer.setRepeats(false);
                 timer.start();
             });
 
-            JButton btnServer = new JButton("Khởi Chạy Bảng Quản Trị Máy Chủ");
+            JButton btnStudent = new JButton("2. Khởi Chạy Cổng Thông Tin Sinh Viên (Tra Cứu Học Tập)");
+            btnStudent.setFont(new Font("Segoe UI", Font.BOLD, 13));
+            btnStudent.setBackground(new Color(0, 123, 255));
+            btnStudent.setForeground(Color.WHITE);
+            btnStudent.setFocusPainted(false);
+            btnStudent.addActionListener(e -> {
+                frame.dispose();
+                launchClient(0);
+            });
+
+            JButton btnTeacher = new JButton("3. Khởi Chạy Phân Hệ Giảng Viên (Quản Lý & Chấm Điểm)");
+            btnTeacher.setFont(new Font("Segoe UI", Font.BOLD, 13));
+            btnTeacher.setBackground(new Color(40, 167, 69));
+            btnTeacher.setForeground(Color.WHITE);
+            btnTeacher.setFocusPainted(false);
+            btnTeacher.addActionListener(e -> {
+                frame.dispose();
+                launchClient(1);
+            });
+
+            JButton btnServer = new JButton("4. Khởi Chạy Trung Tâm Máy Chủ Server (RUDP & Database)");
             btnServer.setFont(new Font("Segoe UI", Font.BOLD, 13));
-            btnServer.setBackground(new Color(40, 40, 40));
+            btnServer.setBackground(new Color(50, 50, 50));
             btnServer.setForeground(Color.WHITE);
             btnServer.setFocusPainted(false);
             btnServer.addActionListener(e -> {
@@ -88,19 +108,10 @@ public class AppLauncher {
                 launchServer();
             });
 
-            JButton btnClient = new JButton("Khởi Chạy Cổng Thông Tin Người Dùng");
-            btnClient.setFont(new Font("Segoe UI", Font.BOLD, 13));
-            btnClient.setBackground(new Color(100, 100, 100));
-            btnClient.setForeground(Color.WHITE);
-            btnClient.setFocusPainted(false);
-            btnClient.addActionListener(e -> {
-                frame.dispose();
-                launchClient();
-            });
-
             btnPanel.add(btnBoth);
+            btnPanel.add(btnStudent);
+            btnPanel.add(btnTeacher);
             btnPanel.add(btnServer);
-            btnPanel.add(btnClient);
 
             contentPanel.add(btnPanel, BorderLayout.CENTER);
             mainPanel.add(contentPanel, BorderLayout.CENTER);
@@ -118,10 +129,13 @@ public class AppLauncher {
         });
     }
 
-    private static void launchClient() {
+    private static void launchClient(int tabIndex) {
         SwingUtilities.invokeLater(() -> {
             ClientGUI clientGUI = new ClientGUI();
             clientGUI.setLocation(650, 80);
+            if (clientGUI.getMainTabbedPane() != null && tabIndex >= 0) {
+                clientGUI.getMainTabbedPane().setSelectedIndex(tabIndex);
+            }
             clientGUI.setVisible(true);
         });
     }

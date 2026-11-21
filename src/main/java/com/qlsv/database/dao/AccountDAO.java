@@ -99,10 +99,15 @@ public class AccountDAO {
             return new UserAccount("admin", "", "", UserAccount.Role.ADMIN, null, "Quản Trị Viên", "admin@ptit.edu.vn");
         }
         if (("giangvien".equalsIgnoreCase(username) || "teacher".equalsIgnoreCase(username)) && "ptit123".equals(password)) {
-            return new UserAccount("giangvien", "", "", UserAccount.Role.GIANGVIEN, null, "Giảng Viên PTIT", "giangvien@ptit.edu.vn");
+            return new UserAccount("giangvien", "", "", UserAccount.Role.GIANGVIEN, null, "ThS. Giảng Viên Mạng", "giangvien@ptit.edu.vn");
         }
         if ("student".equalsIgnoreCase(username) && "ptit123".equals(password)) {
-            return new UserAccount("student", "", "", UserAccount.Role.HOCSINH, "B21DCCN001", "Nguyễn Văn An", "student@ptit.edu.vn");
+            return new UserAccount("student", "", "", UserAccount.Role.HOCSINH, "SV001", "Vũ Khánh Bích", "sv001@ptit.edu.vn");
+        }
+        // Cho phép đăng nhập bất kỳ Mã SV nào (SV001 - SV250) với mật khẩu ptit123
+        if (username.toUpperCase().startsWith("SV") && "ptit123".equals(password)) {
+            String cleanId = username.toUpperCase().trim();
+            return new UserAccount(cleanId, "", "", UserAccount.Role.HOCSINH, cleanId, "Sinh Viên " + cleanId, cleanId.toLowerCase() + "@ptit.edu.vn");
         }
 
         return null;

@@ -115,7 +115,8 @@ public class CaptureAllScreenshots {
                         listField.set(clientGUI, mockStudents);
                         filterMethod.invoke(clientGUI);
 
-                        // 1. Chụp Client GUI Chế độ Học sinh (Safe Mode)
+                        // 1. Chụp Cổng Thông Tin Sinh Viên (Tab 0)
+                        clientGUI.getMainTabbedPane().setSelectedIndex(0);
                         saveFrame(clientGUI, new File("screenshots/01_client_student_mode.png"));
                         System.out.println("✅ Đã chụp: screenshots/01_client_student_mode.png");
 
@@ -124,7 +125,7 @@ public class CaptureAllScreenshots {
                         frameAuth.dispose();
                         System.out.println("✅ Đã chụp: screenshots/02_teacher_auth_dialog.png");
 
-                        // 3. Mở khóa Giảng viên và chụp Client GUI Chế độ Giảng viên
+                        // 3. Mở khóa Giảng viên và chụp Phân hệ Quản Lý Đào Tạo (Tab 1)
                         Field roleField = ClientGUI.class.getDeclaredField("currentRole");
                         roleField.setAccessible(true);
                         roleField.set(clientGUI, ClientGUI.UserRole.TEACHER);
@@ -136,6 +137,7 @@ public class CaptureAllScreenshots {
                         listField.set(clientGUI, mockStudents);
                         filterMethod.invoke(clientGUI);
 
+                        clientGUI.getMainTabbedPane().setSelectedIndex(1);
                         saveFrame(clientGUI, new File("screenshots/03_client_teacher_mode.png"));
                         System.out.println("✅ Đã chụp: screenshots/03_client_teacher_mode.png");
 

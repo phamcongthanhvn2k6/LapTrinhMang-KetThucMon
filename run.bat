@@ -2,6 +2,11 @@
 chcp 65001 > NUL
 title Quản Lý Sinh Viên PTIT - App Launcher
 
+REM Giải phóng cổng 9876 nếu có tiến trình treo cũ
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr :9876') do (
+    taskkill /F /PID %%a >nul 2>&1
+)
+
 REM Check if java is on PATH, else search known JDK locations
 where java >nul 2>nul
 if %ERRORLEVEL% EQU 0 (
