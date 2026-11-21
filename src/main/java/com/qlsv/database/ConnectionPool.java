@@ -1,11 +1,11 @@
 package com.qlsv.database;
 
+import java.sql.Connection;
+import java.sql.SQLException;
+
 import com.qlsv.model.SqlConfig;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
-
-import java.sql.Connection;
-import java.sql.SQLException;
 
 /**
  * High-performance Thread-Safe Connection Pool using HikariCP.
@@ -116,3 +116,4 @@ public class ConnectionPool {
         }
     }
 }
+

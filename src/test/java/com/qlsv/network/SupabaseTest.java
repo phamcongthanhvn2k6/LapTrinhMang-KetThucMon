@@ -10,8 +10,9 @@ public class SupabaseTest {
         System.out.println("========== KIỂM TRA KẾT NỐI CSDL SUPABASE CLOUD ==========");
 
         String[][] testCases = {
-            {"aws-0-ap-southeast-1.pooler.supabase.com", "6543", "postgres.udkrzbihnixbynfovtfy"},
-            {"aws-0-ap-southeast-1.pooler.supabase.com", "5432", "postgres.udkrzbihnixbynfovtfy"},
+            {"aws-0-ap-southeast-1.pooler.supabase.com", "6543", "postgres.udkrzbihnlxbynfovtfy"},
+            {"aws-0-ap-southeast-1.pooler.supabase.com", "5432", "postgres.udkrzbihnlxbynfovtfy"},
+            {"db.udkrzbihnlxbynfovtfy.supabase.co", "5432", "postgres"},
             {"aws-0-ap-southeast-1.pooler.supabase.com", "6543", "postgres"},
             {"aws-0-ap-southeast-1.pooler.supabase.com", "5432", "postgres"}
         };

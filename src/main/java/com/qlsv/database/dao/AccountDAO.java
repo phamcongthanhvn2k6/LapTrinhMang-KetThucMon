@@ -1,13 +1,13 @@
 package com.qlsv.database.dao;
 
-import com.qlsv.database.ConnectionPool;
-import com.qlsv.model.UserAccount;
-import com.qlsv.security.PasswordHasher;
-
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
+
+import com.qlsv.database.ConnectionPool;
+import com.qlsv.model.UserAccount;
+import com.qlsv.security.PasswordHasher;
 
 /**
  * Data Access Object for Account & Authentication.
@@ -108,3 +108,4 @@ public class AccountDAO {
         return null;
     }
 }
+

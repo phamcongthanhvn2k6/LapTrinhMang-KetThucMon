@@ -1,9 +1,9 @@
 package com.qlsv.database.dao;
 
-import com.qlsv.database.ConnectionPool;
-
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+
+import com.qlsv.database.ConnectionPool;
 
 /**
  * Data Access Object for Audit Logging.
@@ -23,3 +23,4 @@ public class AuditDAO {
         } catch (Exception ignored) {}
     }
 }
+

@@ -1,12 +1,12 @@
 package com.qlsv.database;
 
-import com.qlsv.model.SqlConfig;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.util.Properties;
+
+import com.qlsv.model.SqlConfig;
 
 /**
  * Loads and manages external database configurations from db.properties.
@@ -123,3 +123,4 @@ public class DatabaseConfigLoader {
         } catch (Exception ignored) {}
     }
 }
+

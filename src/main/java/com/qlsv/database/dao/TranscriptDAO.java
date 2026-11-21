@@ -1,14 +1,14 @@
 package com.qlsv.database.dao;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+
 import com.qlsv.database.ConnectionPool;
 import com.qlsv.model.CourseGrade;
 import com.qlsv.model.StudentResult;
 import com.qlsv.model.StudentTranscript;
 import com.qlsv.security.SecurityManager;
-
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 
 /**
  * Data Access Object for Transcript & Grade calculations.
@@ -92,3 +92,4 @@ public class TranscriptDAO {
         }
     }
 }
+

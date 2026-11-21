@@ -1,11 +1,11 @@
 package com.qlsv.database.dao;
 
-import com.qlsv.database.ConnectionPool;
-
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
+
+import com.qlsv.database.ConnectionPool;
 
 /**
  * Data Access Object for Subject/Course operations.
@@ -39,3 +39,4 @@ public class SubjectDAO {
         } catch (Exception ignored) {}
     }
 }
+
