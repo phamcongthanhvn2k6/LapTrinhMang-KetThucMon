@@ -1,6 +1,7 @@
 package com.qlsv.client;
 
 import com.formdev.flatlaf.FlatLightLaf;
+import com.qlsv.AppLauncher;
 import com.qlsv.model.CourseGrade;
 import com.qlsv.model.SqlConfig;
 import com.qlsv.model.StudentData;
@@ -165,9 +166,43 @@ public class ClientGUI extends JFrame {
         titleBox.add(titleLabel);
         titleBox.add(subtitleLabel);
 
+        // Menubar Trình Diễn Demo
+        setJMenuBar(createDemoMenuBar());
+
         // Status Badges & Role Switcher Panel
-        JPanel statusBox = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 5));
+        JPanel statusBox = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 4));
         statusBox.setOpaque(false);
+
+        JButton btnDemoParallel = new JButton("🎬 Xếp Demo Song Song");
+        btnDemoParallel.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        btnDemoParallel.setBackground(new Color(255, 193, 7)); // Gold
+        btnDemoParallel.setForeground(Color.BLACK);
+        btnDemoParallel.setFocusPainted(false);
+        btnDemoParallel.setToolTipText("Mở và tự động chia màn hình: Server + Giảng viên + Sinh viên");
+        btnDemoParallel.addActionListener(e -> AppLauncher.launchDemoParallelLayout());
+
+        JButton btnQuickSwitch = new JButton("⚡ Đổi Vai Trò Nhanh ▼");
+        btnQuickSwitch.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        btnQuickSwitch.setBackground(Color.WHITE);
+        btnQuickSwitch.setForeground(PTIT_RED);
+        btnQuickSwitch.setFocusPainted(false);
+        btnQuickSwitch.addActionListener(e -> {
+            JPopupMenu pop = new JPopupMenu();
+            JMenuItem m1 = new JMenuItem("🎓 Sang Cổng Sinh Viên (SV001)");
+            m1.addActionListener(evt -> switchDemoRole(UserRole.STUDENT, "SV001"));
+            JMenuItem m2 = new JMenuItem("👨‍🏫 Sang Quyền Giảng Viên (Chấm Điểm)");
+            m2.addActionListener(evt -> switchDemoRole(UserRole.TEACHER, null));
+            JMenuItem m3 = new JMenuItem("🛡️ Sang Quyền Admin (Toàn Quyền)");
+            m3.addActionListener(evt -> switchDemoRole(UserRole.ADMIN, null));
+            JMenuItem m4 = new JMenuItem("🔑 Hộp thoại đăng nhập...");
+            m4.addActionListener(evt -> toggleRoleAuth());
+            pop.add(m1);
+            pop.add(m2);
+            pop.add(m3);
+            pop.addSeparator();
+            pop.add(m4);
+            pop.show(btnQuickSwitch, 0, btnQuickSwitch.getHeight());
+        });
 
         lblServerBadge = new JLabel("● Máy Chủ: Chưa kết nối");
         lblServerBadge.setFont(new Font("Segoe UI", Font.BOLD, 12));
@@ -190,6 +225,8 @@ public class ClientGUI extends JFrame {
         btnRoleAuth.setFocusPainted(false);
         btnRoleAuth.addActionListener(e -> toggleRoleAuth());
 
+        statusBox.add(btnDemoParallel);
+        statusBox.add(btnQuickSwitch);
         statusBox.add(lblServerBadge);
         statusBox.add(lblDbBadge);
         statusBox.add(btnRoleAuth);
@@ -878,6 +915,127 @@ public class ClientGUI extends JFrame {
                         "Thông Báo", JOptionPane.INFORMATION_MESSAGE);
             }
         }
+    }
+
+    public void switchDemoRole(UserRole role, String defaultId) {
+        if (role == UserRole.STUDENT) {
+            if (client != null) {
+                client.logout();
+            }
+            this.currentRole = UserRole.STUDENT;
+            this.currentUserAccount = null;
+            updateRoleUI();
+            if (mainTabbedPane != null) {
+                mainTabbedPane.setSelectedIndex(0);
+            }
+            loadStudentPortal(defaultId != null && !defaultId.isEmpty() ? defaultId : "SV001");
+        } else if (role == UserRole.TEACHER) {
+            if (client != null) {
+                try {
+                    this.currentUserAccount = client.login("giangvien", "ptit123");
+                } catch (Exception ignored) {
+                    this.currentUserAccount = new UserAccount("giangvien", "ThS. Giảng Viên Mạng", UserAccount.Role.GIANGVIEN, "");
+                }
+            } else {
+                this.currentUserAccount = new UserAccount("giangvien", "ThS. Giảng Viên Mạng", UserAccount.Role.GIANGVIEN, "");
+            }
+            this.currentRole = UserRole.TEACHER;
+            updateRoleUI();
+            if (mainTabbedPane != null) {
+                mainTabbedPane.setSelectedIndex(1);
+            }
+            loadAllStudents();
+        } else if (role == UserRole.ADMIN) {
+            if (client != null) {
+                try {
+                    this.currentUserAccount = client.login("admin", "admin123");
+                } catch (Exception ignored) {
+                    this.currentUserAccount = new UserAccount("admin", "Quản Trị Viên Hệ Thống", UserAccount.Role.ADMIN, "");
+                }
+            } else {
+                this.currentUserAccount = new UserAccount("admin", "Quản Trị Viên Hệ Thống", UserAccount.Role.ADMIN, "");
+            }
+            this.currentRole = UserRole.ADMIN;
+            updateRoleUI();
+            if (mainTabbedPane != null) {
+                mainTabbedPane.setSelectedIndex(1);
+            }
+            loadAllStudents();
+        }
+    }
+
+    private JMenuBar createDemoMenuBar() {
+        JMenuBar mb = new JMenuBar();
+
+        // 1. Menu Vai Trò
+        JMenu menuRole = new JMenu("⚡ Chuyển Nhanh Vai Trò");
+        menuRole.setFont(new Font("Segoe UI", Font.BOLD, 12));
+
+        JMenuItem miStudent = new JMenuItem("🎓 Chuyển sang Cổng Sinh Viên (SV001)");
+        miStudent.addActionListener(e -> switchDemoRole(UserRole.STUDENT, "SV001"));
+
+        JMenuItem miTeacher = new JMenuItem("👨‍🏫 Chuyển sang Quyền Giảng Viên (Chấm điểm & Quản lý)");
+        miTeacher.addActionListener(e -> switchDemoRole(UserRole.TEACHER, null));
+
+        JMenuItem miAdmin = new JMenuItem("🛡️ Chuyển sang Quyền Admin (Toàn quyền)");
+        miAdmin.addActionListener(e -> switchDemoRole(UserRole.ADMIN, null));
+
+        JMenuItem miAuthDialog = new JMenuItem("🔑 Hộp thoại đăng nhập...");
+        miAuthDialog.addActionListener(e -> toggleRoleAuth());
+
+        menuRole.add(miStudent);
+        menuRole.add(miTeacher);
+        menuRole.add(miAdmin);
+        menuRole.addSeparator();
+        menuRole.add(miAuthDialog);
+
+        // 2. Menu Điều Khiển Demo
+        JMenu menuDemo = new JMenu("🎛️ Bảng Điều Khiển Demo");
+        menuDemo.setFont(new Font("Segoe UI", Font.BOLD, 12));
+
+        JMenuItem miParallel = new JMenuItem("🎬 Chế độ Demo song song (Xếp Server + Giảng viên + Sinh viên)");
+        miParallel.addActionListener(e -> AppLauncher.launchDemoParallelLayout());
+
+        JMenuItem miTile = new JMenuItem("🔄 Tự động sắp xếp lại cửa sổ trên màn hình");
+        miTile.addActionListener(e -> AppLauncher.tileAllWindows());
+
+        JMenuItem miOpenServer = new JMenuItem("🖥️ Hiện / Mở Trung Tâm Máy Chủ Server");
+        miOpenServer.addActionListener(e -> AppLauncher.launchOrFocusServer());
+
+        JMenuItem miNewStudent = new JMenuItem("➕ Mở thêm 1 Cửa Sổ Cổng Sinh Viên");
+        miNewStudent.addActionListener(e -> AppLauncher.launchStudentClient());
+
+        JMenuItem miNewTeacher = new JMenuItem("➕ Mở thêm 1 Cửa Sổ Giảng Viên");
+        miNewTeacher.addActionListener(e -> AppLauncher.launchTeacherClient());
+
+        JMenuItem miOpenLauncher = new JMenuItem("🎛️ Mở Bảng Điều Khiển Launcher PTIT");
+        miOpenLauncher.addActionListener(e -> AppLauncher.showLauncher());
+
+        menuDemo.add(miParallel);
+        menuDemo.add(miTile);
+        menuDemo.addSeparator();
+        menuDemo.add(miOpenServer);
+        menuDemo.add(miNewStudent);
+        menuDemo.add(miNewTeacher);
+        menuDemo.addSeparator();
+        menuDemo.add(miOpenLauncher);
+
+        // 3. Menu Dữ liệu & Làm mới
+        JMenu menuData = new JMenu("🔄 Dữ Liệu");
+        menuData.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        JMenuItem miRefresh = new JMenuItem("🔄 Tải lại dữ liệu từ Server RUDP");
+        miRefresh.addActionListener(e -> {
+            loadAllStudents();
+            if (txtPortalSearchMaSV != null && !txtPortalSearchMaSV.getText().trim().isEmpty()) {
+                loadStudentPortal(txtPortalSearchMaSV.getText().trim());
+            }
+        });
+        menuData.add(miRefresh);
+
+        mb.add(menuRole);
+        mb.add(menuDemo);
+        mb.add(menuData);
+        return mb;
     }
 
     private void updateRoleUI() {

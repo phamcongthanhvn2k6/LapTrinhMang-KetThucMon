@@ -40,6 +40,13 @@ public class UserAccount implements Serializable {
         this.email = email;
     }
 
+    public UserAccount(String username, String fullName, Role role, String studentId) {
+        this.username = username;
+        this.fullName = fullName;
+        this.role = role;
+        this.studentId = studentId;
+    }
+
     public String getUsername() {
         return username;
     }

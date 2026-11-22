@@ -44,3 +44,4 @@ if %ERRORLEVEL% NEQ 0 (
 echo.
 echo [2/2] [THÀNH CÔNG] Đang khởi chạy Hệ thống Quản Lý Sinh Viên PTIT...
 "%JAVA_CMD%" -jar "target\LapTrinhMang-KetThucMon-1.0-SNAPSHOT-jar-with-dependencies.jar"
+

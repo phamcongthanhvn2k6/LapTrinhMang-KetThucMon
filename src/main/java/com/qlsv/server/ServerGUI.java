@@ -1,6 +1,7 @@
 package com.qlsv.server;
 
 import com.formdev.flatlaf.FlatLightLaf;
+import com.qlsv.AppLauncher;
 import com.qlsv.database.DatabaseManager;
 import com.qlsv.security.SecurityManager;
 import org.jfree.chart.ChartFactory;
@@ -53,6 +54,7 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
 
     private void initUI() {
         setLayout(new BorderLayout(10, 10));
+        setJMenuBar(createServerDemoMenuBar());
 
         // Header Panel (PTIT Red)
         JPanel headerPanel = new JPanel(new BorderLayout(0, 8));
@@ -73,11 +75,39 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
         titleBox.add(subtitleLabel);
 
         // Control Panel
-        JPanel controlPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        JPanel controlPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         controlPanel.setOpaque(false);
 
-        btnSettings = new JButton("⚙️ Thiết Lập Nâng Cao");
-        btnSettings.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        JButton btnDemoParallel = new JButton("🎬 Xếp Demo Song Song");
+        btnDemoParallel.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        btnDemoParallel.setBackground(new Color(255, 193, 7)); // Gold
+        btnDemoParallel.setForeground(Color.BLACK);
+        btnDemoParallel.setFocusPainted(false);
+        btnDemoParallel.addActionListener(e -> AppLauncher.launchDemoParallelLayout());
+
+        JButton btnOpenStudent = new JButton("🎓 Cổng SV");
+        btnOpenStudent.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        btnOpenStudent.setBackground(new Color(0, 123, 255));
+        btnOpenStudent.setForeground(Color.WHITE);
+        btnOpenStudent.setFocusPainted(false);
+        btnOpenStudent.addActionListener(e -> AppLauncher.launchStudentClient());
+
+        JButton btnOpenTeacher = new JButton("👨‍🏫 Giảng Viên");
+        btnOpenTeacher.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        btnOpenTeacher.setBackground(new Color(40, 167, 69));
+        btnOpenTeacher.setForeground(Color.WHITE);
+        btnOpenTeacher.setFocusPainted(false);
+        btnOpenTeacher.addActionListener(e -> AppLauncher.launchTeacherClient());
+
+        JButton btnLauncher = new JButton("🎛️ Launcher");
+        btnLauncher.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        btnLauncher.setBackground(Color.WHITE);
+        btnLauncher.setForeground(PTIT_RED);
+        btnLauncher.setFocusPainted(false);
+        btnLauncher.addActionListener(e -> AppLauncher.showLauncher());
+
+        btnSettings = new JButton("⚙️ Cấu Hình");
+        btnSettings.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         btnSettings.setBackground(new Color(240, 240, 240));
         btnSettings.setForeground(Color.DARK_GRAY);
         btnSettings.setFocusPainted(false);
@@ -90,6 +120,10 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
         btnStartStop.setFocusPainted(false);
         btnStartStop.addActionListener(e -> toggleServer());
 
+        controlPanel.add(btnDemoParallel);
+        controlPanel.add(btnOpenStudent);
+        controlPanel.add(btnOpenTeacher);
+        controlPanel.add(btnLauncher);
         controlPanel.add(btnSettings);
         controlPanel.add(btnStartStop);
 
@@ -389,6 +423,49 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
             lblDbStatus.setText("Trạng thái CSDL: CHƯA KẾT NỐI");
             lblDbStatus.setForeground(PTIT_RED);
         }
+    }
+
+    private JMenuBar createServerDemoMenuBar() {
+        JMenuBar mb = new JMenuBar();
+
+        JMenu menuDemo = new JMenu("🎛️ Bảng Điều Khiển Demo");
+        menuDemo.setFont(new Font("Segoe UI", Font.BOLD, 12));
+
+        JMenuItem miParallel = new JMenuItem("🎬 Chế độ Demo song song (Xếp Server + Giảng viên + Sinh viên)");
+        miParallel.addActionListener(e -> AppLauncher.launchDemoParallelLayout());
+
+        JMenuItem miTile = new JMenuItem("🔄 Tự động sắp xếp lại cửa sổ trên màn hình");
+        miTile.addActionListener(e -> AppLauncher.tileAllWindows());
+
+        JMenuItem miOpenStudent = new JMenuItem("🎓 Mở Cổng Thông Tin Sinh Viên");
+        miOpenStudent.addActionListener(e -> AppLauncher.launchStudentClient());
+
+        JMenuItem miOpenTeacher = new JMenuItem("👨‍🏫 Mở Phân Hệ Giảng Viên");
+        miOpenTeacher.addActionListener(e -> AppLauncher.launchTeacherClient());
+
+        JMenuItem miOpenLauncher = new JMenuItem("🎛️ Mở Bảng Điều Khiển Launcher PTIT");
+        miOpenLauncher.addActionListener(e -> AppLauncher.showLauncher());
+
+        menuDemo.add(miParallel);
+        menuDemo.add(miTile);
+        menuDemo.addSeparator();
+        menuDemo.add(miOpenStudent);
+        menuDemo.add(miOpenTeacher);
+        menuDemo.addSeparator();
+        menuDemo.add(miOpenLauncher);
+
+        JMenu menuData = new JMenu("🔄 Dữ Liệu");
+        menuData.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        JMenuItem miRefresh = new JMenuItem("🔄 Nạp lại dữ liệu mã hóa CSDL");
+        miRefresh.addActionListener(e -> {
+            refreshDataInspection();
+            updateChartPanel();
+        });
+        menuData.add(miRefresh);
+
+        mb.add(menuDemo);
+        mb.add(menuData);
+        return mb;
     }
 
     public static void main(String[] args) {
