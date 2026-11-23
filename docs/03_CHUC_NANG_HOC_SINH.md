@@ -1,63 +1,30 @@
-# 👨‍🎓 TÍNH NĂNG CHẾ ĐỘ HỌC SINH / SINH VIÊN (CHỈ XEM & TRA CỨU)
-## 🎓 HỌC VIỆN CÔNG NGHỆ BƯU CHÍNH VIỄN THÔNG (PTIT)
-**Dự án**: Hệ Thống Quản Lý Sinh Viên Truyền Bảng Mạng UDP & Bảo Mật Mã Hóa CSDL SQL
+# PHÂN HỆ CỔNG THÔNG TIN SINH VIÊN (STUDENT PORTAL)
+## HỌC VIỆN CÔNG NGHỆ BƯU CHÍNH VIỄN THÔNG (PTIT)
+**Dự án**: Hệ Thống Quản Lý Đào Tạo Tín Chỉ & Sinh Viên Qua Mạng RUDP 2.0
 
 ---
 
-## 1. 📌 GIAO DIỆN BẢO VỆ CHẾ ĐỘ HỌC SINH (STUDENT SAFE MODE)
+## 1. GIAO DIỆN CỔNG THÔNG TIN SINH VIÊN ĐỘC LẬP
 
-Chế độ **Học sinh / Sinh viên** là chế độ xem an toàn mặc định khi mở ứng dụng Client GUI. Toàn bộ các công cụ nhập và sửa dữ liệu của Giảng viên đều được **khóa và ẩn an toàn**:
+Khi sinh viên truy cập hệ thống (hoặc chọn **Cổng Thông Tin Sinh Viên** từ `AppLauncher`), hệ thống cung cấp không gian tra cứu học tập cá nhân hóa theo chuẩn đào tạo tín chỉ đại học, đồng thời **khóa và ẩn toàn bộ công cụ chỉnh sửa điểm của Giảng viên**:
 
-![Chế Độ Học Sinh](../screenshots/01_client_student_mode.png)
+![Cổng Thông Tin Sinh Viên](../screenshots/01_client_student_mode.png)
 
-```mermaid
-graph LR
-    StudentGUI["👨‍🎓 Giao Diện Học Sinh (Chỉ xem)"] --> Allow["✅ CÁC TÍNH NĂNG CHẤP NHẬN"]
-    StudentGUI --> Block["🚫 CÁC TÍNH NĂNG BỊ KHÓA BẢO VỆ"]
-
-    Allow --> A1["• Tra cứu điểm theo Mã SV / Họ tên"]
-    Allow --> A2["• Xem Họ tên & Thông tin giải mã"]
-    Allow --> A3["• Xem Điểm TB & Xếp loại học lực"]
-    Allow --> A4["• Lọc danh sách theo Học lực"]
-    Allow --> A5["• Xem thanh Thống kê Min/Max/Avg"]
-
-    Block --> B1["❌ Form Nhập Điểm: BỊ ẨN HOÀN TOÀN"]
-    Block --> B2["❌ Nút Xóa Sinh Viên: VÔ HIỆU HÓA"]
-    Block --> B3["❌ Tab Cấu Hình CSDL: BỊ ẨN HOÀN TOÀN"]
-    Block --> B4["❌ Sửa nhanh Inline trên Table: KHÓA THAO TÁC"]
-```
-
----
-
-## 2. 🎯 CÁC CHỨC NĂNG DÀNH CHO HỌC SINH TRUY CẬP
-
-### 2.1. Tra Cứu Kết Quả Học Tập An Toàn
-- **Tra cứu từ khóa**: Học sinh nhập từ khóa (Mã SV hoặc Họ tên) ➔ Nhấn `Tìm Kiếm` ➔ UDP Client gửi yêu cầu `SEARCH_STUDENTS` lên Server.
-- **Hiển thị thông tin giải mã**: Dữ liệu phản hồi từ UDP Server chứa Họ tên và Điểm thi đã được giải mã hiển thị trực quan lên bảng.
-
----
-
-### 2.2. Tra Cứu Phiếu Báo Điểm Chi Tiết Môn Học (Transcript Modal)
-- Học sinh chọn dòng sinh viên trên bảng ➔ Nhấn nút **"Bảng Điểm Môn Học"** (hoặc double-click vào dòng).
-- Cửa sổ Phiếu Báo Điểm Chi Tiết xuất hiện với logo PTIT:
-  - Bảng điểm chi tiết 5 môn học: Lập Trình Mạng, Mã Hóa & An Toàn Thông Tin, Cơ Sở Dữ Liệu SQL, Cấu Trúc Dữ Liệu, Kỹ Năng Giao Tiếp.
-  - Điểm Quá Trình (30%), Điểm Thi (70%), Điểm Tổng Kết hệ 10 và Điểm Chữ quy đổi (`A+`, `A`, `B+`...).
-
-![Phiếu Báo Điểm Chi Tiết](../screenshots/04_student_transcript_modal.png)
-
----
-
-### 2.3. Bộ Giả Lập Điểm GPA Simulator & Dự Đoán Học Lực Mục Tiêu
-- Nhấn nút **"Giả Lập GPA"** để mở công cụ hỗ trợ lập kế hoạch học tập.
-- Chọn mục tiêu xếp loại mong muốn (Xuất sắc, Giỏi, Khá) và số tín chỉ môn tiếp theo.
-- Hệ thống tự động tính toán điểm tối thiểu cần đạt ở các môn tới để đạt xếp loại mục tiêu.
-
-![Bộ Giả Lập Điểm GPA](../screenshots/05_gpa_simulator_modal.png)
-
----
-
-### 2.4. Hướng Dẫn Chuyển Đổi Quyền Khi Là Giảng Viên
-Nếu người dùng là Giảng viên/Giáo viên sử dụng ứng dụng:
-1. Nhấp chuột vào nút **`🔒 Quyền: Học sinh (Bấm để Đăng nhập Giảng viên)`** ở góc phải thanh Header.
-2. Nhập mật khẩu xác thực Giảng viên (Mặc định: `ptit123` hoặc `admin123`).
-3. Giao diện sẽ tự động mở khóa toàn bộ các công cụ quản lý điểm và cấu hình CSDL.
+### Các Thành Phần Chính Trên Cổng Sinh Viên:
+1. **Hồ Sơ Sinh Viên & Tìm Kiếm Nhanh:**
+   - Tra cứu theo Mã Sinh Viên (`SV001` - `SV250`).
+   - Hiển thị Họ và Tên (đã giải mã), Mã SV, Lớp niên chế (`D21CQCN01-N`), Khoa quản lý (`CNTT 1`).
+2. **4 Thẻ Chỉ Số Học Tập Tín Chỉ (Academic KPI Cards):**
+   - **TÍN CHỈ:** Số tín chỉ tích lũy đạt trên tổng số tín chỉ toàn khóa (`15 / 132 TC`).
+   - **ĐTB HỆ 10:** Điểm trung bình học kỳ thang điểm 10.
+   - **GPA HỆ 4:** Điểm trung bình tích lũy quy đổi thang điểm 4.0 chuẩn tín chỉ.
+   - **XẾP LOẠI:** Xếp loại học lực (`Xuất sắc`, `Giỏi`, `Khá`, `Trung bình`, `Yếu/Kém`).
+3. **Bảng Điểm Kết Quả Học Tập Tín Chỉ (11 Cột):**
+   - Hiển thị chi tiết các học phần: `INT1339 (Lập Trình Mạng)`, `INT1340 (Mã Hóa & An Toàn Thông Tin)`, `INT1310 (Cơ Sở Dữ Liệu SQL)`, `INT1306 (Cấu Trúc Dữ Liệu & Giải Thuật)`, `INT1332 (Kiến Trúc Máy Tính)`.
+   - Tách rõ trọng số: **Chuyên Cần (10%)**, **Giữa Kỳ (20%)**, **Thi Kết Thúc (70%)**, Điểm HP (10), GPA Hệ 4, Điểm Chữ (`A+`, `A`, `B+`...) và Kết quả (`ĐẠT` / `HỌC LẠI`).
+4. **Nhận Thông Báo Điểm Mới Tức Thì Qua Kênh `UDP SERVER-PUSH`:**
+   - Ngay khi Giảng viên chấm hoặc sửa điểm trên máy trạm Giảng viên, Server tự động đẩy gói tin `PUSH_EVENT` xuống Cổng Sinh Viên.
+   - Thanh trạng thái dưới cùng sáng lên thông báo điểm mới và **bảng điểm tự động cập nhật ngay lập tức mà sinh viên không cần bấm nút Làm mới**.
+5. **Công Cụ Giả Lập Lộ Trình GPA & Xuất Phiếu Báo Điểm Excel:**
+   - Nút **`Giả Lập GPA Mục Tiêu`**: Dự đoán số điểm cần đạt trong học kỳ tới để nâng hạng học lực hoặc đạt học bổng.
+   - Nút **`Xuất Phiếu Báo Điểm (Excel)`**: Kết xuất bảng điểm cá nhân ra tệp `.xlsx` chuẩn biểu mẫu học viện.

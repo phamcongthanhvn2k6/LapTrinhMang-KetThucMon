@@ -223,19 +223,28 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
 
         add(statusBar, BorderLayout.SOUTH);
 
-        // Auto-connect to DB from db.properties if not connected
-        if (!DatabaseManager.getInstance().isConnected()) {
-            try {
-                com.qlsv.model.SqlConfig config = com.qlsv.database.DatabaseConfigLoader.loadConfig();
-                DatabaseManager.getInstance().connect(config);
-            } catch (Exception ignored) {}
-        }
-        refreshDataInspection();
-        updateChartPanel();
-        updateDbStatusLabel();
-
-        // Tự động khởi chạy Server RUDP ngay khi giao diện sẵn sàng
+        // 1. Khởi chạy ngay lập tức cổng RUDP 9876 (< 2ms) để các Client kết nối không bị trễ
         toggleServer();
+
+        // 2. Kết nối CSDL Supabase & tải bảng dữ liệu/biểu đồ bất đồng bộ trên nền (Không gây đơ giao diện)
+        new SwingWorker<Void, Void>() {
+            @Override
+            protected Void doInBackground() {
+                if (!DatabaseManager.getInstance().isConnected()) {
+                    try {
+                        com.qlsv.model.SqlConfig config = com.qlsv.database.DatabaseConfigLoader.loadConfig();
+                        DatabaseManager.getInstance().connect(config);
+                    } catch (Exception ignored) {}
+                }
+                return null;
+            }
+
+            @Override
+            protected void done() {
+                refreshDataInspection();
+                updateDbStatusLabel();
+            }
+        }.execute();
 
         addWindowListener(new java.awt.event.WindowAdapter() {
             @Override
@@ -370,11 +379,7 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
 
     @Override
     public void onDataUpdated() {
-        SwingUtilities.invokeLater(() -> {
-            refreshDataInspection();
-            refreshAuditLogs();
-            updateChartPanel();
-        });
+        SwingUtilities.invokeLater(this::refreshDataInspection);
     }
 
     private JPanel createAuditAndChaosTab() {
@@ -432,7 +437,7 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
         cbCipher.addActionListener(e -> {
             SecurityManager.EncryptionAlgo selected = (SecurityManager.EncryptionAlgo) cbCipher.getSelectedItem();
             SecurityManager.setCurrentAlgo(selected);
-            onLog("🔐 Đã chuyển thuật toán mã hóa CSDL sang: " + selected.getDisplayName());
+            onLog("[BẢO MẬT CSDL] Đã chuyển thuật toán mã hóa sang: " + selected.getDisplayName());
             updateDbStatusLabel();
         });
 
@@ -534,21 +539,31 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
     }
 
     private void refreshAuditLogs() {
-        if (auditTableModel == null) return;
-        auditTableModel.setRowCount(0);
-        try {
-            List<AuditDAO.AuditEntry> logs = DatabaseManager.getInstance().getRecentAuditLogs(80);
-            for (AuditDAO.AuditEntry entry : logs) {
-                auditTableModel.addRow(new Object[]{
-                        entry.id,
-                        entry.username,
-                        entry.action,
-                        entry.details,
-                        entry.ipAddress,
-                        entry.timestamp
-                });
+        if (auditTableModel == null || !DatabaseManager.getInstance().isConnected()) return;
+        new SwingWorker<List<AuditDAO.AuditEntry>, Void>() {
+            @Override
+            protected List<AuditDAO.AuditEntry> doInBackground() {
+                return DatabaseManager.getInstance().getRecentAuditLogs(80);
             }
-        } catch (Exception ignored) {}
+
+            @Override
+            protected void done() {
+                try {
+                    List<AuditDAO.AuditEntry> logs = get();
+                    auditTableModel.setRowCount(0);
+                    for (AuditDAO.AuditEntry entry : logs) {
+                        auditTableModel.addRow(new Object[]{
+                                entry.id,
+                                entry.username,
+                                entry.action,
+                                entry.details,
+                                entry.ipAddress,
+                                entry.timestamp
+                        });
+                    }
+                } catch (Exception ignored) {}
+            }
+        }.execute();
     }
 
     private void updateChaosTelemetryLabel() {
@@ -561,26 +576,73 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
     }
 
     private void refreshDataInspection() {
-        tableModel.setRowCount(0);
-        try {
-            List<DatabaseManager.EncryptedRecord> list = DatabaseManager.getInstance().getAllRecordsForInspection();
-            for (DatabaseManager.EncryptedRecord rec : list) {
-                tableModel.addRow(new Object[]{
-                        rec.maSV,
-                        rec.hoTenEncrypted,
-                        rec.diemToanEncrypted,
-                        rec.diemVanEncrypted,
-                        rec.diemAnhEncrypted,
-                        rec.hoTenDecrypted,
-                        String.format("%.2f", rec.diemTB)
-                });
-            }
+        if (!DatabaseManager.getInstance().isConnected()) {
             updateDbStatusLabel();
-            refreshAuditLogs();
-            updateChaosTelemetryLabel();
-        } catch (Exception e) {
-            onLog("Lỗi tải bảng dữ liệu: " + e.getMessage());
+            return;
         }
+        new SwingWorker<List<DatabaseManager.EncryptedRecord>, Void>() {
+            @Override
+            protected List<DatabaseManager.EncryptedRecord> doInBackground() throws Exception {
+                return DatabaseManager.getInstance().getAllRecordsForInspection();
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    List<DatabaseManager.EncryptedRecord> list = get();
+                    tableModel.setRowCount(0);
+                    int xs = 0, gioi = 0, kha = 0, tb = 0, yeu = 0;
+                    for (DatabaseManager.EncryptedRecord rec : list) {
+                        tableModel.addRow(new Object[]{
+                                rec.maSV,
+                                rec.hoTenEncrypted,
+                                rec.diemToanEncrypted,
+                                rec.diemVanEncrypted,
+                                rec.diemAnhEncrypted,
+                                rec.hoTenDecrypted,
+                                String.format("%.2f", rec.diemTB)
+                        });
+                        if (rec.diemTB >= 9.0) xs++;
+                        else if (rec.diemTB >= 8.0) gioi++;
+                        else if (rec.diemTB >= 6.5) kha++;
+                        else if (rec.diemTB >= 5.0) tb++;
+                        else yeu++;
+                    }
+                    updateChartFromCounts(xs, gioi, kha, tb, yeu);
+                    updateDbStatusLabel();
+                    refreshAuditLogs();
+                    updateChaosTelemetryLabel();
+                } catch (Exception e) {
+                    onLog("Lỗi tải bảng dữ liệu: " + e.getMessage());
+                }
+            }
+        }.execute();
+    }
+
+    private void updateChartFromCounts(int xs, int gioi, int kha, int tb, int yeu) {
+        if (chartPanelContainer == null) return;
+        chartPanelContainer.removeAll();
+        DefaultPieDataset dataset = new DefaultPieDataset();
+        dataset.setValue("Xuất sắc (" + xs + ")", xs);
+        dataset.setValue("Giỏi (" + gioi + ")", gioi);
+        dataset.setValue("Khá (" + kha + ")", kha);
+        dataset.setValue("Trung bình (" + tb + ")", tb);
+        dataset.setValue("Yếu (" + yeu + ")", yeu);
+
+        JFreeChart chart = ChartFactory.createPieChart(
+                "THỐNG KÊ PHÂN BỔ HỌC LỰC SINH VIÊN - PTIT ACADEMIC REPORT",
+                dataset, true, true, false
+        );
+        chart.setBackgroundPaint(Color.WHITE);
+        chart.getTitle().setPaint(PTIT_RED);
+        chart.getTitle().setFont(new Font("Segoe UI", Font.BOLD, 15));
+
+        PiePlot plot = (PiePlot) chart.getPlot();
+        plot.setBackgroundPaint(new Color(250, 250, 252));
+        ChartPanel cp = new ChartPanel(chart);
+        chartPanelContainer.add(cp, BorderLayout.CENTER);
+        chartPanelContainer.revalidate();
+        chartPanelContainer.repaint();
     }
 
     private void updateDbStatusLabel() {

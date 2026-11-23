@@ -1,53 +1,29 @@
-# 🛡️ TÍNH NĂNG PHÂN HỆ QUẢN TRỊ VIÊN / ADMIN (SERVER GUI)
-## 🎓 HỌC VIỆN CÔNG NGHỆ BƯU CHÍNH VIỄN THÔNG (PTIT)
-**Dự án**: Hệ Thống Quản Lý Sinh Viên Truyền Bảng Mạng UDP & Bảo Mật Mã Hóa CSDL SQL
+# PHÂN HỆ TRUNG TÂM MÁY CHỦ RUDP, THANH TRA AUDIT & PHÒNG THÍ NGHIỆM MẠNG
+## HỌC VIỆN CÔNG NGHỆ BƯU CHÍNH VIỄN THÔNG (PTIT)
+**Dự án**: Hệ Thống Quản Lý Đào Tạo Tín Chỉ & Sinh Viên Qua Mạng RUDP 2.0
 
 ---
 
-## 1. 📌 TỔNG QUAN VÀ QUYỀN HẠN CỦA QUẢN TRỊ VIÊN (ADMIN)
+## 1. TRUNG TÂM QUẢN TRỊ MÁY CHỦ ĐÀO TẠO (`ServerGUI`)
 
-Phân hệ **Quản trị viên / Admin** được vận hành trên ứng dụng Server GUI (`ServerGUI.java`), đóng vai trò điều khiển cổng lắng nghe UDP, cấu hình mã hóa CSDL và phân tích biểu đồ thống kê:
+Giao diện Máy chủ trung tâm gồm **4 Tab chuyên sâu** giúp giám sát toàn diện an ninh dữ liệu, luồng gói tin RUDP và quản trị học vụ:
 
-![Server GUI Admin Dashboard](../screenshots/06_server_admin_dashboard.png)
+![Giao Diện Máy Chủ Server](../screenshots/06_server_data_inspection.png)
 
-```mermaid
-graph TD
-    ADM[🛡️ Admin / System Administrator] --> BASIC[Tính Năng Cơ Bản]
-    ADM --> ADV[Tính Năng Nâng Cao Bổ Sung]
+### 1.1. Tab 1 — Kiểm Tra Mã Hóa CSDL (`DES` / `AES-256-GCM`)
+- Hiển thị trực tiếp các trường bản mã (`Ciphertext Base64`) lưu trong bảng `SinhVien` trên Supabase PostgreSQL (`Họ Tên Mã Hóa`, `Chuyên Cần Enc`, `Giữa Kỳ Enc`, `Thi Kết Thúc Enc`) đối chiếu với cột Họ tên đã giải mã.
+- Hỗ trợ chuyển đổi trực tiếp giữa thuật toán **DES (56-bit chuẩn đề bài)** và **AES-256-GCM (chuẩn mã hóa xác thực hiện đại có 12-byte IV & 128-bit Auth Tag)** mà vẫn tự động giải mã tương thích ngược 100% với dữ liệu cũ.
 
-    BASIC --> B1[Điều khiển UDP Server Port 9876]
-    BASIC --> B2[Chuyển đổi mã hóa AES-256 / DES]
-    BASIC --> B3[Giám sát CSDL thô Base64 Ciphertext]
-    BASIC --> B4[Theo dõi Live UDP Traffic Logs]
-    BASIC --> B5[Biểu đồ thống kê JFreeChart]
+### 1.2. Tab 2 — Thanh Tra Điểm & Giả Lập Mạng RUDP (`Audit & Chaos Lab`)
+- **Bộ Giả Lập Mạng Chập Chờn (`Network Chaos Simulator`):**
+  - Cho phép điều chỉnh trực tiếp **Tỷ lệ rớt gói UDP (`0% - 20% - 40% - 60%`)** và **Độ trễ mạng (`0ms - 120ms - 300ms`)**.
+  - Khi bật rớt gói giả lập, Server cố ý làm rớt lượt truyền đầu tiên của gói tin để hội đồng chấm thi quan sát trực tiếp cơ chế **RUDP ARQ Timeout & Retransmission** tự động truyền lại và khôi phục dữ liệu thành công 100%.
+- **Quản Trị Học Vụ Phòng Giáo Vụ:**
+  - Nút **`Khóa Sổ Điểm Học Kỳ`**: Khi khóa sổ điểm, toàn bộ thao tác sửa/xóa điểm của Giảng viên bị chặn ngay tại Server và thông báo khóa sổ được đẩy tức thời xuống mọi Client.
+  - Nút **`Phát Thông Báo Toàn Trường (UDP Push)`**: Đẩy thông báo trực tiếp xuống tất cả các cửa sổ Cổng Sinh Viên đang trực tuyến.
+- **Nhật Ký Thanh Tra Biến Động Điểm Số Bất Biến (`LichSuAudit`):**
+  - Ghi nhận chi tiết từng thao tác sửa điểm theo định dạng: `Sửa điểm SV001 (Vũ Khánh Bích): ĐTB 6.90 -> 8.65 [CC: 9.7->9.5, GK: 9.7->8.5, CK: 5.7->8.6]` kèm tài khoản thực hiện, địa chỉ IP và thời gian.
 
-    ADV --> A1[Phân quyền tài khoản RBAC Admin/Giảng viên/Học sinh]
-    ADV --> A2[Sao lưu & Khôi phục CSDL SQL - .sql Backup]
-    ADV --> A3[Quản lý & Xoay khóa mã hóa - Key Rotation]
-    ADV --> A4[Xuất Nhật ký Traffic UDP ra tệp .log / .csv]
-```
-
----
-
-## 2. 🎯 CÁC CHỨC NĂNG CHI TIẾT DÀNH CHO ADMIN / SERVER GUI
-
-### 2.1. Giám Sát CSDL Mã Hóa (Encrypted Data Inspection)
-- Bảng đối chiếu hai chiều giữa **Dữ liệu thô đã mã hóa trong CSDL** (Base64 Ciphertext) và **Dữ liệu sau khi giải mã** (Decrypted Plaintext).
-- Chứng minh dữ liệu cá nhân (Họ tên, Điểm thi) được bảo mật tuyệt đối an toàn trong CSDL SQL.
-
----
-
-### 2.2. Biểu Đồ Thống Kê Học Lực Trực Quan (JFreeChart)
-- Biểu đồ hình tròn (Pie Chart) tự động cập nhật phân bổ xếp loại học lực toàn trường:
-  - 🥇 **Xuất sắc**: Điểm TB $\ge 9.0$ (Đỏ PTIT `#C8102E`)
-  - 🥈 **Giỏi**: $8.0 \le$ Điểm TB $< 9.0$ (Xanh lá `#28A745`)
-  - 📙 **Trung bình**: $5.0 \le$ Điểm TB $< 6.5$ (Cam `#FF9900`)
-
-![Biểu Đồ JFreeChart](../screenshots/07_server_jfreechart_stats.png)
-
----
-
-### 2.3. Toàn Cảnh Kết Nối Client - Server UDP Thời Gian Thực
-- Khởi động đồng thời Server GUI và Client GUI qua mạng UDP đa luồng:
-
-![Toàn Cảnh Hệ Thống PTIT](../screenshots/08_ptit_full_system_overview.png)
+### 1.3. Tab 3 & Tab 4 — Biểu Đồ Thống Kê Học Lực & Nhật Ký Gói Tin RUDP
+- Biểu đồ tròn `JFreeChart` thống kê tỷ lệ học lực toàn trường theo thời gian thực.
+- Nhật ký gói tin mạng ghi nhận từng gói `[Seq# | PacketType | HMAC:OK]` và hỗ trợ kết xuất ra tệp `.log`.

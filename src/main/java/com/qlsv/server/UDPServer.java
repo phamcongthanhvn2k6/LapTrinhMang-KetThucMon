@@ -201,7 +201,7 @@ public class UDPServer {
                 if (!chaosDroppedOnce.contains(pId) && (Math.random() * 100.0) < simulatedDropRatePercent) {
                     chaosDroppedOnce.add(pId);
                     totalPacketsDroppedByChaos.incrementAndGet();
-                    log(String.format("⚠️ [CHAOS DROP %d%%] Giả lập RỚT GÓI TIN [Seq#%d | %s] từ %s:%d -> Chờ Client ARQ Retransmit!",
+                    log(String.format("[CHAOS DROP %d%%] Giả lập RỚT GÓI TIN [Seq#%d | %s] từ %s:%d -> Chờ Client ARQ Retransmit!",
                             simulatedDropRatePercent, seq, packet.getType(), clientIp, clientPort));
                     return; // Cố ý không phản hồi để kích hoạt Timeout & Retransmission phía Client
                 }
@@ -209,7 +209,7 @@ public class UDPServer {
 
             // 2. Kiểm tra chữ ký toàn vẹn HMAC-SHA256 & Chống Replay Attack
             if (!packet.verifyIntegrity()) {
-                log(String.format("🚨 [CẢNH BÁO AN NINH] Chữ ký HMAC-SHA256 KHÔNG HỢP LỆ trên gói [Seq#%d | %s] từ %s:%d! Từ chối xử lý.",
+                log(String.format("[CẢNH BÁO AN NINH] Chữ ký HMAC-SHA256 KHÔNG HỢP LỆ trên gói [Seq#%d | %s] từ %s:%d! Từ chối xử lý.",
                         seq, packet.getType(), clientIp, clientPort));
                 sendPacket(UDPPacket.createError("BẢO MẬT RUDP: Chữ ký số HMAC-SHA256 không hợp lệ (Gói tin có dấu hiệu bị can thiệp)!"),
                         seq, clientAddress, clientPort);
@@ -217,7 +217,7 @@ public class UDPServer {
             }
 
             if (!packet.isReplayValid()) {
-                log(String.format("🚨 [CẢNH BÁO AN NINH] Phát hiện gói tin quá hạn Timestamp (Replay Attack) [Seq#%d] từ %s:%d!",
+                log(String.format("[CẢNH BÁO AN NINH] Phát hiện gói tin quá hạn Timestamp (Replay Attack) [Seq#%d] từ %s:%d!",
                         seq, clientIp, clientPort));
                 sendPacket(UDPPacket.createError("BẢO MẬT RUDP: Gói tin đã hết hạn Timestamp (Chống tấn công phát lại - Anti-Replay)!"),
                         seq, clientAddress, clientPort);
@@ -228,7 +228,7 @@ public class UDPServer {
 
             // 3. Deduplication Check
             if (packet.getPacketId() != null && seenPackets.containsKey(packet.getPacketId())) {
-                log(String.format("🔄 Phát hiện gói tin truyền lại (ARQ Retransmit) #%d [%s]. Khôi phục phản hồi an toàn.",
+                log(String.format("[ARQ RETRANSMIT] Phát hiện gói tin truyền lại #%d [%s]. Khôi phục phản hồi an toàn.",
                         seq, packet.getPacketId().substring(0, 8)));
             } else if (packet.getPacketId() != null) {
                 seenPackets.put(packet.getPacketId(), Boolean.TRUE);
@@ -266,7 +266,7 @@ public class UDPServer {
                         if (lockRemain > 0) {
                             DatabaseManager.getInstance().logAudit(username, "LOGIN_LOCKED",
                                     "Tài khoản đang bị khóa Brute-force (" + lockRemain + "s)", clientIp);
-                            log(String.format("🚨 Chặn đăng nhập '%s' từ %s (Đang khóa chống Brute-force còn %ds)", username, clientIp, lockRemain));
+                            log(String.format("[CẢNH BÁO BRUTE-FORCE] Chặn đăng nhập '%s' từ %s (Đang khóa còn %ds)", username, clientIp, lockRemain));
                             responsePacket = UDPPacket.createLoginResponse(false,
                                     "BẢO VỆ CHỐNG BRUTE-FORCE: Tài khoản tạm khóa do nhập sai nhiều lần! Vui lòng thử lại sau " + lockRemain + " giây.",
                                     null, null);
@@ -325,7 +325,7 @@ public class UDPServer {
                                     ? "ĐÃ KHÓA & CÔNG BỐ SỔ ĐIỂM HỌC KỲ (Chặn chỉnh sửa điểm)"
                                     : "ĐÃ MỞ KHÓA SỔ ĐIỂM HỌC KỲ (Cho phép Giảng viên cập nhật điểm)";
                             DatabaseManager.getInstance().logAudit(operator, targetLock ? "LOCK_GRADEBOOK" : "UNLOCK_GRADEBOOK", statusMsg, clientIp);
-                            log("🔒 [" + operator + "] " + statusMsg);
+                            log("[GIÁO VỤ - " + operator + "] " + statusMsg);
                             responsePacket = UDPPacket.createGradeLockStatus(targetLock, statusMsg);
                             broadcastPushEvent("GRADE_LOCK", statusMsg, String.valueOf(targetLock));
                         }
@@ -346,7 +346,7 @@ public class UDPServer {
                             DatabaseManager.getInstance().logAudit(
                                     session != null ? session.getUsername() : "giangvien",
                                     "BROADCAST", "Phát thông báo: " + text, clientIp);
-                            broadcastPushEvent("ANNOUNCEMENT", "📢 Thông báo từ " + operator + ": " + text, text);
+                            broadcastPushEvent("ANNOUNCEMENT", "Thông báo từ " + operator + ": " + text, text);
                             responsePacket = new UDPPacket(PacketType.BROADCAST_ANNOUNCEMENT, true, "Đã phát thông báo tới toàn bộ sinh viên trực tuyến!", text);
                         }
                     } catch (Exception ex) {
@@ -380,7 +380,7 @@ public class UDPServer {
                                 responsePacket = UDPPacket.createError("BẢO VỆ PHÂN QUYỀN SERVER: Quyền Học sinh không được phép thêm hoặc cập nhật điểm số!");
                             } else if (SessionManager.getInstance().isGradebookLocked() &&
                                     (session == null || session.getRole() != UserAccount.Role.ADMIN)) {
-                                responsePacket = UDPPacket.createError("🔒 SỔ ĐIỂM HỌC KỲ ĐÃ KHÓA bởi Phòng Giáo Vụ! Giảng viên không thể sửa điểm khi sổ đã khóa (Yêu cầu quyền Admin để mở khóa).");
+                                responsePacket = UDPPacket.createError("[KHÓA SỔ ĐIỂM] Sổ điểm học kỳ đã khóa bởi Phòng Giáo Vụ! Giảng viên không thể sửa điểm khi sổ đã khóa (Yêu cầu quyền Admin để mở khóa).");
                             } else {
                                 StudentData student = gson.fromJson(packet.getPayload(), StudentData.class);
                                 String operator = (session != null) ? session.getUsername() : "giangvien";
@@ -445,7 +445,7 @@ public class UDPServer {
                                 responsePacket = UDPPacket.createError("BẢO VỆ PHÂN QUYỀN SERVER: Học sinh không được phép xóa dữ liệu sinh viên!");
                             } else if (SessionManager.getInstance().isGradebookLocked() &&
                                     (session == null || session.getRole() != UserAccount.Role.ADMIN)) {
-                                responsePacket = UDPPacket.createError("🔒 SỔ ĐIỂM HỌC KỲ ĐÃ KHÓA! Không thể xóa hồ sơ sinh viên khi sổ điểm đã khóa.");
+                                responsePacket = UDPPacket.createError("[KHÓA SỔ ĐIỂM] Sổ điểm học kỳ đã khóa! Không thể xóa hồ sơ sinh viên khi sổ điểm đã khóa.");
                             } else {
                                 String studentId = packet.getPayload();
                                 String operator = (session != null) ? session.getUsername() : "giangvien";
@@ -525,7 +525,7 @@ public class UDPServer {
                             responsePacket = UDPPacket.createError("BẢO VỆ PHÂN QUYỀN SERVER: Học sinh không được phép nhập dữ liệu Excel!");
                         } else if (SessionManager.getInstance().isGradebookLocked() &&
                                 (session == null || session.getRole() != UserAccount.Role.ADMIN)) {
-                            responsePacket = UDPPacket.createError("🔒 SỔ ĐIỂM HỌC KỲ ĐÃ KHÓA! Không thể import bảng điểm mới khi sổ đã khóa.");
+                            responsePacket = UDPPacket.createError("[KHÓA SỔ ĐIỂM] Sổ điểm học kỳ đã khóa! Không thể import bảng điểm mới khi sổ đã khóa.");
                         } else {
                             Type listType = new TypeToken<List<StudentData>>() {}.getType();
                             List<StudentData> list = gson.fromJson(packet.getPayload(), listType);

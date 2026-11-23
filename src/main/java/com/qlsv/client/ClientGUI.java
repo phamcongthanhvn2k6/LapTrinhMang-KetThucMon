@@ -824,22 +824,43 @@ public class ClientGUI extends JFrame {
                 }
             }));
 
-            boolean connected = client.pingServer();
-            if (connected) {
-                lblConnStatus.setText("ĐÃ KẾT NỐI ĐẾN MÁY CHỦ TRUNG TÂM (" + host + ")");
-                lblConnStatus.setForeground(new Color(40, 167, 69));
+            final String targetHost = host;
+            new SwingWorker<Boolean, Void>() {
+                @Override
+                protected Boolean doInBackground() throws Exception {
+                    return client.pingServer();
+                }
 
-                lblServerBadge.setText(String.format("● Máy Chủ: Sẵn sàng (RTT: %dms | HMAC)", client.getLastRttMs()));
-                lblServerBadge.setBackground(new Color(40, 167, 69));
+                @Override
+                protected void done() {
+                    try {
+                        boolean connected = get();
+                        if (connected) {
+                            lblConnStatus.setText("ĐÃ KẾT NỐI ĐẾN MÁY CHỦ TRUNG TÂM (" + targetHost + ")");
+                            lblConnStatus.setForeground(new Color(40, 167, 69));
 
-                lblDbBadge.setText("● Cơ Sở Dữ Liệu: Đã kết nối");
-                lblDbBadge.setBackground(new Color(40, 167, 69));
+                            lblServerBadge.setText(String.format("● Máy Chủ: Sẵn sàng (RTT: %dms | HMAC)", client.getLastRttMs()));
+                            lblServerBadge.setBackground(new Color(40, 167, 69));
 
-                loadAllStudents();
-                loadStudentPortal("SV001");
-            } else {
-                throw new Exception("Máy chủ không phản hồi!");
-            }
+                            lblDbBadge.setText("● Cơ Sở Dữ Liệu: Đã kết nối");
+                            lblDbBadge.setBackground(new Color(40, 167, 69));
+
+                            loadAllStudents();
+                            loadStudentPortal("SV001");
+                        } else {
+                            lblConnStatus.setText("Máy chủ không phản hồi!");
+                            lblConnStatus.setForeground(PTIT_RED);
+                            lblServerBadge.setText("● Máy Chủ: Chưa kết nối");
+                            lblServerBadge.setBackground(PTIT_DARK_RED);
+                        }
+                    } catch (Exception ex) {
+                        lblConnStatus.setText("Kết nối máy chủ thất bại: " + ex.getMessage());
+                        lblConnStatus.setForeground(PTIT_RED);
+                        lblServerBadge.setText("● Máy Chủ: Chưa kết nối");
+                        lblServerBadge.setBackground(PTIT_DARK_RED);
+                    }
+                }
+            }.execute();
         } catch (Exception ex) {
             lblConnStatus.setText("Kết nối máy chủ thất bại: " + ex.getMessage());
             lblConnStatus.setForeground(PTIT_RED);
@@ -988,37 +1009,57 @@ public class ClientGUI extends JFrame {
             }
             loadStudentPortal(defaultId != null && !defaultId.isEmpty() ? defaultId : "SV001");
         } else if (role == UserRole.TEACHER) {
-            if (client != null) {
-                try {
-                    this.currentUserAccount = client.login("giangvien", "ptit123");
-                } catch (Exception ignored) {
-                    this.currentUserAccount = new UserAccount("giangvien", "ThS. Giảng Viên Mạng", UserAccount.Role.GIANGVIEN, "");
-                }
-            } else {
-                this.currentUserAccount = new UserAccount("giangvien", "ThS. Giảng Viên Mạng", UserAccount.Role.GIANGVIEN, "");
-            }
+            this.currentUserAccount = new UserAccount("giangvien", "ThS. Giảng Viên Mạng", UserAccount.Role.GIANGVIEN, "");
             this.currentRole = UserRole.TEACHER;
             updateRoleUI();
             if (mainTabbedPane != null) {
                 mainTabbedPane.setSelectedIndex(1);
             }
             loadAllStudents();
-        } else if (role == UserRole.ADMIN) {
             if (client != null) {
-                try {
-                    this.currentUserAccount = client.login("admin", "admin123");
-                } catch (Exception ignored) {
-                    this.currentUserAccount = new UserAccount("admin", "Quản Trị Viên Hệ Thống", UserAccount.Role.ADMIN, "");
-                }
-            } else {
-                this.currentUserAccount = new UserAccount("admin", "Quản Trị Viên Hệ Thống", UserAccount.Role.ADMIN, "");
+                new SwingWorker<UserAccount, Void>() {
+                    @Override
+                    protected UserAccount doInBackground() throws Exception {
+                        return client.login("giangvien", "ptit123");
+                    }
+                    @Override
+                    protected void done() {
+                        try {
+                            UserAccount acc = get();
+                            if (acc != null) {
+                                currentUserAccount = acc;
+                                updateRoleUI();
+                            }
+                        } catch (Exception ignored) {}
+                    }
+                }.execute();
             }
+        } else if (role == UserRole.ADMIN) {
+            this.currentUserAccount = new UserAccount("admin", "Quản Trị Viên Hệ Thống", UserAccount.Role.ADMIN, "");
             this.currentRole = UserRole.ADMIN;
             updateRoleUI();
             if (mainTabbedPane != null) {
                 mainTabbedPane.setSelectedIndex(1);
             }
             loadAllStudents();
+            if (client != null) {
+                new SwingWorker<UserAccount, Void>() {
+                    @Override
+                    protected UserAccount doInBackground() throws Exception {
+                        return client.login("admin", "admin123");
+                    }
+                    @Override
+                    protected void done() {
+                        try {
+                            UserAccount acc = get();
+                            if (acc != null) {
+                                currentUserAccount = acc;
+                                updateRoleUI();
+                            }
+                        } catch (Exception ignored) {}
+                    }
+                }.execute();
+            }
         }
     }
 
