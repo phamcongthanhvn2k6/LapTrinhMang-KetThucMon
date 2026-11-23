@@ -392,7 +392,7 @@ public class ClientGUI extends JFrame {
         btnViewTranscript.setForeground(Color.WHITE);
         btnViewTranscript.addActionListener(e -> openTranscriptDialog());
 
-        JButton btnScholarship = new JButton("★ Học Bổng & Cảnh Báo");
+        JButton btnScholarship = new JButton("Học Bổng & Cảnh Báo");
         btnScholarship.setFont(new Font("Segoe UI", Font.BOLD, 11));
         btnScholarship.setBackground(new Color(230, 126, 34));
         btnScholarship.setForeground(Color.WHITE);
@@ -1473,7 +1473,7 @@ public class ClientGUI extends JFrame {
             tblHB.setRowHeight(26);
             JPanel pHB = new JPanel(new BorderLayout(8, 8));
             pHB.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-            JLabel lblSumHB = new JLabel(String.format("★ Tổng số sinh viên đủ điều kiện cấp Học bổng KKHT (GPA >= 3.2, CC >= 8.0, Không điểm dưới C): %d / %d SV",
+            JLabel lblSumHB = new JLabel(String.format("● Tổng số sinh viên đủ điều kiện cấp Học bổng KKHT (GPA >= 3.2, CC >= 8.0, Không điểm dưới C): %d / %d SV",
                     scholarships.size(), all.size()));
             lblSumHB.setFont(new Font("Segoe UI", Font.BOLD, 13));
             lblSumHB.setForeground(new Color(0, 130, 50));
