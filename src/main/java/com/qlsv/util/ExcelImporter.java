@@ -8,16 +8,28 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
+/**
+ * Trình nhập dữ liệu bảng điểm sinh viên hàng loạt từ Excel (.xlsx)
+ * tích hợp kiểm tra định dạng nghiêm ngặt (Strict Validation & Deduplication).
+ */
 public class ExcelImporter {
 
     public static List<StudentData> importStudentsFromExcel(File file) throws Exception {
-        List<StudentData> list = new ArrayList<>();
+        if (file == null || !file.exists()) {
+            throw new Exception("Tệp Excel không tồn tại!");
+        }
+        Map<String, StudentData> deduplicatedMap = new LinkedHashMap<>();
 
         try (FileInputStream fis = new FileInputStream(file);
              Workbook workbook = new XSSFWorkbook(fis)) {
 
+            if (workbook.getNumberOfSheets() == 0) {
+                throw new Exception("File Excel không có Sheet nào!");
+            }
             Sheet sheet = workbook.getSheetAt(0);
             if (sheet == null) {
                 throw new Exception("File Excel không có Sheet hợp lệ!");
@@ -30,65 +42,68 @@ public class ExcelImporter {
 
                 Cell cellMaSV = row.getCell(1);
                 Cell cellHoTen = row.getCell(2);
-                Cell cellToan = row.getCell(3);
-                Cell cellVan = row.getCell(4);
-                Cell cellAnh = row.getCell(5);
+                Cell cellCC = row.getCell(3);
+                Cell cellGK = row.getCell(4);
+                Cell cellCK = row.getCell(5);
 
-                if (cellMaSV == null || cellHoTen == null) continue;
+                String rawMaSV = getCellValueAsString(cellMaSV).trim();
+                String rawHoTen = getCellValueAsString(cellHoTen).trim();
 
-                String maSV = getCellValueAsString(cellMaSV).trim();
-                String hoTen = getCellValueAsString(cellHoTen).trim();
+                // Bỏ qua dòng trống hoàn toàn
+                if (rawMaSV.isEmpty() && rawHoTen.isEmpty()) continue;
 
-                if (maSV.isEmpty() || hoTen.isEmpty()) continue;
+                int displayRow = r + 1;
+                try {
+                    String maSV = InputValidator.normalizeAndValidateStudentId(rawMaSV);
+                    String hoTen = InputValidator.normalizeAndValidateFullName(rawHoTen);
+                    double diemCC = parseCellScoreStrict(cellCC, "Điểm Chuyên cần (Cột D)");
+                    double diemGK = parseCellScoreStrict(cellGK, "Điểm Giữa kỳ (Cột E)");
+                    double diemCK = parseCellScoreStrict(cellCK, "Điểm Thi kết thúc (Cột F)");
 
-                double toan = getCellValueAsDouble(cellToan, 0.0);
-                double van = getCellValueAsDouble(cellVan, 0.0);
-                double anh = getCellValueAsDouble(cellAnh, 0.0);
-
-                if (toan < 0 || toan > 10 || van < 0 || van > 10 || anh < 0 || anh > 10) {
-                    throw new Exception("Dòng " + (r + 1) + ": Điểm số phải trong khoảng từ 0.0 đến 10.0 (Mã SV: " + maSV + ")");
+                    deduplicatedMap.put(maSV, new StudentData(maSV, hoTen, diemCC, diemGK, diemCK));
+                } catch (IllegalArgumentException ex) {
+                    throw new Exception("Lỗi dữ liệu tại Dòng " + displayRow + ": " + ex.getMessage());
                 }
-
-                list.add(new StudentData(maSV, hoTen, toan, van, anh));
             }
         }
 
-        if (list.isEmpty()) {
+        if (deduplicatedMap.isEmpty()) {
             throw new Exception("File Excel không chứa bản ghi sinh viên hợp lệ nào!");
         }
 
-        return list;
+        return new ArrayList<>(deduplicatedMap.values());
     }
 
     public static void createSampleTemplate(File destination) throws Exception {
         try (Workbook workbook = new XSSFWorkbook()) {
-            Sheet sheet = workbook.createSheet("DanhSachSinhVien");
+            Sheet sheet = workbook.createSheet("BangDiemTinChi_PTIT");
 
-            // Header style
             Font headerFont = workbook.createFont();
             headerFont.setBold(true);
             headerFont.setColor(IndexedColors.WHITE.getIndex());
 
             CellStyle headerStyle = workbook.createCellStyle();
             headerStyle.setFont(headerFont);
-            headerStyle.setFillForegroundColor(IndexedColors.RED.getIndex());
+            headerStyle.setFillForegroundColor(IndexedColors.DARK_RED.getIndex());
             headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
             headerStyle.setAlignment(HorizontalAlignment.CENTER);
 
             Row headerRow = sheet.createRow(0);
-            String[] headers = {"STT", "Mã Sinh Viên", "Họ Tên Sinh Viên", "Điểm Toán", "Điểm Văn", "Điểm Anh"};
+            String[] headers = {
+                    "STT", "Mã Sinh Viên", "Họ và Tên Sinh Viên",
+                    "Chuyên Cần (10%)", "Giữa Kỳ (20%)", "Thi Kết Thúc (70%)"
+            };
             for (int i = 0; i < headers.length; i++) {
                 Cell cell = headerRow.createCell(i);
                 cell.setCellValue(headers[i]);
                 cell.setCellStyle(headerStyle);
             }
 
-            // Sample rows
             Object[][] samples = {
-                    {1, "B21DCCN101", "Trần Minh Quân", 8.5, 7.8, 9.0},
-                    {2, "B21DCCN102", "Lê Thu Hà", 9.0, 8.5, 8.8},
-                    {3, "B21DCCN103", "Phạm Hoàng Nam", 7.0, 6.5, 7.5},
-                    {4, "B21DCCN104", "Vũ Mai Phương", 8.0, 8.0, 8.5}
+                    {1, "SV251", "Trần Minh Quân", 9.0, 8.5, 9.2},
+                    {2, "SV252", "Lê Thu Hà", 9.5, 9.0, 8.8},
+                    {3, "SV253", "Phạm Hoàng Nam", 8.0, 7.5, 7.8},
+                    {4, "SV254", "Vũ Mai Phương", 4.0, 7.0, 6.5}
             };
 
             for (int r = 0; r < samples.length; r++) {
@@ -122,27 +137,36 @@ public class ExcelImporter {
             case STRING:
                 return cell.getStringCellValue();
             case NUMERIC:
-                return String.valueOf((long) cell.getNumericCellValue());
+                double d = cell.getNumericCellValue();
+                if (d == Math.floor(d)) {
+                    return String.valueOf((long) d);
+                }
+                return String.valueOf(d);
             case BOOLEAN:
                 return String.valueOf(cell.getBooleanCellValue());
+            case FORMULA:
+                try {
+                    return cell.getStringCellValue();
+                } catch (Exception e) {
+                    return String.valueOf(cell.getNumericCellValue());
+                }
             default:
                 return "";
         }
     }
 
-    private static double getCellValueAsDouble(Cell cell, double def) {
-        if (cell == null) return def;
-        try {
-            switch (cell.getCellType()) {
-                case NUMERIC:
-                    return cell.getNumericCellValue();
-                case STRING:
-                    return Double.parseDouble(cell.getStringCellValue().trim());
-                default:
-                    return def;
-            }
-        } catch (Exception e) {
-            return def;
+    private static double parseCellScoreStrict(Cell cell, String colLabel) throws IllegalArgumentException {
+        if (cell == null || cell.getCellType() == CellType.BLANK) {
+            throw new IllegalArgumentException("Ô " + colLabel + " bị bỏ trống!");
+        }
+        switch (cell.getCellType()) {
+            case NUMERIC:
+            case FORMULA:
+                return InputValidator.validateScoreValue(cell.getNumericCellValue(), colLabel);
+            case STRING:
+                return InputValidator.parseAndValidateScore(cell.getStringCellValue(), colLabel);
+            default:
+                throw new IllegalArgumentException("Ô " + colLabel + " có kiểu dữ liệu không hợp lệ!");
         }
     }
 }

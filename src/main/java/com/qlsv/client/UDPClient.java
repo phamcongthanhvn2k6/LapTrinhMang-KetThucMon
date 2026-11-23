@@ -311,13 +311,23 @@ public class UDPClient implements AutoCloseable {
             try {
                 totalPacketsSent.incrementAndGet();
                 socket.send(sendPacket);
-                socket.receive(receivePacket);
 
-                long elapsedMs = Math.max(1, (System.nanoTime() - startNs) / 1_000_000L);
-                lastRttMs.set(elapsedMs);
-
-                UDPPacket resp = UDPPacket.fromBytes(receivePacket.getData(), receivePacket.getLength());
-                return resp;
+                // Lọc bỏ các gói tin UDP phản hồi đến trễ của SequenceNum cũ
+                while (true) {
+                    socket.receive(receivePacket);
+                    UDPPacket resp = UDPPacket.fromBytes(receivePacket.getData(), receivePacket.getLength());
+                    if (resp == null) {
+                        continue;
+                    }
+                    if (resp.getAckNum() > 0 && resp.getAckNum() != request.getSequenceNum()) {
+                        System.out.println(String.format("[RUDP Client] Bỏ qua gói phản hồi trễ Ack#%d (Đang chờ Seq#%d)",
+                                resp.getAckNum(), request.getSequenceNum()));
+                        continue;
+                    }
+                    long elapsedMs = Math.max(1, (System.nanoTime() - startNs) / 1_000_000L);
+                    lastRttMs.set(elapsedMs);
+                    return resp;
+                }
             } catch (SocketTimeoutException ste) {
                 lastException = ste;
                 totalRetransmissions.incrementAndGet();

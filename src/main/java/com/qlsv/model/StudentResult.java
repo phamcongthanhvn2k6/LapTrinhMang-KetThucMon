@@ -5,9 +5,9 @@ import java.io.Serializable;
 /**
  * Kết quả Học tập & Xét Học vụ Sinh viên theo Quy chế Đào tạo Tín chỉ Đại học (PTIT / Bộ GD&ĐT).
  * Trọng số: Chuyên cần (10%) + Giữa kỳ (20%) + Thi kết thúc học phần (70%).
- * Áp dụng quy tắc:
- * - Cấm thi khi Điểm Chuyên Cần < 5.0
- * - Điểm liệt bài thi kết thúc khi Điểm Thi < 4.0
+ * Áp dụng quy tắc đồng nhất toàn hệ thống:
+ * - Cấm thi khi Điểm Chuyên Cần < 5.0 (Bao gồm cả trường hợp 0.0 điểm)
+ * - Điểm liệt bài thi kết thúc khi Điểm Thi < 4.0 (Bao gồm cả trường hợp 0.0 điểm)
  * - Cảnh báo học vụ 3 mức & Xét Học bổng Khuyến khích Học tập (KKHT).
  */
 public class StudentResult implements Serializable {
@@ -21,9 +21,9 @@ public class StudentResult implements Serializable {
     private String email = "";
     private String academicRank = "Chưa xếp loại";
     private double averageScore;
-    private double scoreMath;       // Chuyên cần (10%)
-    private double scoreLiterature; // Giữa kỳ (20%)
-    private double scoreEnglish;    // Thi kết thúc (70%)
+    private double scoreMath = 8.0;       // Chuyên cần (10%)
+    private double scoreLiterature = 8.0; // Giữa kỳ (20%)
+    private double scoreEnglish = 8.0;    // Thi kết thúc (70%)
 
     public StudentResult() {
     }
@@ -32,6 +32,9 @@ public class StudentResult implements Serializable {
         this.studentId = studentId;
         this.fullName = fullName;
         this.averageScore = averageScore;
+        this.scoreMath = averageScore;
+        this.scoreLiterature = averageScore;
+        this.scoreEnglish = averageScore;
         this.academicRank = calculateRank(averageScore);
     }
 
@@ -44,6 +47,9 @@ public class StudentResult implements Serializable {
         this.gender = gender;
         this.email = email;
         this.averageScore = averageScore;
+        this.scoreMath = averageScore;
+        this.scoreLiterature = averageScore;
+        this.scoreEnglish = averageScore;
         this.academicRank = (academicRank != null && !academicRank.isEmpty()) ? academicRank : calculateRank(averageScore);
     }
 
@@ -64,17 +70,17 @@ public class StudentResult implements Serializable {
     }
 
     /**
-     * Kiểm tra sinh viên có bị Cấm thi do điểm chuyên cần < 5.0 hay không.
+     * Kiểm tra sinh viên có bị Cấm thi do điểm chuyên cần < 5.0 (bao gồm cả 0.0) hay không.
      */
     public boolean isExamBanned() {
-        return scoreMath > 0.0 && scoreMath < 5.0;
+        return scoreMath < 5.0;
     }
 
     /**
-     * Kiểm tra sinh viên có bị điểm liệt bài thi cuối kỳ (< 4.0) hay không.
+     * Kiểm tra sinh viên có bị điểm liệt bài thi cuối kỳ (< 4.0, bao gồm cả 0.0) hay không.
      */
     public boolean isFinalExamFailed() {
-        return scoreEnglish > 0.0 && scoreEnglish < 4.0;
+        return scoreEnglish < 4.0;
     }
 
     /**
@@ -143,7 +149,7 @@ public class StudentResult implements Serializable {
     }
 
     public String getAcademicRank() {
-        return academicRank;
+        return getAcademicRankCredit();
     }
 
     public String getId() {
@@ -178,12 +184,16 @@ public class StudentResult implements Serializable {
         this.scoreEnglish = scoreCK;
     }
 
+    /**
+     * Quy đổi điểm học phần sang GPA Hệ 4.0 đồng nhất toàn hệ thống (PTIT Credit Scale).
+     */
     public double getGpa4() {
         if (isExamBanned() || isFinalExamFailed()) {
             return 0.0;
         }
         double s = averageScore;
-        if (s >= 8.5) return 4.0;
+        if (s >= 9.0) return 4.0;
+        if (s >= 8.5) return 3.7;
         if (s >= 8.0) return 3.5;
         if (s >= 7.0) return 3.0;
         if (s >= 6.5) return 2.5;
@@ -282,7 +292,7 @@ public class StudentResult implements Serializable {
                 ", fullName='" + fullName + '\'' +
                 ", className='" + className + '\'' +
                 ", averageScore=" + averageScore +
-                ", academicRank='" + academicRank + '\'' +
+                ", academicRank='" + getAcademicRankCredit() + '\'' +
                 '}';
     }
 }

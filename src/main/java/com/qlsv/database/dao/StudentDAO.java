@@ -11,81 +11,128 @@ import java.util.Map;
 
 import com.qlsv.database.ConnectionPool;
 import com.qlsv.database.DatabaseManager;
+import com.qlsv.model.CourseGrade;
 import com.qlsv.model.StudentData;
 import com.qlsv.model.StudentResult;
 import com.qlsv.security.SecurityManager;
+import com.qlsv.util.InputValidator;
 
 /**
- * Data Access Object for Student operations with Dual Encryption (DES / AES-256-GCM)
- * and University Credit Weighting (10% CC + 20% GK + 70% CK).
+ * Data Access Object for Student operations with Dual Encryption (DES / AES-256-GCM),
+ * Single-Connection ACID Batch Transactions, and University Credit Weighting (10% CC + 20% GK + 70% CK).
  */
 public class StudentDAO {
 
     public StudentResult saveStudentEncryptedAndCalculateResult(StudentData student, String desKey) throws Exception {
+        InputValidator.validateAndNormalizeStudentData(student);
+        try (Connection conn = ConnectionPool.getConnection()) {
+            boolean origAuto = conn.getAutoCommit();
+            conn.setAutoCommit(false);
+            try {
+                StudentResult res = upsertStudentOnConnection(conn, student, desKey);
+                conn.commit();
+                return res;
+            } catch (Exception e) {
+                conn.rollback();
+                throw e;
+            } finally {
+                conn.setAutoCommit(origAuto);
+            }
+        }
+    }
+
+    /**
+     * Thực thi Upsert trên cùng 1 Connection (Tránh lỗi lồng Connection gây mất tính toàn vẹn Transaction và cạn kiệt Pool).
+     * Đồng thời đồng bộ điểm học phần sang bảng BangDiem để Cổng Sinh Viên luôn hiển thị điểm mới nhất.
+     */
+    private StudentResult upsertStudentOnConnection(Connection conn, StudentData student, String desKey) throws Exception {
+        String cleanId = student.getStudentId().trim().toUpperCase();
         String encFullName = SecurityManager.encrypt(student.getFullName(), desKey);
         String encToan = SecurityManager.encrypt(String.valueOf(student.getScoreMath()), desKey);
         String encVan = SecurityManager.encrypt(String.valueOf(student.getScoreLiterature()), desKey);
         String encAnh = SecurityManager.encrypt(String.valueOf(student.getScoreEnglish()), desKey);
 
-        // Tính điểm tổng kết học phần theo trọng số tín chỉ chuẩn PTIT: 10% CC + 20% GK + 70% CK
         double avgScore = StudentResult.calculateWeightedScore(
                 student.getScoreMath(),
                 student.getScoreLiterature(),
                 student.getScoreEnglish()
         );
 
-        try (Connection conn = ConnectionPool.getConnection()) {
-            String checkSql = "SELECT COUNT(*) FROM SinhVien WHERE MaSV = ?";
-            boolean exists = false;
-            try (PreparedStatement checkStmt = conn.prepareStatement(checkSql)) {
-                checkStmt.setString(1, student.getStudentId());
-                try (ResultSet rs = checkStmt.executeQuery()) {
-                    if (rs.next() && rs.getInt(1) > 0) {
-                        exists = true;
-                    }
-                }
-            }
-
-            if (exists) {
-                String updateSql = "UPDATE SinhVien SET HoTenEncrypted = ?, DiemToanEncrypted = ?, " +
-                        "DiemVanEncrypted = ?, DiemAnhEncrypted = ?, DiemTB = ? WHERE MaSV = ?";
-                try (PreparedStatement stmt = conn.prepareStatement(updateSql)) {
-                    stmt.setString(1, encFullName);
-                    stmt.setString(2, encToan);
-                    stmt.setString(3, encVan);
-                    stmt.setString(4, encAnh);
-                    stmt.setDouble(5, avgScore);
-                    stmt.setString(6, student.getStudentId());
-                    stmt.executeUpdate();
-                }
-            } else {
-                String insertSql = "INSERT INTO SinhVien (MaSV, HoTenEncrypted, DiemToanEncrypted, DiemVanEncrypted, DiemAnhEncrypted, DiemTB) " +
-                        "VALUES (?, ?, ?, ?, ?, ?)";
-                try (PreparedStatement stmt = conn.prepareStatement(insertSql)) {
-                    stmt.setString(1, student.getStudentId());
-                    stmt.setString(2, encFullName);
-                    stmt.setString(3, encToan);
-                    stmt.setString(4, encVan);
-                    stmt.setString(5, encAnh);
-                    stmt.setDouble(6, avgScore);
-                    stmt.executeUpdate();
+        String checkSql = "SELECT COUNT(*) FROM SinhVien WHERE MaSV = ?";
+        boolean exists = false;
+        try (PreparedStatement checkStmt = conn.prepareStatement(checkSql)) {
+            checkStmt.setString(1, cleanId);
+            try (ResultSet rs = checkStmt.executeQuery()) {
+                if (rs.next() && rs.getInt(1) > 0) {
+                    exists = true;
                 }
             }
         }
 
-        return getStudentDecrypted(student.getStudentId(), desKey);
+        if (exists) {
+            String updateSql = "UPDATE SinhVien SET HoTenEncrypted = ?, DiemToanEncrypted = ?, " +
+                    "DiemVanEncrypted = ?, DiemAnhEncrypted = ?, DiemTB = ? WHERE MaSV = ?";
+            try (PreparedStatement stmt = conn.prepareStatement(updateSql)) {
+                stmt.setString(1, encFullName);
+                stmt.setString(2, encToan);
+                stmt.setString(3, encVan);
+                stmt.setString(4, encAnh);
+                stmt.setDouble(5, avgScore);
+                stmt.setString(6, cleanId);
+                stmt.executeUpdate();
+            }
+        } else {
+            String insertSql = "INSERT INTO SinhVien (MaSV, HoTenEncrypted, DiemToanEncrypted, DiemVanEncrypted, DiemAnhEncrypted, DiemTB) " +
+                    "VALUES (?, ?, ?, ?, ?, ?)";
+            try (PreparedStatement stmt = conn.prepareStatement(insertSql)) {
+                stmt.setString(1, cleanId);
+                stmt.setString(2, encFullName);
+                stmt.setString(3, encToan);
+                stmt.setString(4, encVan);
+                stmt.setString(5, encAnh);
+                stmt.setDouble(6, avgScore);
+                stmt.executeUpdate();
+            }
+        }
+
+        // Đồng bộ điểm học phần chính (INT1339 - Lập Trình Mạng) trong bảng BangDiem nếu đã tồn tại
+        try {
+            double processScore = Math.round(((student.getScoreMath() + student.getScoreLiterature() * 2.0) / 3.0) * 100.0) / 100.0;
+            CourseGrade cg = new CourseGrade("INT1339", "Lập Trình Mạng", 3,
+                    student.getScoreMath(), student.getScoreLiterature(), student.getScoreEnglish());
+            String syncBangDiemSql = "UPDATE BangDiem SET DiemQuaTrinhEncrypted = ?, DiemThiEncrypted = ?, " +
+                    "DiemTongKet = ?, DiemChu = ?, DiemHe4 = ? WHERE MaSV = ? AND MaMon = 'INT1339'";
+            try (PreparedStatement psSync = conn.prepareStatement(syncBangDiemSql)) {
+                psSync.setString(1, SecurityManager.encrypt(String.valueOf(processScore), desKey));
+                psSync.setString(2, SecurityManager.encrypt(String.valueOf(student.getScoreEnglish()), desKey));
+                psSync.setDouble(3, cg.getTotalScore());
+                psSync.setString(4, cg.getLetterGrade());
+                psSync.setDouble(5, cg.getGpa4());
+                psSync.setString(6, cleanId);
+                psSync.executeUpdate();
+            }
+        } catch (Exception ignored) {}
+
+        StudentResult result = new StudentResult(cleanId, student.getFullName(), avgScore);
+        result.setScoreMath(student.getScoreMath());
+        result.setScoreLiterature(student.getScoreLiterature());
+        result.setScoreEnglish(student.getScoreEnglish());
+        return result;
     }
 
     public int saveStudentBatch(List<StudentData> list, String desKey) throws Exception {
         if (list == null || list.isEmpty()) return 0;
-        int count = 0;
+        for (StudentData s : list) {
+            InputValidator.validateAndNormalizeStudentData(s);
+        }
 
+        int count = 0;
         try (Connection conn = ConnectionPool.getConnection()) {
             boolean originalAutoCommit = conn.getAutoCommit();
             conn.setAutoCommit(false);
             try {
                 for (StudentData s : list) {
-                    saveStudentEncryptedAndCalculateResult(s, desKey);
+                    upsertStudentOnConnection(conn, s, desKey);
                     count++;
                 }
                 conn.commit();
@@ -100,11 +147,12 @@ public class StudentDAO {
     }
 
     public StudentResult getStudentDecrypted(String studentId, String desKey) throws Exception {
+        String cleanId = (studentId != null) ? studentId.trim().toUpperCase() : "";
         String querySql = "SELECT MaSV, HoTenEncrypted, DiemToanEncrypted, DiemVanEncrypted, DiemAnhEncrypted, DiemTB " +
                 "FROM SinhVien WHERE MaSV = ?";
         try (Connection conn = ConnectionPool.getConnection();
              PreparedStatement stmt = conn.prepareStatement(querySql)) {
-            stmt.setString(1, studentId);
+            stmt.setString(1, cleanId);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
                     String id = rs.getString("MaSV");
@@ -129,22 +177,23 @@ public class StudentDAO {
                 }
             }
         }
-        throw new Exception("Không tìm thấy sinh viên có mã: " + studentId);
+        throw new Exception("Không tìm thấy sinh viên có mã: " + cleanId);
     }
 
     public boolean deleteStudent(String studentId) throws Exception {
+        String cleanId = (studentId != null) ? studentId.trim().toUpperCase() : "";
         try (Connection conn = ConnectionPool.getConnection()) {
             boolean originalAutoCommit = conn.getAutoCommit();
             conn.setAutoCommit(false);
             try {
                 try (PreparedStatement stmt2 = conn.prepareStatement("DELETE FROM BangDiem WHERE MaSV = ?")) {
-                    stmt2.setString(1, studentId);
+                    stmt2.setString(1, cleanId);
                     stmt2.executeUpdate();
                 }
 
                 String sql = "DELETE FROM SinhVien WHERE MaSV = ?";
                 try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                    stmt.setString(1, studentId);
+                    stmt.setString(1, cleanId);
                     int rows = stmt.executeUpdate();
                     conn.commit();
                     return rows > 0;
@@ -216,7 +265,7 @@ public class StudentDAO {
         for (StudentResult r : all) {
             if (r.getStudentId().toLowerCase().contains(q) ||
                     r.getFullName().toLowerCase().contains(q) ||
-                    r.getAcademicRank().toLowerCase().contains(q) ||
+                    r.getAcademicRankCredit().toLowerCase().contains(q) ||
                     r.getAcademicStatus().toLowerCase().contains(q)) {
                 filtered.add(r);
             }
@@ -312,7 +361,10 @@ public class StudentDAO {
 
         List<StudentResult> list = getAllStudentsDecrypted(desKey);
         for (StudentResult r : list) {
-            String rank = r.getAcademicRank();
+            String rank = r.getAcademicRankCredit();
+            if ("Kém".equals(rank)) {
+                rank = "Yếu";
+            }
             map.put(rank, map.getOrDefault(rank, 0) + 1);
         }
         return map;
@@ -320,7 +372,7 @@ public class StudentDAO {
 
     public List<DatabaseManager.EncryptedRecord> getAllRecordsForInspection(String desKey) throws Exception {
         List<DatabaseManager.EncryptedRecord> list = new ArrayList<>();
-        String sql = "SELECT MaSV, HoTenEncrypted, DiemToanEncrypted, DiemVanEncrypted, DiemAnhEncrypted, DiemTB FROM SinhVien";
+        String sql = "SELECT MaSV, HoTenEncrypted, DiemToanEncrypted, DiemVanEncrypted, DiemAnhEncrypted, DiemTB FROM SinhVien ORDER BY MaSV ASC";
 
         try (Connection conn = ConnectionPool.getConnection();
              Statement stmt = conn.createStatement();

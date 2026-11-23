@@ -7,6 +7,7 @@ import com.qlsv.database.dao.AuditDAO;
 import com.qlsv.model.*;
 import com.qlsv.network.PacketType;
 import com.qlsv.network.UDPPacket;
+import com.qlsv.util.InputValidator;
 
 import java.lang.reflect.Type;
 import java.net.DatagramPacket;
@@ -59,11 +60,11 @@ public class UDPServer {
     // Active Client Push Subscribers (Key: "ip:pushPort" -> InetSocketAddress)
     private final Map<String, InetSocketAddress> pushSubscribers = new ConcurrentHashMap<>();
 
-    // RUDP Deduplication Cache (LRU cache of 500 recent packetIds)
-    private final Map<String, Boolean> seenPackets = Collections.synchronizedMap(
-            new LinkedHashMap<String, Boolean>(100, 0.75f, true) {
+    // RUDP Idempotent Response Cache (LRU cache of 500 recent packetIds -> UDPPacket response)
+    private final Map<String, UDPPacket> responseCache = Collections.synchronizedMap(
+            new LinkedHashMap<String, UDPPacket>(100, 0.75f, true) {
                 @Override
-                protected boolean removeEldestEntry(Map.Entry<String, Boolean> eldest) {
+                protected boolean removeEldestEntry(Map.Entry<String, UDPPacket> eldest) {
                     return size() > 500;
                 }
             }
@@ -226,12 +227,15 @@ public class UDPServer {
 
             log(String.format("Nhận [Seq#%d | %s | HMAC:OK] từ Client %s:%d", seq, packet.getType(), clientIp, clientPort));
 
-            // 3. Deduplication Check
-            if (packet.getPacketId() != null && seenPackets.containsKey(packet.getPacketId())) {
-                log(String.format("[ARQ RETRANSMIT] Phát hiện gói tin truyền lại #%d [%s]. Khôi phục phản hồi an toàn.",
-                        seq, packet.getPacketId().substring(0, 8)));
-            } else if (packet.getPacketId() != null) {
-                seenPackets.put(packet.getPacketId(), Boolean.TRUE);
+            // 3. Idempotent Deduplication Check (Nếu gói ACK trước bị rơi và Client gửi lại cùng packetId, trả về ngay phản hồi cũ mà không ghi đè CSDL lần 2)
+            if (packet.getPacketId() != null && responseCache.containsKey(packet.getPacketId())) {
+                UDPPacket cachedResp = responseCache.get(packet.getPacketId());
+                if (cachedResp != null) {
+                    log(String.format("[ARQ IDEMPOTENT CACHE] Phát hiện gói truyền lại #%d [%s] -> Gửi lại phản hồi đã cache, bảo vệ toàn vẹn CSDL.",
+                            seq, packet.getPacketId().substring(0, 8)));
+                    sendPacket(cachedResp, seq, clientAddress, clientPort);
+                    return;
+                }
             }
 
             UDPPacket responsePacket;
@@ -383,6 +387,7 @@ public class UDPServer {
                                 responsePacket = UDPPacket.createError("[KHÓA SỔ ĐIỂM] Sổ điểm học kỳ đã khóa bởi Phòng Giáo Vụ! Giảng viên không thể sửa điểm khi sổ đã khóa (Yêu cầu quyền Admin để mở khóa).");
                             } else {
                                 StudentData student = gson.fromJson(packet.getPayload(), StudentData.class);
+                                InputValidator.validateAndNormalizeStudentData(student);
                                 String operator = (session != null) ? session.getUsername() : "giangvien";
 
                                 // Lấy điểm cũ trước khi lưu để ghi Audit Trail bất biến (OldScore -> NewScore)
@@ -552,6 +557,9 @@ public class UDPServer {
                     break;
             }
 
+            if (packet.getPacketId() != null && responsePacket != null) {
+                responseCache.put(packet.getPacketId(), responsePacket);
+            }
             sendPacket(responsePacket, seq, clientAddress, clientPort);
 
         } catch (Exception e) {
@@ -577,8 +585,7 @@ public class UDPServer {
         if (socket != null && !socket.isClosed()) {
             socket.close();
         }
-        DatabaseManager.getInstance().closeConnection();
-        log("Server RUDP đã dừng.");
+        log("Server RUDP đã dừng lắng nghe cổng mạng (Giữ nguyên kết nối CSDL HikariCP cho bảng quản trị).");
     }
 
     public boolean isRunning() {

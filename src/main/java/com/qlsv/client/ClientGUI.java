@@ -11,6 +11,7 @@ import com.qlsv.model.UserAccount;
 import com.qlsv.network.UDPPacket;
 import com.qlsv.util.ExcelExporter;
 import com.qlsv.util.ExcelImporter;
+import com.qlsv.util.InputValidator;
 
 import javax.swing.*;
 import javax.swing.border.TitledBorder;
@@ -1196,28 +1197,30 @@ public class ClientGUI extends JFrame {
         }
 
         try {
-            double math = Double.parseDouble(mathStr);
-            double lit = Double.parseDouble(litStr);
-            double eng = Double.parseDouble(engStr);
+            String cleanId = InputValidator.normalizeAndValidateStudentId(id);
+            String cleanName = InputValidator.normalizeAndValidateFullName(name);
+            double math = InputValidator.parseAndValidateScore(mathStr, "Điểm Chuyên cần (10%)");
+            double lit = InputValidator.parseAndValidateScore(litStr, "Điểm Giữa kỳ (20%)");
+            double eng = InputValidator.parseAndValidateScore(engStr, "Điểm Thi kết thúc (70%)");
 
-            if (math < 0 || math > 10 || lit < 0 || lit > 10 || eng < 0 || eng > 10) {
-                JOptionPane.showMessageDialog(this, "Điểm thi phải từ 0.0 đến 10.0!", "Lỗi nhập liệu", JOptionPane.WARNING_MESSAGE);
-                return;
-            }
-
-            StudentData student = new StudentData(id, name, math, lit, eng);
+            StudentData student = new StudentData(cleanId, cleanName, math, lit, eng);
             StudentResult result = client.sendStudentData(student);
 
             JOptionPane.showMessageDialog(this,
-                    String.format("Lưu thông tin Sinh viên thành công!\nHọ tên: %s (%s)\nĐiểm TB: %.2f - Xếp loại: %s",
-                            result.getFullName(), result.getStudentId(), result.getAverageScore(), result.getAcademicRank()),
+                    String.format("Lưu thông tin Sinh viên thành công!\nHọ tên: %s (%s)\nĐiểm HP (10): %.2f | GPA (4): %.2f (%s)\nTrạng thái học vụ: %s",
+                            result.getFullName(), result.getStudentId(),
+                            result.getAverageScore(), result.getGpa4(), result.getLetterGrade(),
+                            result.getAcademicStatus()),
                     "Thông Báo Thành Công", JOptionPane.INFORMATION_MESSAGE);
 
             clearForm();
             loadAllStudents();
+            if (txtPortalSearchMaSV != null && cleanId.equalsIgnoreCase(txtPortalSearchMaSV.getText().trim())) {
+                loadStudentPortal(cleanId);
+            }
 
-        } catch (NumberFormatException ex) {
-            JOptionPane.showMessageDialog(this, "Điểm thi phải là số thực hợp lệ (ví dụ: 8.5)!", "Lỗi định dạng", JOptionPane.ERROR_MESSAGE);
+        } catch (IllegalArgumentException ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage(), "Lỗi Kiểm Tra Dữ Liệu (Validation)", JOptionPane.WARNING_MESSAGE);
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, "Lỗi gửi dữ liệu đến máy chủ: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
         }

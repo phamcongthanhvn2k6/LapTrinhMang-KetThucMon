@@ -349,3 +349,4 @@ Khi trình diễn giữa **Máy thật (Host OS)** và **Máy ảo (Guest VM - W
    - **Internal Port:** `9876`
    - **Protocol:** `UDP` (hoặc `ALL`)
 3. Phía Client ngoài mạng Internet chỉ cần nhập **IP Public WAN** (hoặc tên miền Dynamic DNS) vào ô `Địa chỉ Máy Chủ` trên `ClientGUI` là có thể giao tiếp RUDP xuyên qua NAT thành công.
+

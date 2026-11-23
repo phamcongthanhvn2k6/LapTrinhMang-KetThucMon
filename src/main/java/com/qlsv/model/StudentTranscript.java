@@ -4,6 +4,12 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Hồ sơ Bảng điểm Tín chỉ Sinh viên.
+ * Tách biệt rõ:
+ * - Tín chỉ đăng ký (registeredCredits): Tổng số tín chỉ các môn đã học.
+ * - Tín chỉ tích lũy (totalCredits / accumulatedCredits): Chỉ tính các học phần ĐẠT (Điểm chữ từ D trở lên, không bị F).
+ */
 public class StudentTranscript implements Serializable {
     private static final long serialVersionUID = 1L;
 
@@ -15,7 +21,8 @@ public class StudentTranscript implements Serializable {
     private List<CourseGrade> grades = new ArrayList<>();
     private double cumulativeGpa10;
     private double cumulativeGpa4;
-    private int totalCredits;
+    private int totalCredits;      // Tín chỉ tích lũy đạt (Passed courses only)
+    private int registeredCredits; // Tổng tín chỉ đăng ký
     private String academicRank;
 
     public StudentTranscript() {
@@ -37,23 +44,30 @@ public class StudentTranscript implements Serializable {
             cumulativeGpa10 = 0.0;
             cumulativeGpa4 = 0.0;
             totalCredits = 0;
+            registeredCredits = 0;
             academicRank = "Chưa có điểm";
             return;
         }
 
         double sumWeighted10 = 0.0;
         double sumWeighted4 = 0.0;
-        int credits = 0;
+        int regCredits = 0;
+        int accCredits = 0;
 
         for (CourseGrade g : grades) {
-            sumWeighted10 += g.getTotalScore() * g.getCredits();
-            sumWeighted4 += g.getGpa4() * g.getCredits();
-            credits += g.getCredits();
+            int c = g.getCredits();
+            sumWeighted10 += g.getTotalScore() * c;
+            sumWeighted4 += g.getGpa4() * c;
+            regCredits += c;
+            if (g.isPassed()) {
+                accCredits += c;
+            }
         }
 
-        this.totalCredits = credits;
-        this.cumulativeGpa10 = (credits > 0) ? Math.round((sumWeighted10 / credits) * 100.0) / 100.0 : 0.0;
-        this.cumulativeGpa4 = (credits > 0) ? Math.round((sumWeighted4 / credits) * 100.0) / 100.0 : 0.0;
+        this.registeredCredits = regCredits;
+        this.totalCredits = accCredits;
+        this.cumulativeGpa10 = (regCredits > 0) ? Math.round((sumWeighted10 / regCredits) * 100.0) / 100.0 : 0.0;
+        this.cumulativeGpa4 = (regCredits > 0) ? Math.round((sumWeighted4 / regCredits) * 100.0) / 100.0 : 0.0;
 
         if (cumulativeGpa4 >= 3.6) {
             academicRank = "Xuất sắc";
@@ -63,8 +77,10 @@ public class StudentTranscript implements Serializable {
             academicRank = "Khá";
         } else if (cumulativeGpa4 >= 2.0) {
             academicRank = "Trung bình";
-        } else {
+        } else if (cumulativeGpa4 >= 1.0) {
             academicRank = "Yếu";
+        } else {
+            academicRank = "Kém";
         }
     }
 
@@ -127,6 +143,10 @@ public class StudentTranscript implements Serializable {
 
     public int getTotalCredits() {
         return totalCredits;
+    }
+
+    public int getRegisteredCredits() {
+        return registeredCredits;
     }
 
     public String getAcademicRank() {
