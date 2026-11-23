@@ -31,9 +31,9 @@ public class ClientGUI extends JFrame {
     public static final Color PTIT_LIGHT_BG = new Color(248, 249, 250);
 
     public enum UserRole {
-        STUDENT("🔒 Quyền: Học sinh (Chỉ xem)"),
-        TEACHER("🔓 Quyền: Giảng viên (Toàn quyền)"),
-        ADMIN("🛡️ Quyền: Quản trị viên (Admin)");
+        STUDENT("Quyền: Học sinh (Chỉ xem)"),
+        TEACHER("Quyền: Giảng viên (Toàn quyền)"),
+        ADMIN("Quyền: Quản trị viên (Admin)");
 
         private final String label;
         UserRole(String label) { this.label = label; }
@@ -149,20 +149,20 @@ public class ClientGUI extends JFrame {
     private void initUI() {
         setLayout(new BorderLayout(0, 0));
 
-        // Top Header Banner (PTIT Red)
-        JPanel headerPanel = new JPanel(new BorderLayout(15, 0));
+        // Top Header Banner (PTIT Red) - Compact non-overlapping layout
+        JPanel headerPanel = new JPanel(new BorderLayout(10, 0));
         headerPanel.setBackground(PTIT_RED);
-        headerPanel.setBorder(BorderFactory.createEmptyBorder(12, 20, 12, 20));
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(8, 14, 8, 14));
 
-        JLabel titleLabel = new JLabel("HỌC VIỆN CÔNG NGHỆ BƯU CHÍNH VIỄN THÔNG");
-        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        JLabel titleLabel = new JLabel("PTIT - CỔNG ĐÀO TẠO & SINH VIÊN");
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
         titleLabel.setForeground(Color.WHITE);
 
-        JLabel subtitleLabel = new JLabel("Hệ Thống Quản Lý Đào Tạo & Tra Cứu Thông Tin Sinh Viên");
-        subtitleLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        JLabel subtitleLabel = new JLabel("Hệ Thống Quản Lý Đào Tạo Tín Chỉ & Tra Cứu Học Tập");
+        subtitleLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         subtitleLabel.setForeground(new Color(255, 230, 230));
 
-        JPanel titleBox = new JPanel(new GridLayout(2, 1, 2, 2));
+        JPanel titleBox = new JPanel(new GridLayout(2, 1, 1, 1));
         titleBox.setOpaque(false);
         titleBox.add(titleLabel);
         titleBox.add(subtitleLabel);
@@ -170,32 +170,24 @@ public class ClientGUI extends JFrame {
         // Menubar Trình Diễn Demo
         setJMenuBar(createDemoMenuBar());
 
-        // Status Badges & Role Switcher Panel
-        JPanel statusBox = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 4));
+        // Status Badges & Role Switcher Panel (Compact so it never overlaps title)
+        JPanel statusBox = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 2));
         statusBox.setOpaque(false);
 
-        JButton btnDemoParallel = new JButton("🎬 Xếp Demo Song Song");
-        btnDemoParallel.setFont(new Font("Segoe UI", Font.BOLD, 11));
-        btnDemoParallel.setBackground(new Color(255, 193, 7)); // Gold
-        btnDemoParallel.setForeground(Color.BLACK);
-        btnDemoParallel.setFocusPainted(false);
-        btnDemoParallel.setToolTipText("Mở và tự động chia màn hình: Server + Giảng viên + Sinh viên");
-        btnDemoParallel.addActionListener(e -> AppLauncher.launchDemoParallelLayout());
-
-        JButton btnQuickSwitch = new JButton("⚡ Đổi Vai Trò Nhanh ▼");
+        JButton btnQuickSwitch = new JButton("Đổi Vai Trò ▼");
         btnQuickSwitch.setFont(new Font("Segoe UI", Font.BOLD, 11));
         btnQuickSwitch.setBackground(Color.WHITE);
         btnQuickSwitch.setForeground(PTIT_RED);
         btnQuickSwitch.setFocusPainted(false);
         btnQuickSwitch.addActionListener(e -> {
             JPopupMenu pop = new JPopupMenu();
-            JMenuItem m1 = new JMenuItem("🎓 Sang Cổng Sinh Viên (SV001)");
+            JMenuItem m1 = new JMenuItem("▶ Sang Cổng Sinh Viên (SV001)");
             m1.addActionListener(evt -> switchDemoRole(UserRole.STUDENT, "SV001"));
-            JMenuItem m2 = new JMenuItem("👨‍🏫 Sang Quyền Giảng Viên (Chấm Điểm)");
+            JMenuItem m2 = new JMenuItem("▶ Sang Quyền Giảng Viên (Chấm Điểm)");
             m2.addActionListener(evt -> switchDemoRole(UserRole.TEACHER, null));
-            JMenuItem m3 = new JMenuItem("🛡️ Sang Quyền Admin (Toàn Quyền)");
+            JMenuItem m3 = new JMenuItem("▶ Sang Quyền Admin (Toàn Quyền)");
             m3.addActionListener(evt -> switchDemoRole(UserRole.ADMIN, null));
-            JMenuItem m4 = new JMenuItem("🔑 Hộp thoại đăng nhập...");
+            JMenuItem m4 = new JMenuItem("▶ Hộp thoại đăng nhập...");
             m4.addActionListener(evt -> toggleRoleAuth());
             pop.add(m1);
             pop.add(m2);
@@ -206,30 +198,28 @@ public class ClientGUI extends JFrame {
         });
 
         lblServerBadge = new JLabel("● Máy Chủ: Chưa kết nối");
-        lblServerBadge.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        lblServerBadge.setFont(new Font("Segoe UI", Font.BOLD, 11));
         lblServerBadge.setForeground(Color.WHITE);
         lblServerBadge.setOpaque(true);
         lblServerBadge.setBackground(PTIT_DARK_RED);
-        lblServerBadge.setBorder(BorderFactory.createEmptyBorder(4, 10, 4, 10));
+        lblServerBadge.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
 
-        lblDbBadge = new JLabel("● Cơ Sở Dữ Liệu: Chưa kết nối");
-        lblDbBadge.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        lblDbBadge = new JLabel("● CSDL: Đã kết nối");
+        lblDbBadge.setFont(new Font("Segoe UI", Font.BOLD, 11));
         lblDbBadge.setForeground(Color.WHITE);
         lblDbBadge.setOpaque(true);
         lblDbBadge.setBackground(PTIT_DARK_RED);
-        lblDbBadge.setBorder(BorderFactory.createEmptyBorder(4, 10, 4, 10));
+        lblDbBadge.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
 
-        btnRoleAuth = new JButton("[Quyền: Học Sinh - Nhấn để Đăng nhập]");
-        btnRoleAuth.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnRoleAuth = new JButton("[Quyền: Học Sinh - Đăng nhập]");
+        btnRoleAuth.setFont(new Font("Segoe UI", Font.BOLD, 11));
         btnRoleAuth.setBackground(new Color(220, 53, 69));
         btnRoleAuth.setForeground(Color.WHITE);
         btnRoleAuth.setFocusPainted(false);
         btnRoleAuth.addActionListener(e -> toggleRoleAuth());
 
-        statusBox.add(btnDemoParallel);
         statusBox.add(btnQuickSwitch);
         statusBox.add(lblServerBadge);
-        statusBox.add(lblDbBadge);
         statusBox.add(btnRoleAuth);
 
         headerPanel.add(titleBox, BorderLayout.WEST);
@@ -244,18 +234,18 @@ public class ClientGUI extends JFrame {
         JPanel managementWorkspace = createStudentWorkspaceTab();
         settingsWorkspace = createSettingsTab();
 
-        mainTabbedPane.addTab("🎓 Cổng Thông Tin Sinh Viên", studentPortalTab);
-        mainTabbedPane.addTab("📋 Quản Lý Đào Tạo & Lớp Học Phần", managementWorkspace);
-        mainTabbedPane.addTab("⚙️ Cài Đặt Hệ Thống", settingsWorkspace);
+        mainTabbedPane.addTab("1. Cổng Thông Tin Sinh Viên", studentPortalTab);
+        mainTabbedPane.addTab("2. Quản Lý Đào Tạo & Lớp Học Phần", managementWorkspace);
+        mainTabbedPane.addTab("3. Cài Đặt Hệ Thống", settingsWorkspace);
 
         add(mainTabbedPane, BorderLayout.CENTER);
 
         // Live UDP Server-Push & Network Telemetry Footer Bar
         JPanel pushFooter = new JPanel(new BorderLayout(10, 0));
         pushFooter.setBackground(new Color(25, 35, 50));
-        pushFooter.setBorder(BorderFactory.createEmptyBorder(5, 16, 5, 16));
+        pushFooter.setBorder(BorderFactory.createEmptyBorder(4, 14, 4, 14));
 
-        lblLivePushBanner = new JLabel("🔔 [KÊNH UDP SERVER-PUSH TRỰC TUYẾN] Đang lắng nghe thông báo điểm số & học vụ thời gian thực (HMAC-SHA256 Verified)...");
+        lblLivePushBanner = new JLabel("● [KÊNH UDP SERVER-PUSH TRỰC TUYẾN] Đang lắng nghe thông báo điểm số & học vụ thời gian thực (HMAC-SHA256 Verified)...");
         lblLivePushBanner.setFont(new Font("Segoe UI", Font.BOLD, 12));
         lblLivePushBanner.setForeground(new Color(140, 230, 170));
         pushFooter.add(lblLivePushBanner, BorderLayout.CENTER);
@@ -265,68 +255,70 @@ public class ClientGUI extends JFrame {
     }
 
     private JPanel createStudentWorkspaceTab() {
-        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        JPanel panel = new JPanel(new BorderLayout(6, 6));
         panel.setBackground(PTIT_LIGHT_BG);
-        panel.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
+        panel.setBorder(BorderFactory.createEmptyBorder(6, 10, 6, 10));
 
-        // Input Form Card (North)
+        // Input Form Card (North) - Compact 2-Row Grid so table below gets plenty of vertical space
         formPanel = new JPanel(new GridBagLayout());
         formPanel.setBackground(Color.WHITE);
         formPanel.setBorder(BorderFactory.createTitledBorder(
                 BorderFactory.createEtchedBorder(),
-                " Form Nhập / Cập Nhật Thông Tin Sinh Viên (Quyền Giảng Viên) ",
+                " Form Nhập / Cập Nhật Điểm Sinh Viên (Quyền Giảng Viên) ",
                 TitledBorder.LEFT, TitledBorder.TOP,
-                new Font("Segoe UI", Font.BOLD, 13), PTIT_RED
+                new Font("Segoe UI", Font.BOLD, 12), PTIT_RED
         ));
 
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(6, 10, 6, 10);
+        gbc.insets = new Insets(3, 6, 3, 6);
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        gbc.gridx = 0; gbc.gridy = 0;
-        formPanel.add(new JLabel("Họ tên sinh viên:"), gbc);
-        gbc.gridx = 1; gbc.gridy = 0; gbc.weightx = 1.0;
-        txtStudentName = new JTextField(16);
-        txtStudentName.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        // Row 0: Họ tên, Mã SV, Chuyên cần (10%)
+        gbc.gridx = 0; gbc.gridy = 0; gbc.weightx = 0.0;
+        formPanel.add(new JLabel("Họ tên SV:"), gbc);
+        gbc.gridx = 1; gbc.gridy = 0; gbc.weightx = 1.2;
+        txtStudentName = new JTextField(14);
+        txtStudentName.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         formPanel.add(txtStudentName, gbc);
 
         gbc.gridx = 2; gbc.gridy = 0; gbc.weightx = 0.0;
-        formPanel.add(new JLabel("Mã sinh viên:"), gbc);
-        gbc.gridx = 3; gbc.gridy = 0; gbc.weightx = 1.0;
-        txtStudentId = new JTextField(12);
-        txtStudentId.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        formPanel.add(new JLabel("Mã SV:"), gbc);
+        gbc.gridx = 3; gbc.gridy = 0; gbc.weightx = 0.8;
+        txtStudentId = new JTextField(9);
+        txtStudentId.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         formPanel.add(txtStudentId, gbc);
 
-        gbc.gridx = 0; gbc.gridy = 1; gbc.weightx = 0.0;
-        formPanel.add(new JLabel("Điểm Chuyên cần (10%):"), gbc);
-        gbc.gridx = 1; gbc.gridy = 1; gbc.weightx = 1.0;
-        txtScoreMath = new JTextField(10);
-        txtScoreMath.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        gbc.gridx = 4; gbc.gridy = 0; gbc.weightx = 0.0;
+        formPanel.add(new JLabel("Chuyên cần (10%):"), gbc);
+        gbc.gridx = 5; gbc.gridy = 0; gbc.weightx = 0.6;
+        txtScoreMath = new JTextField(6);
+        txtScoreMath.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         formPanel.add(txtScoreMath, gbc);
 
-        gbc.gridx = 2; gbc.gridy = 1; gbc.weightx = 0.0;
-        formPanel.add(new JLabel("Điểm Giữa kỳ (20%):"), gbc);
-        gbc.gridx = 3; gbc.gridy = 1; gbc.weightx = 1.0;
-        txtScoreLit = new JTextField(10);
-        txtScoreLit.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        // Row 1: Giữa kỳ (20%), Thi kết thúc (70%), Buttons
+        gbc.gridx = 0; gbc.gridy = 1; gbc.weightx = 0.0;
+        formPanel.add(new JLabel("Giữa kỳ (20%):"), gbc);
+        gbc.gridx = 1; gbc.gridy = 1; gbc.weightx = 0.8;
+        txtScoreLit = new JTextField(8);
+        txtScoreLit.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         formPanel.add(txtScoreLit, gbc);
 
-        gbc.gridx = 0; gbc.gridy = 2; gbc.weightx = 0.0;
-        formPanel.add(new JLabel("Điểm Thi kết thúc (70%):"), gbc);
-        gbc.gridx = 1; gbc.gridy = 2; gbc.weightx = 1.0;
-        txtScoreEng = new JTextField(10);
-        txtScoreEng.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        gbc.gridx = 2; gbc.gridy = 1; gbc.weightx = 0.0;
+        formPanel.add(new JLabel("Thi kết thúc (70%):"), gbc);
+        gbc.gridx = 3; gbc.gridy = 1; gbc.weightx = 0.8;
+        txtScoreEng = new JTextField(8);
+        txtScoreEng.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         formPanel.add(txtScoreEng, gbc);
 
-        JPanel btnFormBox = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        JPanel btnFormBox = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
         btnFormBox.setOpaque(false);
 
         btnClearForm = new JButton("Xóa Form");
-        btnClearForm.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        btnClearForm.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         btnClearForm.addActionListener(e -> clearForm());
 
-        btnSendStudent = new JButton("LƯU THÔNG TIN SINH VIÊN");
-        btnSendStudent.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnSendStudent = new JButton("LƯU ĐIỂM SINH VIÊN");
+        btnSendStudent.setFont(new Font("Segoe UI", Font.BOLD, 11));
         btnSendStudent.setBackground(PTIT_RED);
         btnSendStudent.setForeground(Color.WHITE);
         btnSendStudent.setFocusPainted(false);
@@ -335,31 +327,37 @@ public class ClientGUI extends JFrame {
         btnFormBox.add(btnClearForm);
         btnFormBox.add(btnSendStudent);
 
-        gbc.gridx = 2; gbc.gridy = 2; gbc.gridwidth = 2;
+        gbc.gridx = 4; gbc.gridy = 1; gbc.gridwidth = 2; gbc.weightx = 1.0;
         formPanel.add(btnFormBox, gbc);
 
         panel.add(formPanel, BorderLayout.NORTH);
 
         // Center Table Card
-        JPanel centerPanel = new JPanel(new BorderLayout(5, 5));
+        JPanel centerPanel = new JPanel(new BorderLayout(4, 4));
         centerPanel.setBackground(Color.WHITE);
         centerPanel.setBorder(BorderFactory.createTitledBorder(
                 BorderFactory.createEtchedBorder(),
                 " Danh Sách Sinh Viên Quản Lý ",
                 TitledBorder.LEFT, TitledBorder.TOP,
-                new Font("Segoe UI", Font.BOLD, 13), PTIT_RED
+                new Font("Segoe UI", Font.BOLD, 12), PTIT_RED
         ));
 
-        // Toolbar
-        JPanel toolBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 6));
-        toolBar.setBackground(Color.WHITE);
+        // 2-Row Toolbar so buttons never get clipped on narrow split-screen windows
+        JPanel toolBarContainer = new JPanel(new GridLayout(2, 1, 2, 2));
+        toolBarContainer.setBackground(Color.WHITE);
+
+        JPanel toolRow1 = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));
+        toolRow1.setBackground(Color.WHITE);
+
+        JPanel toolRow2 = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));
+        toolRow2.setBackground(Color.WHITE);
 
         txtSearchQuery = new JTextField(12);
-        txtSearchQuery.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        txtSearchQuery.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         txtSearchQuery.setToolTipText("Nhập Mã SV hoặc Tên rồi nhấn Enter để tìm kiếm");
         txtSearchQuery.addActionListener(e -> handleSearch());
         btnSearch = new JButton("Tìm Kiếm");
-        btnSearch.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        btnSearch.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         btnSearch.addActionListener(e -> handleSearch());
 
         cbFilterRank = new JComboBox<>(new String[]{
@@ -371,40 +369,50 @@ public class ClientGUI extends JFrame {
                 "Trung bình (C/D)",
                 "Cảnh báo học vụ / Cấm thi"
         });
-        cbFilterRank.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        cbFilterRank.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         cbFilterRank.addActionListener(e -> applyFilters());
 
         btnRefreshAll = new JButton("Tải Lại");
-        btnRefreshAll.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        btnRefreshAll.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         btnRefreshAll.addActionListener(e -> loadAllStudents());
 
+        JButton btnToggleForm = new JButton("Ẩn/Hiện Form Nhập");
+        btnToggleForm.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        btnToggleForm.addActionListener(e -> {
+            if (formPanel != null) {
+                formPanel.setVisible(!formPanel.isVisible());
+                revalidate();
+                repaint();
+            }
+        });
+
         JButton btnViewTranscript = new JButton("Bảng Điểm Môn Học");
-        btnViewTranscript.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnViewTranscript.setFont(new Font("Segoe UI", Font.BOLD, 11));
         btnViewTranscript.setBackground(new Color(0, 123, 255));
         btnViewTranscript.setForeground(Color.WHITE);
         btnViewTranscript.addActionListener(e -> openTranscriptDialog());
 
-        JButton btnScholarship = new JButton("🏆 Học Bổng & Cảnh Báo");
-        btnScholarship.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        JButton btnScholarship = new JButton("★ Học Bổng & Cảnh Báo");
+        btnScholarship.setFont(new Font("Segoe UI", Font.BOLD, 11));
         btnScholarship.setBackground(new Color(230, 126, 34));
         btnScholarship.setForeground(Color.WHITE);
         btnScholarship.setToolTipText("Xét danh sách Học bổng KKHT và Sinh viên thuộc diện Cảnh báo học vụ / Cấm thi");
         btnScholarship.addActionListener(e -> openScholarshipAndWarningDialog());
 
         JButton btnGpaSimulator = new JButton("Giả Lập GPA");
-        btnGpaSimulator.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnGpaSimulator.setFont(new Font("Segoe UI", Font.BOLD, 11));
         btnGpaSimulator.setBackground(new Color(111, 66, 193));
         btnGpaSimulator.setForeground(Color.WHITE);
         btnGpaSimulator.addActionListener(e -> openGpaSimulatorDialog());
 
-        btnDeleteSelected = new JButton("Xóa Sinh Viên");
-        btnDeleteSelected.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnDeleteSelected = new JButton("Xóa SV");
+        btnDeleteSelected.setFont(new Font("Segoe UI", Font.BOLD, 11));
         btnDeleteSelected.setBackground(PTIT_DARK_RED);
         btnDeleteSelected.setForeground(Color.WHITE);
         btnDeleteSelected.addActionListener(e -> handleDeleteSelected());
 
-        btnImportExcel = new JButton("Nhập File Excel");
-        btnImportExcel.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnImportExcel = new JButton("Nhập Excel");
+        btnImportExcel.setFont(new Font("Segoe UI", Font.BOLD, 11));
         btnImportExcel.setBackground(new Color(23, 162, 184));
         btnImportExcel.setForeground(Color.WHITE);
         btnImportExcel.addActionListener(e -> handleImportExcel());
@@ -414,28 +422,32 @@ public class ClientGUI extends JFrame {
         btnDownloadTemplate.addActionListener(e -> handleDownloadTemplate());
 
         btnExportExcel = new JButton("Xuất Báo Cáo");
-        btnExportExcel.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnExportExcel.setFont(new Font("Segoe UI", Font.BOLD, 11));
         btnExportExcel.setBackground(new Color(40, 167, 69));
         btnExportExcel.setForeground(Color.WHITE);
         btnExportExcel.addActionListener(e -> handleExportExcel());
 
-        toolBar.add(new JLabel("Từ khóa:"));
-        toolBar.add(txtSearchQuery);
-        toolBar.add(btnSearch);
-        toolBar.add(Box.createHorizontalStrut(4));
-        toolBar.add(new JLabel("Lọc:"));
-        toolBar.add(cbFilterRank);
-        toolBar.add(btnRefreshAll);
-        toolBar.add(btnViewTranscript);
-        toolBar.add(btnScholarship);
-        toolBar.add(btnGpaSimulator);
-        toolBar.add(btnDeleteSelected);
-        toolBar.add(Box.createHorizontalStrut(4));
-        toolBar.add(btnImportExcel);
-        toolBar.add(btnDownloadTemplate);
-        toolBar.add(btnExportExcel);
+        toolRow1.add(new JLabel("Từ khóa:"));
+        toolRow1.add(txtSearchQuery);
+        toolRow1.add(btnSearch);
+        toolRow1.add(Box.createHorizontalStrut(4));
+        toolRow1.add(new JLabel("Lọc:"));
+        toolRow1.add(cbFilterRank);
+        toolRow1.add(btnRefreshAll);
+        toolRow1.add(btnToggleForm);
 
-        centerPanel.add(toolBar, BorderLayout.NORTH);
+        toolRow2.add(btnViewTranscript);
+        toolRow2.add(btnScholarship);
+        toolRow2.add(btnGpaSimulator);
+        toolRow2.add(btnDeleteSelected);
+        toolRow2.add(btnImportExcel);
+        toolRow2.add(btnDownloadTemplate);
+        toolRow2.add(btnExportExcel);
+
+        toolBarContainer.add(toolRow1);
+        toolBarContainer.add(toolRow2);
+
+        centerPanel.add(toolBarContainer, BorderLayout.NORTH);
 
         // Table
         String[] columnNames = {
@@ -797,7 +809,7 @@ public class ClientGUI extends JFrame {
             client = new UDPClient(host, port);
             client.setPushNotificationListener((message, payload) -> SwingUtilities.invokeLater(() -> {
                 if (lblLivePushBanner != null) {
-                    lblLivePushBanner.setText("🔔 [UDP SERVER-PUSH REAL-TIME] " + message);
+                    lblLivePushBanner.setText("● [UDP SERVER-PUSH REAL-TIME] " + message);
                     lblLivePushBanner.setForeground(new Color(255, 215, 0));
                 }
                 loadAllStudents();
@@ -1014,19 +1026,19 @@ public class ClientGUI extends JFrame {
         JMenuBar mb = new JMenuBar();
 
         // 1. Menu Vai Trò
-        JMenu menuRole = new JMenu("⚡ Chuyển Nhanh Vai Trò");
+        JMenu menuRole = new JMenu("Chuyển Nhanh Vai Trò");
         menuRole.setFont(new Font("Segoe UI", Font.BOLD, 12));
 
-        JMenuItem miStudent = new JMenuItem("🎓 Chuyển sang Cổng Sinh Viên (SV001)");
+        JMenuItem miStudent = new JMenuItem("▶ Chuyển sang Cổng Sinh Viên (SV001)");
         miStudent.addActionListener(e -> switchDemoRole(UserRole.STUDENT, "SV001"));
 
-        JMenuItem miTeacher = new JMenuItem("👨‍🏫 Chuyển sang Quyền Giảng Viên (Chấm điểm & Quản lý)");
+        JMenuItem miTeacher = new JMenuItem("▶ Chuyển sang Quyền Giảng Viên (Chấm điểm & Quản lý)");
         miTeacher.addActionListener(e -> switchDemoRole(UserRole.TEACHER, null));
 
-        JMenuItem miAdmin = new JMenuItem("🛡️ Chuyển sang Quyền Admin (Toàn quyền)");
+        JMenuItem miAdmin = new JMenuItem("▶ Chuyển sang Quyền Admin (Toàn quyền)");
         miAdmin.addActionListener(e -> switchDemoRole(UserRole.ADMIN, null));
 
-        JMenuItem miAuthDialog = new JMenuItem("🔑 Hộp thoại đăng nhập...");
+        JMenuItem miAuthDialog = new JMenuItem("▶ Hộp thoại đăng nhập...");
         miAuthDialog.addActionListener(e -> toggleRoleAuth());
 
         menuRole.add(miStudent);
@@ -1036,25 +1048,25 @@ public class ClientGUI extends JFrame {
         menuRole.add(miAuthDialog);
 
         // 2. Menu Điều Khiển Demo
-        JMenu menuDemo = new JMenu("🎛️ Bảng Điều Khiển Demo");
+        JMenu menuDemo = new JMenu("Bảng Điều Khiển Demo");
         menuDemo.setFont(new Font("Segoe UI", Font.BOLD, 12));
 
-        JMenuItem miParallel = new JMenuItem("🎬 Chế độ Demo song song (Xếp Server + Giảng viên + Sinh viên)");
+        JMenuItem miParallel = new JMenuItem("▶ Chế độ Demo song song (Xếp Server + Giảng viên + Sinh viên)");
         miParallel.addActionListener(e -> AppLauncher.launchDemoParallelLayout());
 
-        JMenuItem miTile = new JMenuItem("🔄 Tự động sắp xếp lại cửa sổ trên màn hình");
+        JMenuItem miTile = new JMenuItem("▶ Tự động sắp xếp lại cửa sổ trên màn hình");
         miTile.addActionListener(e -> AppLauncher.tileAllWindows());
 
-        JMenuItem miOpenServer = new JMenuItem("🖥️ Hiện / Mở Trung Tâm Máy Chủ Server");
+        JMenuItem miOpenServer = new JMenuItem("▶ Hiện / Mở Trung Tâm Máy Chủ Server");
         miOpenServer.addActionListener(e -> AppLauncher.launchOrFocusServer());
 
-        JMenuItem miNewStudent = new JMenuItem("➕ Mở thêm 1 Cửa Sổ Cổng Sinh Viên");
+        JMenuItem miNewStudent = new JMenuItem("[+] Mở thêm 1 Cửa Sổ Cổng Sinh Viên");
         miNewStudent.addActionListener(e -> AppLauncher.launchStudentClient());
 
-        JMenuItem miNewTeacher = new JMenuItem("➕ Mở thêm 1 Cửa Sổ Giảng Viên");
+        JMenuItem miNewTeacher = new JMenuItem("[+] Mở thêm 1 Cửa Sổ Giảng Viên");
         miNewTeacher.addActionListener(e -> AppLauncher.launchTeacherClient());
 
-        JMenuItem miOpenLauncher = new JMenuItem("🎛️ Mở Bảng Điều Khiển Launcher PTIT");
+        JMenuItem miOpenLauncher = new JMenuItem("▶ Mở Bảng Điều Khiển Launcher PTIT");
         miOpenLauncher.addActionListener(e -> AppLauncher.showLauncher());
 
         menuDemo.add(miParallel);
@@ -1067,9 +1079,9 @@ public class ClientGUI extends JFrame {
         menuDemo.add(miOpenLauncher);
 
         // 3. Menu Dữ liệu & Làm mới
-        JMenu menuData = new JMenu("🔄 Dữ Liệu");
+        JMenu menuData = new JMenu("Dữ Liệu Hệ Thống");
         menuData.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        JMenuItem miRefresh = new JMenuItem("🔄 Tải lại dữ liệu từ Server RUDP");
+        JMenuItem miRefresh = new JMenuItem("▶ Tải lại dữ liệu từ Server RUDP");
         miRefresh.addActionListener(e -> {
             loadAllStudents();
             if (txtPortalSearchMaSV != null && !txtPortalSearchMaSV.getText().trim().isEmpty()) {
@@ -1089,13 +1101,13 @@ public class ClientGUI extends JFrame {
 
         if (btnRoleAuth != null) {
             if (currentRole == UserRole.ADMIN) {
-                btnRoleAuth.setText("🛡️ Admin: " + (currentUserAccount != null ? currentUserAccount.getFullName() : "Admin"));
+                btnRoleAuth.setText("[Admin: " + (currentUserAccount != null ? currentUserAccount.getFullName() : "Admin") + "]");
                 btnRoleAuth.setBackground(new Color(111, 66, 193)); // Purple for Admin
             } else if (currentRole == UserRole.TEACHER) {
                 btnRoleAuth.setText("[Giảng viên: " + (currentUserAccount != null ? currentUserAccount.getFullName() : "Giảng viên") + "]");
                 btnRoleAuth.setBackground(new Color(40, 167, 69)); // Green for Teacher
             } else {
-                btnRoleAuth.setText("[Quyền: Học sinh - Nhấn để Đăng nhập]");
+                btnRoleAuth.setText("[Quyền: Học sinh - Đăng nhập]");
                 btnRoleAuth.setBackground(new Color(220, 53, 69)); // Red for Student
             }
         }
@@ -1420,11 +1432,11 @@ public class ClientGUI extends JFrame {
             tblHB.setRowHeight(26);
             JPanel pHB = new JPanel(new BorderLayout(8, 8));
             pHB.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-            JLabel lblSumHB = new JLabel(String.format("🏆 Tổng số sinh viên đủ điều kiện cấp Học bổng KKHT (GPA >= 3.2, CC >= 8.0, Không điểm dưới C): %d / %d SV",
+            JLabel lblSumHB = new JLabel(String.format("★ Tổng số sinh viên đủ điều kiện cấp Học bổng KKHT (GPA >= 3.2, CC >= 8.0, Không điểm dưới C): %d / %d SV",
                     scholarships.size(), all.size()));
             lblSumHB.setFont(new Font("Segoe UI", Font.BOLD, 13));
             lblSumHB.setForeground(new Color(0, 130, 50));
-            JButton btnExpHB = new JButton("📥 Xuất Danh Sách Học Bổng (.xlsx)");
+            JButton btnExpHB = new JButton("Xuất Danh Sách Học Bổng (.xlsx)");
             btnExpHB.setBackground(new Color(40, 167, 69));
             btnExpHB.setForeground(Color.WHITE);
             btnExpHB.setFont(new Font("Segoe UI", Font.BOLD, 12));
@@ -1466,11 +1478,11 @@ public class ClientGUI extends JFrame {
             tblCB.setRowHeight(26);
             JPanel pCB = new JPanel(new BorderLayout(8, 8));
             pCB.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-            JLabel lblSumCB = new JLabel(String.format("⚠️ Tổng số sinh viên thuộc diện Cấm thi (CC < 5.0), Điểm liệt (Thi < 4.0) hoặc Cảnh báo học vụ (GPA < 2.0): %d / %d SV",
+            JLabel lblSumCB = new JLabel(String.format("● Tổng số sinh viên thuộc diện Cấm thi (CC < 5.0), Điểm liệt (Thi < 4.0) hoặc Cảnh báo học vụ (GPA < 2.0): %d / %d SV",
                     warnings.size(), all.size()));
             lblSumCB.setFont(new Font("Segoe UI", Font.BOLD, 13));
             lblSumCB.setForeground(PTIT_RED);
-            JButton btnExpCB = new JButton("📥 Xuất Danh Sách Cảnh Báo Học Vụ (.xlsx)");
+            JButton btnExpCB = new JButton("Xuất Danh Sách Cảnh Báo Học Vụ (.xlsx)");
             btnExpCB.setBackground(PTIT_RED);
             btnExpCB.setForeground(Color.WHITE);
             btnExpCB.setFont(new Font("Segoe UI", Font.BOLD, 12));
@@ -1494,8 +1506,8 @@ public class ClientGUI extends JFrame {
             pCB.add(topCB, BorderLayout.NORTH);
             pCB.add(new JScrollPane(tblCB), BorderLayout.CENTER);
 
-            tabs.addTab("🏆 Danh Sách Đề Nghị Học Bổng KKHT (" + scholarships.size() + " SV)", pHB);
-            tabs.addTab("⚠️ Danh Sách Cảnh Báo Học Vụ & Cấm Thi (" + warnings.size() + " SV)", pCB);
+            tabs.addTab("1. Danh Sách Đề Nghị Học Bổng KKHT (" + scholarships.size() + " SV)", pHB);
+            tabs.addTab("2. Danh Sách Cảnh Báo Học Vụ & Cấm Thi (" + warnings.size() + " SV)", pCB);
 
             dlg.add(tabs, BorderLayout.CENTER);
             dlg.setVisible(true);
@@ -1751,78 +1763,78 @@ public class ClientGUI extends JFrame {
     }
 
     private JPanel createStudentPortalTab() {
-        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        JPanel panel = new JPanel(new BorderLayout(6, 6));
         panel.setBackground(PTIT_LIGHT_BG);
-        panel.setBorder(BorderFactory.createEmptyBorder(12, 14, 12, 14));
+        panel.setBorder(BorderFactory.createEmptyBorder(6, 10, 6, 10));
 
-        // 1. Top Card: Quick Search & Profile Box & 4 KPI Cards
-        JPanel northPanel = new JPanel(new BorderLayout(8, 8));
+        // 1. Top Card: Quick Search & Profile Box & 4 KPI Cards (Compact for split-screen)
+        JPanel northPanel = new JPanel(new BorderLayout(4, 4));
         northPanel.setOpaque(false);
 
         // Search Bar for Student
-        JPanel searchBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
+        JPanel searchBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));
         searchBar.setBackground(Color.WHITE);
         searchBar.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(new Color(225, 225, 225)),
-                BorderFactory.createEmptyBorder(4, 10, 4, 10)
+                BorderFactory.createEmptyBorder(2, 8, 2, 8)
         ));
 
         searchBar.add(new JLabel("Mã Sinh Viên cần tra cứu:"));
-        txtPortalSearchMaSV = new JTextField("SV001", 10);
-        txtPortalSearchMaSV.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        txtPortalSearchMaSV = new JTextField("SV001", 9);
+        txtPortalSearchMaSV.setFont(new Font("Segoe UI", Font.BOLD, 12));
         txtPortalSearchMaSV.addActionListener(e -> loadStudentPortal(txtPortalSearchMaSV.getText().trim()));
         searchBar.add(txtPortalSearchMaSV);
 
         JButton btnPortalSearch = new JButton("Xem Hồ Sơ");
-        btnPortalSearch.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnPortalSearch.setFont(new Font("Segoe UI", Font.BOLD, 11));
         btnPortalSearch.setBackground(PTIT_RED);
         btnPortalSearch.setForeground(Color.WHITE);
         btnPortalSearch.addActionListener(e -> loadStudentPortal(txtPortalSearchMaSV.getText().trim()));
         searchBar.add(btnPortalSearch);
 
         JButton btnReloadPortal = new JButton("Làm Mới");
-        btnReloadPortal.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        btnReloadPortal.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         btnReloadPortal.addActionListener(e -> loadStudentPortal(txtPortalSearchMaSV.getText().trim()));
         searchBar.add(btnReloadPortal);
 
         northPanel.add(searchBar, BorderLayout.NORTH);
 
         // Profile & KPI Container (Split in 2 sides: Left Info, Right KPI Cards)
-        JPanel profileContainer = new JPanel(new GridLayout(1, 2, 12, 0));
+        JPanel profileContainer = new JPanel(new GridLayout(1, 2, 8, 0));
         profileContainer.setOpaque(false);
 
-        // Left Card: Student Info Card
-        JPanel infoCard = new JPanel(new GridLayout(4, 2, 6, 6));
+        // Left Card: Student Info Card (Compact 2x4 Grid)
+        JPanel infoCard = new JPanel(new GridLayout(2, 4, 6, 4));
         infoCard.setBackground(Color.WHITE);
         infoCard.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(new Color(220, 224, 230)),
-                BorderFactory.createEmptyBorder(10, 14, 10, 14)
+                BorderFactory.createEmptyBorder(6, 10, 6, 10)
         ));
 
         lblPortalHoTen = new JLabel("Vũ Khánh Bích");
-        lblPortalHoTen.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        lblPortalHoTen.setFont(new Font("Segoe UI", Font.BOLD, 13));
         lblPortalHoTen.setForeground(PTIT_RED);
 
         lblPortalMaSV = new JLabel("SV001");
-        lblPortalMaSV.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        lblPortalMaSV.setFont(new Font("Segoe UI", Font.BOLD, 12));
 
         lblPortalLop = new JLabel("D21CQCN01-N");
-        lblPortalLop.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        lblPortalLop.setFont(new Font("Segoe UI", Font.PLAIN, 12));
 
-        lblPortalKhoa = new JLabel("Công nghệ Thông tin 1");
-        lblPortalKhoa.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        lblPortalKhoa = new JLabel("CNTT 1");
+        lblPortalKhoa.setFont(new Font("Segoe UI", Font.PLAIN, 12));
 
         infoCard.add(new JLabel("Họ và Tên:"));
         infoCard.add(lblPortalHoTen);
-        infoCard.add(new JLabel("Mã Sinh Viên:"));
+        infoCard.add(new JLabel("Mã SV:"));
         infoCard.add(lblPortalMaSV);
         infoCard.add(new JLabel("Lớp Niên Chế:"));
         infoCard.add(lblPortalLop);
-        infoCard.add(new JLabel("Khoa Quản Lý:"));
+        infoCard.add(new JLabel("Khoa:"));
         infoCard.add(lblPortalKhoa);
 
-        // Right Card: 4 KPI Cards (GridLayout 2x2)
-        JPanel kpiContainer = new JPanel(new GridLayout(2, 2, 10, 10));
+        // Right Card: 4 KPI Cards (Single horizontal 1x4 row so it takes half the vertical height!)
+        JPanel kpiContainer = new JPanel(new GridLayout(1, 4, 6, 0));
         kpiContainer.setOpaque(false);
 
         lblPortalCredits = new JLabel("15 / 132 TC", SwingConstants.CENTER);
@@ -1830,10 +1842,10 @@ public class ClientGUI extends JFrame {
         lblPortalGpa4 = new JLabel("3.60 / 4.00", SwingConstants.CENTER);
         lblPortalRank = new JLabel("Xuất sắc", SwingConstants.CENTER);
 
-        kpiContainer.add(createKpiCard("TÍN CHỈ TÍCH LŨY", lblPortalCredits, new Color(0, 123, 255)));
-        kpiContainer.add(createKpiCard("ĐTB HỌC KỲ (10)", lblPortalGpa10, new Color(111, 66, 193)));
-        kpiContainer.add(createKpiCard("GPA TÍCH LŨY (HỆ 4)", lblPortalGpa4, new Color(40, 167, 69)));
-        kpiContainer.add(createKpiCard("XẾP LOẠI HỌC LỰC", lblPortalRank, PTIT_RED));
+        kpiContainer.add(createKpiCard("TÍN CHỈ", lblPortalCredits, new Color(0, 123, 255)));
+        kpiContainer.add(createKpiCard("ĐTB HỆ 10", lblPortalGpa10, new Color(111, 66, 193)));
+        kpiContainer.add(createKpiCard("GPA HỆ 4", lblPortalGpa4, new Color(40, 167, 69)));
+        kpiContainer.add(createKpiCard("XẾP LOẠI", lblPortalRank, PTIT_RED));
 
         profileContainer.add(infoCard);
         profileContainer.add(kpiContainer);
@@ -1940,21 +1952,21 @@ public class ClientGUI extends JFrame {
     }
 
     private JPanel createKpiCard(String title, JLabel valueLabel, Color accentColor) {
-        JPanel card = new JPanel(new BorderLayout(4, 4));
+        JPanel card = new JPanel(new BorderLayout(2, 2));
         card.setBackground(Color.WHITE);
         card.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createMatteBorder(3, 0, 0, 0, accentColor),
                 BorderFactory.createCompoundBorder(
                         BorderFactory.createLineBorder(new Color(228, 230, 235)),
-                        BorderFactory.createEmptyBorder(8, 10, 8, 10)
+                        BorderFactory.createEmptyBorder(4, 6, 4, 6)
                 )
         ));
 
         JLabel lblTitle = new JLabel(title, SwingConstants.CENTER);
-        lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 10));
         lblTitle.setForeground(new Color(110, 115, 125));
 
-        valueLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        valueLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
         valueLabel.setForeground(accentColor);
 
         card.add(lblTitle, BorderLayout.NORTH);

@@ -60,74 +60,50 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
         setLayout(new BorderLayout(10, 10));
         setJMenuBar(createServerDemoMenuBar());
 
-        // Header Panel (PTIT Red)
-        JPanel headerPanel = new JPanel(new BorderLayout(0, 8));
+        // Header Panel (PTIT Red) - Compact non-overlapping layout
+        JPanel headerPanel = new JPanel(new BorderLayout(10, 4));
         headerPanel.setBackground(PTIT_RED);
-        headerPanel.setBorder(BorderFactory.createEmptyBorder(12, 20, 12, 20));
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(8, 14, 8, 14));
 
-        JLabel titleLabel = new JLabel("HỌC VIỆN CÔNG NGHỆ BƯU CHÍNH VIỄN THÔNG - TRUNG TÂM MÁY CHỦ");
-        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 17));
+        JLabel titleLabel = new JLabel("PTIT - TRUNG TÂM QUẢN TRỊ MÁY CHỦ RUDP");
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 15));
         titleLabel.setForeground(Color.WHITE);
 
         JLabel subtitleLabel = new JLabel("Hệ Thống Quản Trị Cơ Sở Dữ Liệu & Dịch Vụ Đào Tạo Phân Tán");
-        subtitleLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        subtitleLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         subtitleLabel.setForeground(new Color(255, 230, 230));
 
-        JPanel titleBox = new JPanel(new GridLayout(2, 1, 2, 2));
+        JPanel titleBox = new JPanel(new GridLayout(2, 1, 1, 1));
         titleBox.setOpaque(false);
         titleBox.add(titleLabel);
         titleBox.add(subtitleLabel);
 
-        // Control Panel
-        JPanel controlPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        // Control Panel - Only core server buttons on header (other tools in MenuBar above)
+        JPanel controlPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 2));
         controlPanel.setOpaque(false);
 
-        JButton btnDemoParallel = new JButton("🎬 Xếp Demo Song Song");
+        JButton btnDemoParallel = new JButton("Xếp Demo 3 Cửa Sổ");
         btnDemoParallel.setFont(new Font("Segoe UI", Font.BOLD, 11));
-        btnDemoParallel.setBackground(new Color(255, 193, 7)); // Gold
+        btnDemoParallel.setBackground(new Color(255, 193, 7));
         btnDemoParallel.setForeground(Color.BLACK);
         btnDemoParallel.setFocusPainted(false);
         btnDemoParallel.addActionListener(e -> AppLauncher.launchDemoParallelLayout());
 
-        JButton btnOpenStudent = new JButton("🎓 Cổng SV");
-        btnOpenStudent.setFont(new Font("Segoe UI", Font.BOLD, 11));
-        btnOpenStudent.setBackground(new Color(0, 123, 255));
-        btnOpenStudent.setForeground(Color.WHITE);
-        btnOpenStudent.setFocusPainted(false);
-        btnOpenStudent.addActionListener(e -> AppLauncher.launchStudentClient());
-
-        JButton btnOpenTeacher = new JButton("👨‍🏫 Giảng Viên");
-        btnOpenTeacher.setFont(new Font("Segoe UI", Font.BOLD, 11));
-        btnOpenTeacher.setBackground(new Color(40, 167, 69));
-        btnOpenTeacher.setForeground(Color.WHITE);
-        btnOpenTeacher.setFocusPainted(false);
-        btnOpenTeacher.addActionListener(e -> AppLauncher.launchTeacherClient());
-
-        JButton btnLauncher = new JButton("🎛️ Launcher");
-        btnLauncher.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-        btnLauncher.setBackground(Color.WHITE);
-        btnLauncher.setForeground(PTIT_RED);
-        btnLauncher.setFocusPainted(false);
-        btnLauncher.addActionListener(e -> AppLauncher.showLauncher());
-
-        btnSettings = new JButton("⚙️ Cấu Hình");
+        btnSettings = new JButton("Cấu Hình");
         btnSettings.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         btnSettings.setBackground(new Color(240, 240, 240));
         btnSettings.setForeground(Color.DARK_GRAY);
         btnSettings.setFocusPainted(false);
         btnSettings.addActionListener(e -> openAdvancedSettingsDialog());
 
-        btnStartStop = new JButton("KHỞI CHẠY DỊCH VỤ MÁY CHỦ");
-        btnStartStop.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnStartStop = new JButton("KHỞI CHẠY MÁY CHỦ");
+        btnStartStop.setFont(new Font("Segoe UI", Font.BOLD, 11));
         btnStartStop.setBackground(Color.WHITE);
         btnStartStop.setForeground(PTIT_RED);
         btnStartStop.setFocusPainted(false);
         btnStartStop.addActionListener(e -> toggleServer());
 
         controlPanel.add(btnDemoParallel);
-        controlPanel.add(btnOpenStudent);
-        controlPanel.add(btnOpenTeacher);
-        controlPanel.add(btnLauncher);
         controlPanel.add(btnSettings);
         controlPanel.add(btnStartStop);
 
@@ -229,10 +205,10 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
         tabLogs.add(scrollLog, BorderLayout.CENTER);
         tabLogs.add(logActionBar, BorderLayout.SOUTH);
 
-        tabbedPane.addTab("🔐 Kiểm Tra An Toàn Dữ Liệu (DES / AES-256)", tabData);
-        tabbedPane.addTab("📊 Biểu Đồ Thống Kê Học Lực", tabChart);
-        tabbedPane.addTab("🛡️ Thanh Tra Điểm & Giả Lập Mạng RUDP", createAuditAndChaosTab());
-        tabbedPane.addTab("📜 Nhật Ký Hoạt Động Hệ Thống", tabLogs);
+        tabbedPane.addTab("1. Kiểm Tra Mã Hóa CSDL (DES / AES-256)", tabData);
+        tabbedPane.addTab("2. Thanh Tra Điểm & Giả Lập Mạng RUDP", createAuditAndChaosTab());
+        tabbedPane.addTab("3. Biểu Đồ Thống Kê Học Lực", tabChart);
+        tabbedPane.addTab("4. Nhật Ký Hoạt Động Hệ Thống", tabLogs);
 
         add(tabbedPane, BorderLayout.CENTER);
 
@@ -411,7 +387,7 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
         topBox.setBackground(new Color(248, 249, 252));
         topBox.setBorder(BorderFactory.createTitledBorder(
                 BorderFactory.createLineBorder(PTIT_RED, 1),
-                " 🎛️ PHÒNG THÍ NGHIỆM MẠNG RUDP 2.0 (CHAOS SIMULATOR) & QUẢN TRỊ HỌC VỤ ",
+                " PHÒNG THÍ NGHIỆM MẠNG RUDP 2.0 (CHAOS SIMULATOR) & QUẢN TRỊ HỌC VỤ ",
                 javax.swing.border.TitledBorder.LEFT, javax.swing.border.TitledBorder.TOP,
                 new Font("Segoe UI", Font.BOLD, 12), PTIT_RED
         ));
@@ -470,7 +446,7 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
         JPanel row2 = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 4));
         row2.setOpaque(false);
 
-        btnLockGradebook = new JButton("🔒 Khóa Sổ Điểm Học Kỳ (Đang Mở)");
+        btnLockGradebook = new JButton("Khóa Sổ Điểm Học Kỳ (Đang Mở)");
         btnLockGradebook.setFont(new Font("Segoe UI", Font.BOLD, 12));
         btnLockGradebook.setBackground(new Color(40, 167, 69));
         btnLockGradebook.setForeground(Color.WHITE);
@@ -479,24 +455,24 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
             boolean newLock = !SessionManager.getInstance().isGradebookLocked();
             SessionManager.getInstance().setGradebookLocked(newLock, "Phòng Giáo Vụ PTIT");
             if (newLock) {
-                btnLockGradebook.setText("🔓 Mở Khóa Sổ Điểm (Đang Khóa)");
+                btnLockGradebook.setText("Mở Khóa Sổ Điểm (Đang Khóa)");
                 btnLockGradebook.setBackground(PTIT_RED);
             } else {
-                btnLockGradebook.setText("🔒 Khóa Sổ Điểm Học Kỳ (Đang Mở)");
+                btnLockGradebook.setText("Khóa Sổ Điểm Học Kỳ (Đang Mở)");
                 btnLockGradebook.setBackground(new Color(40, 167, 69));
             }
             String msg = newLock
                     ? "ĐÃ KHÓA SỔ ĐIỂM HỌC KỲ (Chặn Giảng viên sửa/xóa điểm)"
                     : "ĐÃ MỞ KHÓA SỔ ĐIỂM HỌC KỲ (Cho phép Giảng viên chấm điểm)";
             DatabaseManager.getInstance().logAudit("admin", newLock ? "LOCK_GRADEBOOK" : "UNLOCK_GRADEBOOK", msg, "127.0.0.1");
-            onLog("🔒 " + msg);
+            onLog("[GIÁO VỤ] " + msg);
             if (udpServer != null) {
                 udpServer.broadcastPushEvent("GRADE_LOCK", msg, String.valueOf(newLock));
             }
             refreshAuditLogs();
         });
 
-        JButton btnBroadcast = new JButton("📢 Phát Thông Báo Toàn Trường (UDP Push)");
+        JButton btnBroadcast = new JButton("Phát Thông Báo Toàn Trường (UDP Push)");
         btnBroadcast.setFont(new Font("Segoe UI", Font.BOLD, 12));
         btnBroadcast.setBackground(new Color(0, 123, 255));
         btnBroadcast.setForeground(Color.WHITE);
@@ -508,13 +484,13 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
             if (msg != null && !msg.trim().isEmpty()) {
                 DatabaseManager.getInstance().logAudit("admin", "BROADCAST_PUSH", "Phát thông báo: " + msg.trim(), "127.0.0.1");
                 if (udpServer != null) {
-                    udpServer.broadcastPushEvent("ANNOUNCEMENT", "📢 Phòng Đào Tạo PTIT: " + msg.trim(), msg.trim());
+                    udpServer.broadcastPushEvent("ANNOUNCEMENT", "Phòng Đào Tạo PTIT: " + msg.trim(), msg.trim());
                 }
                 refreshAuditLogs();
             }
         });
 
-        JButton btnRefreshAudit = new JButton("🔄 Tải Lại Nhật Ký Thanh Tra");
+        JButton btnRefreshAudit = new JButton("Tải Lại Nhật Ký Thanh Tra");
         btnRefreshAudit.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         btnRefreshAudit.addActionListener(e -> refreshAuditLogs());
 
@@ -620,22 +596,22 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
     private JMenuBar createServerDemoMenuBar() {
         JMenuBar mb = new JMenuBar();
 
-        JMenu menuDemo = new JMenu("🎛️ Bảng Điều Khiển Demo");
+        JMenu menuDemo = new JMenu("Bảng Điều Khiển Demo");
         menuDemo.setFont(new Font("Segoe UI", Font.BOLD, 12));
 
-        JMenuItem miParallel = new JMenuItem("🎬 Chế độ Demo song song (Xếp Server + Giảng viên + Sinh viên)");
+        JMenuItem miParallel = new JMenuItem("▶ Chế độ Demo song song (Xếp Server + Giảng viên + Sinh viên)");
         miParallel.addActionListener(e -> AppLauncher.launchDemoParallelLayout());
 
-        JMenuItem miTile = new JMenuItem("🔄 Tự động sắp xếp lại cửa sổ trên màn hình");
+        JMenuItem miTile = new JMenuItem("▶ Tự động sắp xếp lại cửa sổ trên màn hình");
         miTile.addActionListener(e -> AppLauncher.tileAllWindows());
 
-        JMenuItem miOpenStudent = new JMenuItem("🎓 Mở Cổng Thông Tin Sinh Viên");
+        JMenuItem miOpenStudent = new JMenuItem("▶ Mở Cổng Thông Tin Sinh Viên");
         miOpenStudent.addActionListener(e -> AppLauncher.launchStudentClient());
 
-        JMenuItem miOpenTeacher = new JMenuItem("👨‍🏫 Mở Phân Hệ Giảng Viên");
+        JMenuItem miOpenTeacher = new JMenuItem("▶ Mở Phân Hệ Giảng Viên");
         miOpenTeacher.addActionListener(e -> AppLauncher.launchTeacherClient());
 
-        JMenuItem miOpenLauncher = new JMenuItem("🎛️ Mở Bảng Điều Khiển Launcher PTIT");
+        JMenuItem miOpenLauncher = new JMenuItem("▶ Mở Bảng Điều Khiển Launcher PTIT");
         miOpenLauncher.addActionListener(e -> AppLauncher.showLauncher());
 
         menuDemo.add(miParallel);
@@ -646,9 +622,9 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
         menuDemo.addSeparator();
         menuDemo.add(miOpenLauncher);
 
-        JMenu menuData = new JMenu("🔄 Dữ Liệu");
+        JMenu menuData = new JMenu("Dữ Liệu Hệ Thống");
         menuData.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        JMenuItem miRefresh = new JMenuItem("🔄 Nạp lại dữ liệu mã hóa CSDL");
+        JMenuItem miRefresh = new JMenuItem("▶ Nạp lại dữ liệu mã hóa CSDL & Thanh tra");
         miRefresh.addActionListener(e -> {
             refreshDataInspection();
             updateChartPanel();

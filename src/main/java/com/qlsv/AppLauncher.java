@@ -36,7 +36,7 @@ public class AppLauncher {
             UIManager.put("Component.arc", 8);
         } catch (Exception ignored) {}
 
-        SwingUtilities.invokeLater(() -> showLauncher());
+        SwingUtilities.invokeLater(AppLauncher::showLauncher);
     }
 
     public static synchronized void showLauncher() {
@@ -50,7 +50,7 @@ public class AppLauncher {
         }
 
         launcherFrame = new JFrame("HỌC VIỆN CÔNG NGHỆ BƯU CHÍNH VIỄN THÔNG - TRUNG TÂM DEMO");
-        launcherFrame.setSize(640, 540);
+        launcherFrame.setSize(650, 520);
         launcherFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         launcherFrame.setLocationRelativeTo(null);
 
@@ -83,7 +83,7 @@ public class AppLauncher {
         contentPanel.setBorder(BorderFactory.createEmptyBorder(15, 20, 15, 20));
         contentPanel.setBackground(Color.WHITE);
 
-        JLabel lblPrompt = new JLabel("Chọn phân hệ bạn muốn mở (Cửa sổ Launcher vẫn duy trì sẵn sàng, không cần khởi động lại):", SwingConstants.CENTER);
+        JLabel lblPrompt = new JLabel("Chọn phân hệ muốn mở (Cửa sổ Launcher luôn duy trì sẵn sàng, không cần khởi động lại):", SwingConstants.CENTER);
         lblPrompt.setFont(new Font("Segoe UI", Font.BOLD, 12));
         lblPrompt.setForeground(new Color(50, 50, 50));
         contentPanel.add(lblPrompt, BorderLayout.NORTH);
@@ -92,7 +92,7 @@ public class AppLauncher {
         btnPanel.setOpaque(false);
 
         // Button 1: DEMO Song Song
-        JButton btnParallel = new JButton("🎬 1. KHỞI CHẠY CHẾ ĐỘ DEMO BÁO CÁO (Song Song Server + Giảng Viên + Sinh Viên)");
+        JButton btnParallel = new JButton("▶ 1. KHỞI CHẠY CHẾ ĐỘ DEMO BÁO CÁO (Song Song Server + Giảng Viên + Sinh Viên)");
         btnParallel.setFont(new Font("Segoe UI", Font.BOLD, 13));
         btnParallel.setBackground(PTIT_RED);
         btnParallel.setForeground(Color.WHITE);
@@ -101,7 +101,7 @@ public class AppLauncher {
         btnParallel.addActionListener(e -> launchDemoParallelLayout());
 
         // Button 2: Cổng Sinh Viên
-        JButton btnStudent = new JButton("🎓 2. Mở Cổng Thông Tin Sinh Viên (Tra Cứu Học Tập, Bảng Điểm & GPA)");
+        JButton btnStudent = new JButton("▶ 2. Mở Cổng Thông Tin Sinh Viên (Tra Cứu Học Tập, Bảng Điểm & GPA)");
         btnStudent.setFont(new Font("Segoe UI", Font.BOLD, 13));
         btnStudent.setBackground(new Color(0, 123, 255));
         btnStudent.setForeground(Color.WHITE);
@@ -109,7 +109,7 @@ public class AppLauncher {
         btnStudent.addActionListener(e -> launchStudentClient());
 
         // Button 3: Phân Hệ Giảng Viên
-        JButton btnTeacher = new JButton("👨‍🏫 3. Mở Phân Hệ Giảng Viên (Quản Lý Đào Tạo, Nhập Điểm & Excel)");
+        JButton btnTeacher = new JButton("▶ 3. Mở Phân Hệ Giảng Viên (Quản Lý Đào Tạo, Nhập Điểm & Excel)");
         btnTeacher.setFont(new Font("Segoe UI", Font.BOLD, 13));
         btnTeacher.setBackground(new Color(40, 167, 69));
         btnTeacher.setForeground(Color.WHITE);
@@ -117,7 +117,7 @@ public class AppLauncher {
         btnTeacher.addActionListener(e -> launchTeacherClient());
 
         // Button 4: Máy Chủ Server
-        JButton btnServer = new JButton("🖥️ 4. Mở Trung Tâm Quản Trị Máy Chủ Server (RUDP & Database)");
+        JButton btnServer = new JButton("▶ 4. Mở Trung Tâm Quản Trị Máy Chủ Server (RUDP & Database)");
         btnServer.setFont(new Font("Segoe UI", Font.BOLD, 13));
         btnServer.setBackground(new Color(52, 58, 64));
         btnServer.setForeground(Color.WHITE);
@@ -138,11 +138,11 @@ public class AppLauncher {
         JPanel utilityBar = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 5));
         utilityBar.setOpaque(false);
 
-        JButton btnTile = new JButton("🔄 Sắp Xếp Lại Cửa Sổ (Tile)");
-        btnTile.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        JButton btnTile = new JButton("Sắp Xếp Lại Cửa Sổ (Tile)");
+        btnTile.setFont(new Font("Segoe UI", Font.BOLD, 12));
         btnTile.addActionListener(e -> tileAllWindows());
 
-        JButton btnCloseAll = new JButton("❌ Đóng Toàn Bộ Cửa Sổ Con");
+        JButton btnCloseAll = new JButton("Đóng Toàn Bộ Cửa Sổ Con");
         btnCloseAll.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         btnCloseAll.addActionListener(e -> closeAllDemoWindows());
 
@@ -168,10 +168,8 @@ public class AppLauncher {
      */
     public static void launchDemoParallelLayout() {
         SwingUtilities.invokeLater(() -> {
-            // 1. Mở hoặc focus Server
             launchOrFocusServer();
 
-            // 2. Chờ 300ms rồi mở Client Giảng viên
             Timer t1 = new Timer(300, evt -> {
                 if (teacherClientInstance == null || !teacherClientInstance.isDisplayable()) {
                     teacherClientInstance = new ClientGUI();
@@ -180,7 +178,6 @@ public class AppLauncher {
                 teacherClientInstance.switchDemoRole(ClientGUI.UserRole.TEACHER, null);
                 teacherClientInstance.setVisible(true);
 
-                // 3. Chờ thêm 200ms mở Client Sinh viên
                 Timer t2 = new Timer(200, evt2 -> {
                     if (studentClientInstance == null || !studentClientInstance.isDisplayable()) {
                         studentClientInstance = new ClientGUI();
@@ -189,7 +186,6 @@ public class AppLauncher {
                     studentClientInstance.switchDemoRole(ClientGUI.UserRole.STUDENT, "SV001");
                     studentClientInstance.setVisible(true);
 
-                    // 4. Tự động chia màn hình xếp gọn gàng
                     tileAllWindows();
                     updateStatusUI();
                 });
@@ -201,9 +197,6 @@ public class AppLauncher {
         });
     }
 
-    /**
-     * Mở hoặc đưa cửa sổ Máy Chủ Server ra trước
-     */
     public static synchronized void launchOrFocusServer() {
         SwingUtilities.invokeLater(() -> {
             if (serverInstance != null && serverInstance.isDisplayable()) {
@@ -220,9 +213,6 @@ public class AppLauncher {
         });
     }
 
-    /**
-     * Mở cửa sổ Cổng Sinh Viên
-     */
     public static synchronized ClientGUI launchStudentClient() {
         if (studentClientInstance == null || !studentClientInstance.isDisplayable()) {
             studentClientInstance = new ClientGUI();
@@ -236,9 +226,6 @@ public class AppLauncher {
         return studentClientInstance;
     }
 
-    /**
-     * Mở cửa sổ Phân Hệ Giảng Viên
-     */
     public static synchronized ClientGUI launchTeacherClient() {
         if (teacherClientInstance == null || !teacherClientInstance.isDisplayable()) {
             teacherClientInstance = new ClientGUI();
@@ -252,9 +239,6 @@ public class AppLauncher {
         return teacherClientInstance;
     }
 
-    /**
-     * Mở thêm một cửa sổ Client mới độc lập
-     */
     public static synchronized ClientGUI launchNewClient(int tabIndex) {
         ClientGUI c = new ClientGUI();
         if (c.getMainTabbedPane() != null && tabIndex >= 0 && tabIndex < c.getMainTabbedPane().getTabCount()) {
@@ -266,9 +250,6 @@ public class AppLauncher {
         return c;
     }
 
-    /**
-     * Tự động chia tỷ lệ màn hình và sắp xếp Server bên trái, 2 Client bên phải
-     */
     public static void tileAllWindows() {
         SwingUtilities.invokeLater(() -> {
             GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
@@ -278,7 +259,7 @@ public class AppLauncher {
             int sw = bounds.width;
             int sh = bounds.height;
 
-            int leftW = (int) (sw * 0.44);
+            int leftW = (int) (sw * 0.42);
             int rightW = sw - leftW;
             int halfH = sh / 2;
 
@@ -299,9 +280,6 @@ public class AppLauncher {
         });
     }
 
-    /**
-     * Đóng toàn bộ các cửa sổ con đang mở
-     */
     public static synchronized void closeAllDemoWindows() {
         SwingUtilities.invokeLater(() -> {
             if (serverInstance != null && serverInstance.isDisplayable()) {
