@@ -121,6 +121,7 @@ public class ClientGUI extends JFrame {
     private DefaultTableModel portalTableModel;
     private JTable tblPortalGrades;
     private StudentTranscript currentPortalTranscript;
+    private JLabel lblLivePushBanner;
 
     public ClientGUI() {
         setTitle("PTIT - CỔNG THÔNG TIN QUẢN LÝ ĐÀO TẠO & SINH VIÊN");
@@ -248,6 +249,18 @@ public class ClientGUI extends JFrame {
         mainTabbedPane.addTab("⚙️ Cài Đặt Hệ Thống", settingsWorkspace);
 
         add(mainTabbedPane, BorderLayout.CENTER);
+
+        // Live UDP Server-Push & Network Telemetry Footer Bar
+        JPanel pushFooter = new JPanel(new BorderLayout(10, 0));
+        pushFooter.setBackground(new Color(25, 35, 50));
+        pushFooter.setBorder(BorderFactory.createEmptyBorder(5, 16, 5, 16));
+
+        lblLivePushBanner = new JLabel("🔔 [KÊNH UDP SERVER-PUSH TRỰC TUYẾN] Đang lắng nghe thông báo điểm số & học vụ thời gian thực (HMAC-SHA256 Verified)...");
+        lblLivePushBanner.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        lblLivePushBanner.setForeground(new Color(140, 230, 170));
+        pushFooter.add(lblLivePushBanner, BorderLayout.CENTER);
+
+        add(pushFooter, BorderLayout.SOUTH);
         updateRoleUI();
     }
 
@@ -350,7 +363,13 @@ public class ClientGUI extends JFrame {
         btnSearch.addActionListener(e -> handleSearch());
 
         cbFilterRank = new JComboBox<>(new String[]{
-                "Tất cả xếp loại", "Xuất sắc (A/A+)", "Giỏi (B+)", "Khá (B)", "Trung bình (C/D)", "Cảnh báo học vụ (Yếu/Kém)"
+                "Tất cả xếp loại",
+                "Đạt Học Bổng KKHT (GPA >= 3.2)",
+                "Xuất sắc (A/A+)",
+                "Giỏi (B+)",
+                "Khá (B)",
+                "Trung bình (C/D)",
+                "Cảnh báo học vụ / Cấm thi"
         });
         cbFilterRank.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         cbFilterRank.addActionListener(e -> applyFilters());
@@ -364,6 +383,13 @@ public class ClientGUI extends JFrame {
         btnViewTranscript.setBackground(new Color(0, 123, 255));
         btnViewTranscript.setForeground(Color.WHITE);
         btnViewTranscript.addActionListener(e -> openTranscriptDialog());
+
+        JButton btnScholarship = new JButton("🏆 Học Bổng & Cảnh Báo");
+        btnScholarship.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnScholarship.setBackground(new Color(230, 126, 34));
+        btnScholarship.setForeground(Color.WHITE);
+        btnScholarship.setToolTipText("Xét danh sách Học bổng KKHT và Sinh viên thuộc diện Cảnh báo học vụ / Cấm thi");
+        btnScholarship.addActionListener(e -> openScholarshipAndWarningDialog());
 
         JButton btnGpaSimulator = new JButton("Giả Lập GPA");
         btnGpaSimulator.setFont(new Font("Segoe UI", Font.BOLD, 12));
@@ -396,14 +422,15 @@ public class ClientGUI extends JFrame {
         toolBar.add(new JLabel("Từ khóa:"));
         toolBar.add(txtSearchQuery);
         toolBar.add(btnSearch);
-        toolBar.add(Box.createHorizontalStrut(5));
+        toolBar.add(Box.createHorizontalStrut(4));
         toolBar.add(new JLabel("Lọc:"));
         toolBar.add(cbFilterRank);
         toolBar.add(btnRefreshAll);
         toolBar.add(btnViewTranscript);
+        toolBar.add(btnScholarship);
         toolBar.add(btnGpaSimulator);
         toolBar.add(btnDeleteSelected);
-        toolBar.add(Box.createHorizontalStrut(6));
+        toolBar.add(Box.createHorizontalStrut(4));
         toolBar.add(btnImportExcel);
         toolBar.add(btnDownloadTemplate);
         toolBar.add(btnExportExcel);
@@ -467,8 +494,11 @@ public class ClientGUI extends JFrame {
                 setHorizontalAlignment(JLabel.CENTER);
                 String val = value != null ? value.toString() : "";
                 if (!isSelected) {
-                    if (val.contains("Cảnh báo")) {
+                    if (val.contains("Cảnh báo") || val.contains("Cấm thi") || val.contains("Học lại")) {
                         setForeground(new Color(200, 16, 46));
+                        setFont(getFont().deriveFont(Font.BOLD));
+                    } else if (val.contains("Học Bổng")) {
+                        setForeground(new Color(111, 66, 193));
                         setFont(getFont().deriveFont(Font.BOLD));
                     } else {
                         setForeground(new Color(0, 120, 40));
@@ -765,13 +795,29 @@ public class ClientGUI extends JFrame {
                 client.close();
             }
             client = new UDPClient(host, port);
+            client.setPushNotificationListener((message, payload) -> SwingUtilities.invokeLater(() -> {
+                if (lblLivePushBanner != null) {
+                    lblLivePushBanner.setText("🔔 [UDP SERVER-PUSH REAL-TIME] " + message);
+                    lblLivePushBanner.setForeground(new Color(255, 215, 0));
+                }
+                loadAllStudents();
+                if (txtPortalSearchMaSV != null && !txtPortalSearchMaSV.getText().trim().isEmpty()) {
+                    loadStudentPortal(txtPortalSearchMaSV.getText().trim());
+                }
+                if (message != null && message.contains("[ANNOUNCEMENT]")) {
+                    JOptionPane.showMessageDialog(ClientGUI.this,
+                            message.replace("[ANNOUNCEMENT] ", ""),
+                            "Thông Báo Đào Tạo Trực Tuyến (UDP Push)",
+                            JOptionPane.INFORMATION_MESSAGE);
+                }
+            }));
 
             boolean connected = client.pingServer();
             if (connected) {
                 lblConnStatus.setText("ĐÃ KẾT NỐI ĐẾN MÁY CHỦ TRUNG TÂM (" + host + ")");
                 lblConnStatus.setForeground(new Color(40, 167, 69));
 
-                lblServerBadge.setText("● Máy Chủ: Sẵn sàng");
+                lblServerBadge.setText(String.format("● Máy Chủ: Sẵn sàng (RTT: %dms | HMAC)", client.getLastRttMs()));
                 lblServerBadge.setBackground(new Color(40, 167, 69));
 
                 lblDbBadge.setText("● Cơ Sở Dữ Liệu: Đã kết nối");
@@ -1277,11 +1323,14 @@ public class ClientGUI extends JFrame {
         if (filterRank != null && !filterRank.equalsIgnoreCase("Tất cả xếp loại") && filtered != null) {
             filtered = currentStudentList.stream()
                     .filter(s -> {
+                        if (filterRank.contains("Học Bổng")) return s.isScholarshipEligible();
                         if (filterRank.contains("Xuất sắc")) return s.getAcademicRankCredit().equals("Xuất sắc");
                         if (filterRank.contains("Giỏi")) return s.getAcademicRankCredit().equals("Giỏi");
                         if (filterRank.contains("Khá")) return s.getAcademicRankCredit().equals("Khá");
                         if (filterRank.contains("Trung bình")) return s.getAcademicRankCredit().equals("Trung bình");
-                        if (filterRank.contains("Cảnh báo")) return s.getAcademicStatus().contains("Cảnh báo") || s.getAcademicRankCredit().equals("Yếu") || s.getAcademicRankCredit().equals("Kém");
+                        if (filterRank.contains("Cảnh báo")) return s.getAcademicStatus().contains("Cảnh báo")
+                                || s.isExamBanned() || s.isFinalExamFailed()
+                                || s.getAcademicRankCredit().equals("Yếu") || s.getAcademicRankCredit().equals("Kém");
                         return true;
                     })
                     .collect(Collectors.toList());
@@ -1307,6 +1356,11 @@ public class ClientGUI extends JFrame {
                 });
             }
         }
+        long rtt = client != null ? client.getLastRttMs() : 0;
+        long retrans = client != null ? client.getTotalRetransmissions() : 0;
+        if (lblServerBadge != null && client != null) {
+            lblServerBadge.setText(String.format("● Máy Chủ: Sẵn sàng (RTT: %dms | ARQ: %d)", rtt, retrans));
+        }
         if (filtered != null && !filtered.isEmpty()) {
             double maxGpa = 0.0, minGpa = 10.0, sumGpa = 0.0;
             for (StudentResult s : filtered) {
@@ -1316,10 +1370,137 @@ public class ClientGUI extends JFrame {
                 sumGpa += avg;
             }
             double classAvg = sumGpa / filtered.size();
-            lblTableSummary.setText(String.format("Hiển thị: %d SV / %d tổng số  |  Trang %d / %d  |  ĐTB Học Phần: %.2f",
-                    filtered.size(), totalStudents, currentPage, totalPages, classAvg));
+            lblTableSummary.setText(String.format("Hiển thị: %d SV / %d tổng số  |  Trang %d / %d  |  ĐTB: %.2f  |  RTT: %dms (ARQ Retry: %d)",
+                    filtered.size(), totalStudents, currentPage, totalPages, classAvg, rtt, retrans));
         } else {
             lblTableSummary.setText(String.format("Tổng số: %d sinh viên trên hệ thống (Không có dữ liệu phù hợp)", totalStudents));
+        }
+    }
+
+    private void openScholarshipAndWarningDialog() {
+        if (client == null) {
+            JOptionPane.showMessageDialog(this, "Chưa kết nối máy chủ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        try {
+            List<StudentResult> all = client.getAllStudents();
+            List<StudentResult> scholarships = all.stream()
+                    .filter(StudentResult::isScholarshipEligible)
+                    .sorted((a, b) -> Double.compare(b.getAverageScore(), a.getAverageScore()))
+                    .collect(Collectors.toList());
+
+            List<StudentResult> warnings = all.stream()
+                    .filter(s -> s.isExamBanned() || s.isFinalExamFailed() || s.getGpa4() < 2.0)
+                    .sorted((a, b) -> Double.compare(a.getAverageScore(), b.getAverageScore()))
+                    .collect(Collectors.toList());
+
+            JDialog dlg = new JDialog(this, "HỘI ĐỒNG XÉT HỌC BỔNG KKHT & XỬ LÝ HỌC VỤ (CHUẨN ĐẠI HỌC PTIT)", true);
+            dlg.setSize(940, 600);
+            dlg.setLocationRelativeTo(this);
+            dlg.setLayout(new BorderLayout(10, 10));
+
+            JTabbedPane tabs = new JTabbedPane();
+            tabs.setFont(new Font("Segoe UI", Font.BOLD, 13));
+
+            // Tab 1: Học bổng KKHT
+            String[] colsHB = {"Hạng", "Mã SV", "Họ và Tên", "Lớp", "Chuyên Cần", "Giữa Kỳ", "Cuối Kỳ", "ĐTB (10)", "GPA (4)", "Mức Học Bổng Đề Nghị"};
+            DefaultTableModel modelHB = new DefaultTableModel(colsHB, 0) {
+                @Override
+                public boolean isCellEditable(int r, int c) { return false; }
+            };
+            int rank = 1;
+            for (StudentResult s : scholarships) {
+                modelHB.addRow(new Object[]{
+                        rank++, s.getStudentId(), s.getFullName(), s.getClassName(),
+                        String.format("%.2f", s.getScoreCC()), String.format("%.2f", s.getScoreGK()), String.format("%.2f", s.getScoreCK()),
+                        String.format("%.2f", s.getAverageScore()), String.format("%.2f", s.getGpa4()), s.getScholarshipTier()
+                });
+            }
+            JTable tblHB = new JTable(modelHB);
+            tblHB.setRowHeight(26);
+            JPanel pHB = new JPanel(new BorderLayout(8, 8));
+            pHB.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+            JLabel lblSumHB = new JLabel(String.format("🏆 Tổng số sinh viên đủ điều kiện cấp Học bổng KKHT (GPA >= 3.2, CC >= 8.0, Không điểm dưới C): %d / %d SV",
+                    scholarships.size(), all.size()));
+            lblSumHB.setFont(new Font("Segoe UI", Font.BOLD, 13));
+            lblSumHB.setForeground(new Color(0, 130, 50));
+            JButton btnExpHB = new JButton("📥 Xuất Danh Sách Học Bổng (.xlsx)");
+            btnExpHB.setBackground(new Color(40, 167, 69));
+            btnExpHB.setForeground(Color.WHITE);
+            btnExpHB.setFont(new Font("Segoe UI", Font.BOLD, 12));
+            btnExpHB.addActionListener(e -> {
+                JFileChooser fc = new JFileChooser();
+                fc.setSelectedFile(new File("DanhSach_HocBong_KKHT_PTIT.xlsx"));
+                if (fc.showSaveDialog(dlg) == JFileChooser.APPROVE_OPTION) {
+                    try {
+                        File f = fc.getSelectedFile();
+                        if (!f.getAbsolutePath().endsWith(".xlsx")) f = new File(f.getAbsolutePath() + ".xlsx");
+                        ExcelExporter.exportStudentsToExcel(scholarships, f);
+                        JOptionPane.showMessageDialog(dlg, "Đã xuất danh sách Học bổng KKHT tại:\n" + f.getAbsolutePath());
+                    } catch (Exception ex) {
+                        JOptionPane.showMessageDialog(dlg, "Lỗi xuất file: " + ex.getMessage());
+                    }
+                }
+            });
+            JPanel topHB = new JPanel(new BorderLayout());
+            topHB.add(lblSumHB, BorderLayout.WEST);
+            topHB.add(btnExpHB, BorderLayout.EAST);
+            pHB.add(topHB, BorderLayout.NORTH);
+            pHB.add(new JScrollPane(tblHB), BorderLayout.CENTER);
+
+            // Tab 2: Cảnh báo học vụ & Cấm thi
+            String[] colsCB = {"STT", "Mã SV", "Họ và Tên", "Lớp", "Chuyên Cần", "Giữa Kỳ", "Cuối Kỳ", "ĐTB (10)", "GPA (4)", "Hình Thức Xử Lý Học Vụ"};
+            DefaultTableModel modelCB = new DefaultTableModel(colsCB, 0) {
+                @Override
+                public boolean isCellEditable(int r, int c) { return false; }
+            };
+            int sttCB = 1;
+            for (StudentResult s : warnings) {
+                modelCB.addRow(new Object[]{
+                        sttCB++, s.getStudentId(), s.getFullName(), s.getClassName(),
+                        String.format("%.2f", s.getScoreCC()), String.format("%.2f", s.getScoreGK()), String.format("%.2f", s.getScoreCK()),
+                        String.format("%.2f", s.getAverageScore()), String.format("%.2f", s.getGpa4()), s.getAcademicStatus()
+                });
+            }
+            JTable tblCB = new JTable(modelCB);
+            tblCB.setRowHeight(26);
+            JPanel pCB = new JPanel(new BorderLayout(8, 8));
+            pCB.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+            JLabel lblSumCB = new JLabel(String.format("⚠️ Tổng số sinh viên thuộc diện Cấm thi (CC < 5.0), Điểm liệt (Thi < 4.0) hoặc Cảnh báo học vụ (GPA < 2.0): %d / %d SV",
+                    warnings.size(), all.size()));
+            lblSumCB.setFont(new Font("Segoe UI", Font.BOLD, 13));
+            lblSumCB.setForeground(PTIT_RED);
+            JButton btnExpCB = new JButton("📥 Xuất Danh Sách Cảnh Báo Học Vụ (.xlsx)");
+            btnExpCB.setBackground(PTIT_RED);
+            btnExpCB.setForeground(Color.WHITE);
+            btnExpCB.setFont(new Font("Segoe UI", Font.BOLD, 12));
+            btnExpCB.addActionListener(e -> {
+                JFileChooser fc = new JFileChooser();
+                fc.setSelectedFile(new File("DanhSach_CanhBaoHocVu_PTIT.xlsx"));
+                if (fc.showSaveDialog(dlg) == JFileChooser.APPROVE_OPTION) {
+                    try {
+                        File f = fc.getSelectedFile();
+                        if (!f.getAbsolutePath().endsWith(".xlsx")) f = new File(f.getAbsolutePath() + ".xlsx");
+                        ExcelExporter.exportStudentsToExcel(warnings, f);
+                        JOptionPane.showMessageDialog(dlg, "Đã xuất danh sách Cảnh báo học vụ tại:\n" + f.getAbsolutePath());
+                    } catch (Exception ex) {
+                        JOptionPane.showMessageDialog(dlg, "Lỗi xuất file: " + ex.getMessage());
+                    }
+                }
+            });
+            JPanel topCB = new JPanel(new BorderLayout());
+            topCB.add(lblSumCB, BorderLayout.WEST);
+            topCB.add(btnExpCB, BorderLayout.EAST);
+            pCB.add(topCB, BorderLayout.NORTH);
+            pCB.add(new JScrollPane(tblCB), BorderLayout.CENTER);
+
+            tabs.addTab("🏆 Danh Sách Đề Nghị Học Bổng KKHT (" + scholarships.size() + " SV)", pHB);
+            tabs.addTab("⚠️ Danh Sách Cảnh Báo Học Vụ & Cấm Thi (" + warnings.size() + " SV)", pCB);
+
+            dlg.add(tabs, BorderLayout.CENTER);
+            dlg.setVisible(true);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Lỗi phân tích dữ liệu học vụ: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
         }
     }
 

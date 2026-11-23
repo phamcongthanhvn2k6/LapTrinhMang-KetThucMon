@@ -141,6 +141,13 @@ public class DatabaseManager {
         auditDAO.logAudit(username, action, details, ip);
     }
 
+    public List<AuditDAO.AuditEntry> getRecentAuditLogs(int limit) {
+        if (!isConnected()) {
+            return List.of();
+        }
+        return auditDAO.getRecentAuditLogs(limit);
+    }
+
     public StudentTranscript getDetailedTranscript(String studentId) throws Exception {
         if (!isConnected()) {
             throw new Exception("CSDL chưa được kết nối!");

@@ -3,6 +3,7 @@ package com.qlsv.server;
 import com.formdev.flatlaf.FlatLightLaf;
 import com.qlsv.AppLauncher;
 import com.qlsv.database.DatabaseManager;
+import com.qlsv.database.dao.AuditDAO;
 import com.qlsv.security.SecurityManager;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartPanel;
@@ -35,6 +36,9 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
     private JTextArea txtLog;
     private JTable tblDataInspection;
     private DefaultTableModel tableModel;
+    private DefaultTableModel auditTableModel;
+    private JLabel lblChaosTelemetry;
+    private JButton btnLockGradebook;
     private JPanel chartPanelContainer;
 
     private SimpleDateFormat dateFormat = new SimpleDateFormat("HH:mm:ss");
@@ -225,9 +229,10 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
         tabLogs.add(scrollLog, BorderLayout.CENTER);
         tabLogs.add(logActionBar, BorderLayout.SOUTH);
 
-        tabbedPane.addTab("Kiểm Tra An Toàn Dữ Liệu", tabData);
-        tabbedPane.addTab("Biểu Đồ Thống Kê Học Lực", tabChart);
-        tabbedPane.addTab("Nhật Ký Hoạt Động Hệ Thống", tabLogs);
+        tabbedPane.addTab("🔐 Kiểm Tra An Toàn Dữ Liệu (DES / AES-256)", tabData);
+        tabbedPane.addTab("📊 Biểu Đồ Thống Kê Học Lực", tabChart);
+        tabbedPane.addTab("🛡️ Thanh Tra Điểm & Giả Lập Mạng RUDP", createAuditAndChaosTab());
+        tabbedPane.addTab("📜 Nhật Ký Hoạt Động Hệ Thống", tabLogs);
 
         add(tabbedPane, BorderLayout.CENTER);
 
@@ -383,6 +388,7 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
             txtLog.append(String.format("[%s] %s\n", time, message));
             txtLog.setCaretPosition(txtLog.getDocument().getLength());
             updateDbStatusLabel();
+            updateChaosTelemetryLabel();
         });
     }
 
@@ -390,8 +396,192 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
     public void onDataUpdated() {
         SwingUtilities.invokeLater(() -> {
             refreshDataInspection();
+            refreshAuditLogs();
             updateChartPanel();
         });
+    }
+
+    private JPanel createAuditAndChaosTab() {
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBackground(Color.WHITE);
+        panel.setBorder(BorderFactory.createEmptyBorder(10, 12, 10, 12));
+
+        // 1. Top Box: Network Chaos Simulator & Gradebook Governance
+        JPanel topBox = new JPanel(new GridLayout(2, 1, 6, 6));
+        topBox.setBackground(new Color(248, 249, 252));
+        topBox.setBorder(BorderFactory.createTitledBorder(
+                BorderFactory.createLineBorder(PTIT_RED, 1),
+                " 🎛️ PHÒNG THÍ NGHIỆM MẠNG RUDP 2.0 (CHAOS SIMULATOR) & QUẢN TRỊ HỌC VỤ ",
+                javax.swing.border.TitledBorder.LEFT, javax.swing.border.TitledBorder.TOP,
+                new Font("Segoe UI", Font.BOLD, 12), PTIT_RED
+        ));
+
+        JPanel row1 = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 4));
+        row1.setOpaque(false);
+
+        JComboBox<String> cbDropRate = new JComboBox<>(new String[]{
+                "0% Rớt Gói (Mạng Lý Tưởng)",
+                "20% Rớt Gói (Test ARQ Retransmit)",
+                "40% Rớt Gói (Mạng Nghẽn Cao)",
+                "60% Rớt Gói (Kiểm Thử Chịu Lỗi Cực Hạn)"
+        });
+        cbDropRate.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        cbDropRate.addActionListener(e -> {
+            int idx = cbDropRate.getSelectedIndex();
+            int rate = idx == 1 ? 20 : (idx == 2 ? 40 : (idx == 3 ? 60 : 0));
+            if (udpServer != null) {
+                udpServer.setSimulatedDropRatePercent(rate);
+            }
+            updateChaosTelemetryLabel();
+        });
+
+        JComboBox<String> cbLatency = new JComboBox<>(new String[]{
+                "0 ms (Độ trễ LAN)",
+                "120 ms (Độ trễ WAN / 4G)",
+                "300 ms (Mạng Nghẽn Cao)"
+        });
+        cbLatency.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        cbLatency.addActionListener(e -> {
+            int idx = cbLatency.getSelectedIndex();
+            int lat = idx == 1 ? 120 : (idx == 2 ? 300 : 0);
+            if (udpServer != null) {
+                udpServer.setSimulatedLatencyMs(lat);
+            }
+            updateChaosTelemetryLabel();
+        });
+
+        JComboBox<SecurityManager.EncryptionAlgo> cbCipher = new JComboBox<>(SecurityManager.EncryptionAlgo.values());
+        cbCipher.setSelectedItem(SecurityManager.getCurrentAlgo());
+        cbCipher.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        cbCipher.addActionListener(e -> {
+            SecurityManager.EncryptionAlgo selected = (SecurityManager.EncryptionAlgo) cbCipher.getSelectedItem();
+            SecurityManager.setCurrentAlgo(selected);
+            onLog("🔐 Đã chuyển thuật toán mã hóa CSDL sang: " + selected.getDisplayName());
+            updateDbStatusLabel();
+        });
+
+        row1.add(new JLabel("Giả lập mất gói UDP:"));
+        row1.add(cbDropRate);
+        row1.add(new JLabel("Độ trễ:"));
+        row1.add(cbLatency);
+        row1.add(new JLabel("Mã hóa CSDL:"));
+        row1.add(cbCipher);
+
+        JPanel row2 = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 4));
+        row2.setOpaque(false);
+
+        btnLockGradebook = new JButton("🔒 Khóa Sổ Điểm Học Kỳ (Đang Mở)");
+        btnLockGradebook.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnLockGradebook.setBackground(new Color(40, 167, 69));
+        btnLockGradebook.setForeground(Color.WHITE);
+        btnLockGradebook.setFocusPainted(false);
+        btnLockGradebook.addActionListener(e -> {
+            boolean newLock = !SessionManager.getInstance().isGradebookLocked();
+            SessionManager.getInstance().setGradebookLocked(newLock, "Phòng Giáo Vụ PTIT");
+            if (newLock) {
+                btnLockGradebook.setText("🔓 Mở Khóa Sổ Điểm (Đang Khóa)");
+                btnLockGradebook.setBackground(PTIT_RED);
+            } else {
+                btnLockGradebook.setText("🔒 Khóa Sổ Điểm Học Kỳ (Đang Mở)");
+                btnLockGradebook.setBackground(new Color(40, 167, 69));
+            }
+            String msg = newLock
+                    ? "ĐÃ KHÓA SỔ ĐIỂM HỌC KỲ (Chặn Giảng viên sửa/xóa điểm)"
+                    : "ĐÃ MỞ KHÓA SỔ ĐIỂM HỌC KỲ (Cho phép Giảng viên chấm điểm)";
+            DatabaseManager.getInstance().logAudit("admin", newLock ? "LOCK_GRADEBOOK" : "UNLOCK_GRADEBOOK", msg, "127.0.0.1");
+            onLog("🔒 " + msg);
+            if (udpServer != null) {
+                udpServer.broadcastPushEvent("GRADE_LOCK", msg, String.valueOf(newLock));
+            }
+            refreshAuditLogs();
+        });
+
+        JButton btnBroadcast = new JButton("📢 Phát Thông Báo Toàn Trường (UDP Push)");
+        btnBroadcast.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnBroadcast.setBackground(new Color(0, 123, 255));
+        btnBroadcast.setForeground(Color.WHITE);
+        btnBroadcast.setFocusPainted(false);
+        btnBroadcast.addActionListener(e -> {
+            String msg = JOptionPane.showInputDialog(this,
+                    "Nhập nội dung thông báo phát trực tiếp (UDP Server-Push) xuống mọi Cổng Sinh Viên:",
+                    "Phòng Đào Tạo PTIT: Đã công bố điểm thi kết thúc học phần Học kỳ 1 năm học 2024-2025!");
+            if (msg != null && !msg.trim().isEmpty()) {
+                DatabaseManager.getInstance().logAudit("admin", "BROADCAST_PUSH", "Phát thông báo: " + msg.trim(), "127.0.0.1");
+                if (udpServer != null) {
+                    udpServer.broadcastPushEvent("ANNOUNCEMENT", "📢 Phòng Đào Tạo PTIT: " + msg.trim(), msg.trim());
+                }
+                refreshAuditLogs();
+            }
+        });
+
+        JButton btnRefreshAudit = new JButton("🔄 Tải Lại Nhật Ký Thanh Tra");
+        btnRefreshAudit.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        btnRefreshAudit.addActionListener(e -> refreshAuditLogs());
+
+        lblChaosTelemetry = new JLabel("● Gói nhận: 0 | Rớt giả lập: 0 | Push Clients: 0 | Chữ ký: HMAC-SHA256");
+        lblChaosTelemetry.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        lblChaosTelemetry.setForeground(new Color(30, 90, 160));
+
+        row2.add(btnLockGradebook);
+        row2.add(btnBroadcast);
+        row2.add(btnRefreshAudit);
+        row2.add(Box.createHorizontalStrut(10));
+        row2.add(lblChaosTelemetry);
+
+        topBox.add(row1);
+        topBox.add(row2);
+        panel.add(topBox, BorderLayout.NORTH);
+
+        // 2. Center Box: Immutable Audit Log Table
+        String[] auditCols = {
+                "ID", "Tài Khoản", "Loại Thao Tác", "Chi Tiết Thanh Tra (Điểm Cũ -> Điểm Mới / Nội Dung)", "Địa Chỉ IP", "Thời Gian Ghi Nhận"
+        };
+        auditTableModel = new DefaultTableModel(auditCols, 0) {
+            @Override
+            public boolean isCellEditable(int row, int col) {
+                return false;
+            }
+        };
+        JTable tblAudit = new JTable(auditTableModel);
+        tblAudit.setRowHeight(26);
+        tblAudit.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        tblAudit.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
+        tblAudit.getColumnModel().getColumn(0).setPreferredWidth(50);
+        tblAudit.getColumnModel().getColumn(1).setPreferredWidth(95);
+        tblAudit.getColumnModel().getColumn(2).setPreferredWidth(130);
+        tblAudit.getColumnModel().getColumn(3).setPreferredWidth(460);
+        tblAudit.getColumnModel().getColumn(4).setPreferredWidth(100);
+        tblAudit.getColumnModel().getColumn(5).setPreferredWidth(155);
+
+        panel.add(new JScrollPane(tblAudit), BorderLayout.CENTER);
+        return panel;
+    }
+
+    private void refreshAuditLogs() {
+        if (auditTableModel == null) return;
+        auditTableModel.setRowCount(0);
+        try {
+            List<AuditDAO.AuditEntry> logs = DatabaseManager.getInstance().getRecentAuditLogs(80);
+            for (AuditDAO.AuditEntry entry : logs) {
+                auditTableModel.addRow(new Object[]{
+                        entry.id,
+                        entry.username,
+                        entry.action,
+                        entry.details,
+                        entry.ipAddress,
+                        entry.timestamp
+                });
+            }
+        } catch (Exception ignored) {}
+    }
+
+    private void updateChaosTelemetryLabel() {
+        if (lblChaosTelemetry != null && udpServer != null) {
+            lblChaosTelemetry.setText(String.format("● Gói UDP nhận: %d  |  Rớt giả lập (ARQ): %d  |  Kênh Push Online: %d  |  HMAC-SHA256: BẬT",
+                    udpServer.getTotalPacketsReceived(),
+                    udpServer.getTotalPacketsDroppedByChaos(),
+                    udpServer.getActivePushSubscriberCount()));
+        }
     }
 
     private void refreshDataInspection() {
@@ -410,6 +600,8 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
                 });
             }
             updateDbStatusLabel();
+            refreshAuditLogs();
+            updateChaosTelemetryLabel();
         } catch (Exception e) {
             onLog("Lỗi tải bảng dữ liệu: " + e.getMessage());
         }
@@ -417,7 +609,7 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
 
     private void updateDbStatusLabel() {
         if (DatabaseManager.getInstance().isConnected()) {
-            lblDbStatus.setText("Trạng thái CSDL: ĐÃ KẾT NỐI (Dữ liệu được bảo vệ an toàn)");
+            lblDbStatus.setText("Trạng thái CSDL: ĐÃ KẾT NỐI | Mã hóa: " + SecurityManager.getCurrentAlgo().name() + " | Toàn vẹn gói: HMAC-SHA256");
             lblDbStatus.setForeground(new Color(40, 167, 69));
         } else {
             lblDbStatus.setText("Trạng thái CSDL: CHƯA KẾT NỐI");

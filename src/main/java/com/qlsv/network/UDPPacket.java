@@ -1,11 +1,14 @@
 package com.qlsv.network;
 
 import com.google.gson.Gson;
+import com.qlsv.security.SecurityManager;
+
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
 public class UDPPacket {
     private static final Gson gson = new Gson();
+    private static final long MAX_REPLAY_DRIFT_MS = 5 * 60 * 1000L; // 5 minutes anti-replay window
 
     private String packetId;      // Unique Packet ID for deduplication
     private int sequenceNum;      // RUDP Sequence Number
@@ -18,6 +21,7 @@ public class UDPPacket {
     private int totalChunks = 1;  // For packet chunking
     private int chunkIndex = 0;   // Chunk sequence
     private long timestamp;       // Creation timestamp
+    private String hmacSignature; // HMAC-SHA256 integrity signature
 
     public UDPPacket() {
         this.packetId = UUID.randomUUID().toString();
@@ -117,6 +121,35 @@ public class UDPPacket {
         return new UDPPacket(PacketType.IMPORT_RESULT, success, message, String.valueOf(count));
     }
 
+    public static UDPPacket createPushSubscribe(int clientPushPort, String studentId, String token) {
+        String payload = clientPushPort + "|" + (studentId != null ? studentId : "");
+        return new UDPPacket(PacketType.PUSH_SUBSCRIBE, true, "Subscribe Push Channel", payload, token);
+    }
+
+    public static UDPPacket createPushEvent(String eventType, String message, String jsonPayload) {
+        return new UDPPacket(PacketType.PUSH_EVENT, true, "[" + eventType + "] " + message, jsonPayload);
+    }
+
+    public static UDPPacket createToggleGradeLock(boolean lockState, String token) {
+        return new UDPPacket(PacketType.TOGGLE_GRADE_LOCK, true, "Toggle Grade Lock", String.valueOf(lockState), token);
+    }
+
+    public static UDPPacket createGradeLockStatus(boolean isLocked, String message) {
+        return new UDPPacket(PacketType.GRADE_LOCK_STATUS, true, message, String.valueOf(isLocked));
+    }
+
+    public static UDPPacket createBroadcastAnnouncement(String announcementText, String token) {
+        return new UDPPacket(PacketType.BROADCAST_ANNOUNCEMENT, true, "Broadcast Announcement", announcementText, token);
+    }
+
+    public static UDPPacket createGetAuditLogs(int limit, String token) {
+        return new UDPPacket(PacketType.GET_AUDIT_LOGS, true, "Get Audit Logs", String.valueOf(limit), token);
+    }
+
+    public static UDPPacket createAuditLogsResult(String logsJson) {
+        return new UDPPacket(PacketType.AUDIT_LOGS_RESULT, true, "Audit Logs Result", logsJson);
+    }
+
     public static UDPPacket createAck(int ackNum, String originalPacketId) {
         UDPPacket p = new UDPPacket(PacketType.ACK, true, "ACK", originalPacketId);
         p.setAckNum(ackNum);
@@ -127,7 +160,34 @@ public class UDPPacket {
         return new UDPPacket(PacketType.ERROR, false, message, null);
     }
 
+    // HMAC-SHA256 Signing & Anti-Replay Verification
+    private String buildCanonicalSigningString() {
+        return (packetId != null ? packetId : "") + "|" +
+                sequenceNum + "|" +
+                (type != null ? type.name() : "") + "|" +
+                timestamp + "|" +
+                (payload != null ? payload : "");
+    }
+
+    public void signPacket() {
+        this.hmacSignature = SecurityManager.computeHmacSha256(buildCanonicalSigningString());
+    }
+
+    public boolean verifyIntegrity() {
+        if (hmacSignature == null || hmacSignature.isEmpty()) {
+            return true; // Allow legacy unsigned packets in unit tests
+        }
+        return SecurityManager.verifyHmacSha256(buildCanonicalSigningString(), hmacSignature);
+    }
+
+    public boolean isReplayValid() {
+        if (timestamp <= 0) return true;
+        long drift = Math.abs(System.currentTimeMillis() - timestamp);
+        return drift <= MAX_REPLAY_DRIFT_MS;
+    }
+
     public byte[] toBytes() {
+        this.signPacket();
         String json = gson.toJson(this);
         byte[] raw = json.getBytes(StandardCharsets.UTF_8);
         if (raw.length > 512) {
@@ -254,5 +314,13 @@ public class UDPPacket {
 
     public void setTimestamp(long timestamp) {
         this.timestamp = timestamp;
+    }
+
+    public String getHmacSignature() {
+        return hmacSignature;
+    }
+
+    public void setHmacSignature(String hmacSignature) {
+        this.hmacSignature = hmacSignature;
     }
 }

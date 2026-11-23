@@ -16,7 +16,8 @@ import com.qlsv.model.StudentResult;
 import com.qlsv.security.SecurityManager;
 
 /**
- * Data Access Object for Student operations with DES Encryption.
+ * Data Access Object for Student operations with Dual Encryption (DES / AES-256-GCM)
+ * and University Credit Weighting (10% CC + 20% GK + 70% CK).
  */
 public class StudentDAO {
 
@@ -26,8 +27,12 @@ public class StudentDAO {
         String encVan = SecurityManager.encrypt(String.valueOf(student.getScoreLiterature()), desKey);
         String encAnh = SecurityManager.encrypt(String.valueOf(student.getScoreEnglish()), desKey);
 
-        double avgScore = (student.getScoreMath() + student.getScoreLiterature() + student.getScoreEnglish()) / 3.0;
-        avgScore = Math.round(avgScore * 100.0) / 100.0;
+        // Tính điểm tổng kết học phần theo trọng số tín chỉ chuẩn PTIT: 10% CC + 20% GK + 70% CK
+        double avgScore = StudentResult.calculateWeightedScore(
+                student.getScoreMath(),
+                student.getScoreLiterature(),
+                student.getScoreEnglish()
+        );
 
         try (Connection conn = ConnectionPool.getConnection()) {
             String checkSql = "SELECT COUNT(*) FROM SinhVien WHERE MaSV = ?";
@@ -109,12 +114,12 @@ public class StudentDAO {
                     String encAnh = rs.getString("DiemAnhEncrypted");
 
                     String fullName = SecurityManager.decrypt(encFullName, desKey);
-                    double scoreMath = parseDoubleSafe(SecurityManager.decrypt(encToan, desKey), 0.0);
-                    double scoreVan = parseDoubleSafe(SecurityManager.decrypt(encVan, desKey), 0.0);
-                    double scoreAnh = parseDoubleSafe(SecurityManager.decrypt(encAnh, desKey), 0.0);
+                    double dbAvg = rs.getDouble("DiemTB");
+                    double scoreMath = parseDoubleSafe(SecurityManager.decrypt(encToan, desKey), dbAvg);
+                    double scoreVan = parseDoubleSafe(SecurityManager.decrypt(encVan, desKey), dbAvg);
+                    double scoreAnh = parseDoubleSafe(SecurityManager.decrypt(encAnh, desKey), dbAvg);
 
-                    double avg = (scoreMath + scoreVan + scoreAnh) / 3.0;
-                    avg = Math.round(avg * 100.0) / 100.0;
+                    double avg = StudentResult.calculateWeightedScore(scoreMath, scoreVan, scoreAnh);
 
                     StudentResult result = new StudentResult(id, fullName, avg);
                     result.setScoreMath(scoreMath);
@@ -132,7 +137,6 @@ public class StudentDAO {
             boolean originalAutoCommit = conn.getAutoCommit();
             conn.setAutoCommit(false);
             try {
-                // Cascade delete grades first
                 try (PreparedStatement stmt2 = conn.prepareStatement("DELETE FROM BangDiem WHERE MaSV = ?")) {
                     stmt2.setString(1, studentId);
                     stmt2.executeUpdate();
@@ -191,7 +195,8 @@ public class StudentDAO {
                     if (encAnh != null) scoreAnh = parseDoubleSafe(SecurityManager.decrypt(encAnh, desKey), avg);
                 } catch (Exception ignored) {}
 
-                StudentResult res = new StudentResult(id, fullName, avg);
+                double weightedAvg = StudentResult.calculateWeightedScore(scoreMath, scoreVan, scoreAnh);
+                StudentResult res = new StudentResult(id, fullName, weightedAvg);
                 res.setScoreMath(scoreMath);
                 res.setScoreLiterature(scoreVan);
                 res.setScoreEnglish(scoreAnh);
@@ -211,7 +216,8 @@ public class StudentDAO {
         for (StudentResult r : all) {
             if (r.getStudentId().toLowerCase().contains(q) ||
                     r.getFullName().toLowerCase().contains(q) ||
-                    r.getAcademicRank().toLowerCase().contains(q)) {
+                    r.getAcademicRank().toLowerCase().contains(q) ||
+                    r.getAcademicStatus().toLowerCase().contains(q)) {
                 filtered.add(r);
             }
         }
@@ -270,7 +276,8 @@ public class StudentDAO {
                         if (encAnh != null) scoreAnh = parseDoubleSafe(SecurityManager.decrypt(encAnh, desKey), avg);
                     } catch (Exception ignored) {}
 
-                    StudentResult res = new StudentResult(id, fullName, avg);
+                    double weightedAvg = StudentResult.calculateWeightedScore(scoreMath, scoreVan, scoreAnh);
+                    StudentResult res = new StudentResult(id, fullName, weightedAvg);
                     res.setScoreMath(scoreMath);
                     res.setScoreLiterature(scoreVan);
                     res.setScoreEnglish(scoreAnh);
@@ -347,4 +354,3 @@ public class StudentDAO {
         }
     }
 }
-
