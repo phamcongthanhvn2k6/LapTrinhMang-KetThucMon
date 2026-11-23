@@ -1,7 +1,6 @@
 package com.qlsv;
 
 import com.qlsv.model.CourseGrade;
-import com.qlsv.model.StudentData;
 import com.qlsv.model.StudentResult;
 import com.qlsv.model.StudentTranscript;
 import com.qlsv.network.UDPPacket;
@@ -90,3 +89,4 @@ public class ValidationAndBusinessLogicTest {
         System.out.println("✔ TẤT CẢ CÁC BÀI KIỂM THỬ VALIDATE, BẢO MẬT & LOGIC TÍN CHỈ ĐỀU ĐẠT 100%!");
     }
 }
+
