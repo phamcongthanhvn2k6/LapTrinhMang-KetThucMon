@@ -435,6 +435,57 @@ public class StudentDAO {
         return rotatedCount;
     }
 
+    /**
+     * Khôi phục toàn bộ bản ghi mã hóa từ tệp Snapshot đã xác thực chữ ký HMAC-SHA256
+     * trong 1 giao dịch ACID duy nhất.
+     */
+    public int restoreEncryptedSnapshot(List<DatabaseManager.EncryptedRecord> records) throws Exception {
+        if (records == null || records.isEmpty()) return 0;
+        int restored = 0;
+        try (Connection conn = ConnectionPool.getConnection()) {
+            boolean origAuto = conn.getAutoCommit();
+            conn.setAutoCommit(false);
+            try {
+                String updateSql = "UPDATE SinhVien SET HoTenEncrypted = ?, DiemToanEncrypted = ?, " +
+                        "DiemVanEncrypted = ?, DiemAnhEncrypted = ?, DiemTB = ? WHERE MaSV = ?";
+                String insertSql = "INSERT INTO SinhVien (MaSV, HoTenEncrypted, DiemToanEncrypted, DiemVanEncrypted, DiemAnhEncrypted, DiemTB) " +
+                        "VALUES (?, ?, ?, ?, ?, ?)";
+                for (DatabaseManager.EncryptedRecord r : records) {
+                    if (r.maSV == null || r.maSV.trim().isEmpty()) continue;
+                    int rows;
+                    try (PreparedStatement psUp = conn.prepareStatement(updateSql)) {
+                        psUp.setString(1, r.hoTenEncrypted);
+                        psUp.setString(2, r.diemToanEncrypted);
+                        psUp.setString(3, r.diemVanEncrypted);
+                        psUp.setString(4, r.diemAnhEncrypted);
+                        psUp.setDouble(5, r.diemTB);
+                        psUp.setString(6, r.maSV.trim().toUpperCase());
+                        rows = psUp.executeUpdate();
+                    }
+                    if (rows == 0) {
+                        try (PreparedStatement psIn = conn.prepareStatement(insertSql)) {
+                            psIn.setString(1, r.maSV.trim().toUpperCase());
+                            psIn.setString(2, r.hoTenEncrypted);
+                            psIn.setString(3, r.diemToanEncrypted);
+                            psIn.setString(4, r.diemVanEncrypted);
+                            psIn.setString(5, r.diemAnhEncrypted);
+                            psIn.setDouble(6, r.diemTB);
+                            psIn.executeUpdate();
+                        }
+                    }
+                    restored++;
+                }
+                conn.commit();
+            } catch (Exception ex) {
+                conn.rollback();
+                throw ex;
+            } finally {
+                conn.setAutoCommit(origAuto);
+            }
+        }
+        return restored;
+    }
+
     private double parseDoubleSafe(String val, double def) {
         try {
             return Double.parseDouble(val);

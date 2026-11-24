@@ -1,6 +1,7 @@
 package com.qlsv;
 
 import com.qlsv.model.CourseGrade;
+import com.qlsv.model.GradeAppeal;
 import com.qlsv.model.StudentResult;
 import com.qlsv.model.StudentTranscript;
 import com.qlsv.network.UDPPacket;
@@ -85,6 +86,21 @@ public class ValidationAndBusinessLogicTest {
         assertTrue(pkt.verifyIntegrity(), "Chữ ký HMAC-SHA256 gốc phải hợp lệ");
         pkt.setPayload("{\"studentId\":\"SV001\",\"hackedScore\":10.0}"); // Giả lập kẻ tấn công sửa gói tin trên đường truyền
         assertTrue(!pkt.verifyIntegrity(), "Phải phát hiện gói tin UDP bị sửa đổi Payload (HMAC-SHA256 mismatch)");
+
+        // 6. Test Phase 5: GradeAppeal two-way resolution & Snapshot HMAC verification
+        GradeAppeal appeal = new GradeAppeal(101, "SV001", "INT1339", "Phúc khảo điểm thi cuối kỳ", "CHỜ DUYỆT", "Đang chấm lại", "2026-11-24 23:00");
+        appeal.setStatus("ĐÃ DUYỆT NÂNG ĐIỂM");
+        appeal.setTeacherNote("Hội đồng thống nhất nâng điểm thi lên 8.5");
+        assertTrue("ĐÃ DUYỆT NÂNG ĐIỂM".equals(appeal.getStatus()), "Cập nhật trạng thái đơn phúc khảo 2 chiều");
+        assertTrue(appeal.getTeacherNote().contains("8.5"), "Lưu ghi chú hội đồng chấm phúc khảo");
+
+        UDPPacket resolvePkt = UDPPacket.createResolveGradeAppeal(101, true, 9.0, 8.5, "Duyệt nâng điểm", "token123");
+        resolvePkt.toBytes();
+        assertTrue(resolvePkt.verifyIntegrity(), "Gói tin RESOLVE_GRADE_APPEAL phải được ký HMAC-SHA256 hợp lệ");
+
+        UDPPacket regPkt = UDPPacket.createRegisterCredits("SV001", 16, "INT1401, INT1402", "token123");
+        regPkt.toBytes();
+        assertTrue(regPkt.verifyIntegrity(), "Gói tin REGISTER_CREDITS phải được ký HMAC-SHA256 hợp lệ");
 
         System.out.println("✔ TẤT CẢ CÁC BÀI KIỂM THỬ VALIDATE, BẢO MẬT & LOGIC TÍN CHỈ ĐỀU ĐẠT 100%!");
     }

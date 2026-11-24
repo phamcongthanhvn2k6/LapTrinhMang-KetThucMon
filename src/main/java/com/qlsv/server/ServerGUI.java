@@ -8,7 +8,11 @@ import com.qlsv.security.SecurityManager;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartPanel;
 import org.jfree.chart.JFreeChart;
+import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.chart.plot.PiePlot;
+import org.jfree.chart.plot.PlotOrientation;
+import org.jfree.chart.renderer.category.BarRenderer;
+import org.jfree.data.category.DefaultCategoryDataset;
 import org.jfree.data.general.DefaultPieDataset;
 
 import javax.swing.*;
@@ -162,6 +166,14 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
         btnBackupSnapshot.setFocusPainted(false);
         btnBackupSnapshot.addActionListener(e -> handleBackupSnapshot());
         tableActionBar.add(btnBackupSnapshot);
+
+        JButton btnRestoreSnapshot = new JButton("Khôi Phục Snapshot (HMAC)");
+        btnRestoreSnapshot.setBackground(new Color(230, 126, 34));
+        btnRestoreSnapshot.setForeground(Color.WHITE);
+        btnRestoreSnapshot.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnRestoreSnapshot.setFocusPainted(false);
+        btnRestoreSnapshot.addActionListener(e -> handleRestoreSnapshot());
+        tableActionBar.add(btnRestoreSnapshot);
 
         lblDbStatus = new JLabel("Trạng thái CSDL: Chưa kết nối");
         lblDbStatus.setFont(new Font("Segoe UI", Font.ITALIC, 11));
@@ -517,6 +529,13 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
         btnRefreshAudit.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         btnRefreshAudit.addActionListener(e -> refreshAuditLogs());
 
+        JButton btnStressBenchmark = new JButton("Đo Kiểm Chịu Tải RUDP (50 Gói)");
+        btnStressBenchmark.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnStressBenchmark.setBackground(new Color(111, 66, 193));
+        btnStressBenchmark.setForeground(Color.WHITE);
+        btnStressBenchmark.setFocusPainted(false);
+        btnStressBenchmark.addActionListener(e -> runRudpStressBenchmark());
+
         lblChaosTelemetry = new JLabel("● Gói nhận: 0 | Rớt giả lập: 0 | Push Clients: 0 | Chữ ký: HMAC-SHA256");
         lblChaosTelemetry.setFont(new Font("Segoe UI", Font.BOLD, 12));
         lblChaosTelemetry.setForeground(new Color(30, 90, 160));
@@ -524,7 +543,8 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
         row2.add(btnLockGradebook);
         row2.add(btnBroadcast);
         row2.add(btnRefreshAudit);
-        row2.add(Box.createHorizontalStrut(10));
+        row2.add(btnStressBenchmark);
+        row2.add(Box.createHorizontalStrut(6));
         row2.add(lblChaosTelemetry);
 
         topBox.add(row1);
@@ -640,6 +660,8 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
     private void updateChartFromCounts(int xs, int gioi, int kha, int tb, int yeu) {
         if (chartPanelContainer == null) return;
         chartPanelContainer.removeAll();
+        chartPanelContainer.setLayout(new GridLayout(1, 2, 10, 0));
+
         DefaultPieDataset dataset = new DefaultPieDataset();
         dataset.setValue("Xuất sắc (" + xs + ")", xs);
         dataset.setValue("Giỏi (" + gioi + ")", gioi);
@@ -647,18 +669,43 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
         dataset.setValue("Trung bình (" + tb + ")", tb);
         dataset.setValue("Yếu (" + yeu + ")", yeu);
 
-        JFreeChart chart = ChartFactory.createPieChart(
-                "THỐNG KÊ PHÂN BỔ HỌC LỰC SINH VIÊN - PTIT ACADEMIC REPORT",
+        JFreeChart pieChart = ChartFactory.createPieChart(
+                "TỶ LỆ PHÂN BỔ XẾP LOẠI HỌC LỰC",
                 dataset, true, true, false
         );
-        chart.setBackgroundPaint(Color.WHITE);
-        chart.getTitle().setPaint(PTIT_RED);
-        chart.getTitle().setFont(new Font("Segoe UI", Font.BOLD, 15));
+        pieChart.setBackgroundPaint(Color.WHITE);
+        pieChart.getTitle().setPaint(PTIT_RED);
+        pieChart.getTitle().setFont(new Font("Segoe UI", Font.BOLD, 14));
 
-        PiePlot plot = (PiePlot) chart.getPlot();
+        PiePlot plot = (PiePlot) pieChart.getPlot();
         plot.setBackgroundPaint(new Color(250, 250, 252));
-        ChartPanel cp = new ChartPanel(chart);
-        chartPanelContainer.add(cp, BorderLayout.CENTER);
+
+        DefaultCategoryDataset barDataset = new DefaultCategoryDataset();
+        barDataset.addValue(yeu, "Số Sinh Viên", "< 5.0 (Yếu/F)");
+        barDataset.addValue(tb, "Số Sinh Viên", "5.0 - 6.4 (TB/C)");
+        barDataset.addValue(kha, "Số Sinh Viên", "6.5 - 7.9 (Khá/B)");
+        barDataset.addValue(gioi, "Số Sinh Viên", "8.0 - 8.9 (Giỏi/A)");
+        barDataset.addValue(xs, "Số Sinh Viên", "9.0 - 10 (XS/A+)");
+
+        JFreeChart barChart = ChartFactory.createBarChart(
+                "PHỔ ĐIỂM TỔNG KẾT HỌC PHẦN (THANG 10)",
+                "Khoảng Điểm & Xếp Loại",
+                "Số Lượng Sinh Viên",
+                barDataset,
+                PlotOrientation.VERTICAL,
+                false, true, false
+        );
+        barChart.setBackgroundPaint(Color.WHITE);
+        barChart.getTitle().setPaint(PTIT_RED);
+        barChart.getTitle().setFont(new Font("Segoe UI", Font.BOLD, 14));
+        CategoryPlot catPlot = barChart.getCategoryPlot();
+        catPlot.setBackgroundPaint(new Color(250, 250, 252));
+        catPlot.setRangeGridlinePaint(new Color(200, 200, 200));
+        BarRenderer renderer = (BarRenderer) catPlot.getRenderer();
+        renderer.setSeriesPaint(0, PTIT_RED);
+
+        chartPanelContainer.add(new ChartPanel(pieChart));
+        chartPanelContainer.add(new ChartPanel(barChart));
         chartPanelContainer.revalidate();
         chartPanelContainer.repaint();
     }
@@ -747,6 +794,139 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
                 JOptionPane.showMessageDialog(this, "Lỗi sao lưu CSDL: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
             }
         }
+    }
+
+    private void handleRestoreSnapshot() {
+        JFileChooser chooser = new JFileChooser();
+        chooser.setDialogTitle("Chọn Tệp Snapshot CSDL Mã Hóa (.json) Để Khôi Phục");
+        chooser.setSelectedFile(new File("Snapshot_CSDL_PTIT_Encrypted.json"));
+        if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+            File file = chooser.getSelectedFile();
+            try {
+                String content = new String(java.nio.file.Files.readAllBytes(file.toPath()), java.nio.charset.StandardCharsets.UTF_8);
+                com.google.gson.JsonObject root = com.google.gson.JsonParser.parseString(content).getAsJsonObject();
+                String expectedHmac = root.has("hmacSha256Signature") ? root.get("hmacSha256Signature").getAsString() : "";
+                com.google.gson.JsonArray recordsArr = root.getAsJsonArray("records");
+                String payloadJson = new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(recordsArr);
+
+                if (!SecurityManager.verifyHmacSha256(payloadJson, expectedHmac)) {
+                    String warn = "PHÁT HIỆN TỆP SNAPSHOT BỊ GIẢ MẠO HOẶC SỬA ĐỔI TRÁI PHÉP!\n" +
+                            "Chữ ký HMAC-SHA256 không khớp với dữ liệu bản ghi. Từ chối khôi phục để bảo vệ CSDL!";
+                    DatabaseManager.getInstance().logAudit("admin", "RESTORE_REJECTED", "Từ chối Snapshot do sai chữ ký HMAC-SHA256: " + file.getName(), "127.0.0.1");
+                    onLog("[CẢNH BÁO AN NINH] " + warn.replace("\n", " "));
+                    refreshAuditLogs();
+                    JOptionPane.showMessageDialog(this, warn, "Cảnh Báo Giả Mạo Chữ Ký HMAC-SHA256", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+
+                java.lang.reflect.Type listType = new com.google.gson.reflect.TypeToken<List<DatabaseManager.EncryptedRecord>>(){}.getType();
+                List<DatabaseManager.EncryptedRecord> records = new com.google.gson.Gson().fromJson(recordsArr, listType);
+
+                int confirm = JOptionPane.showConfirmDialog(this,
+                        String.format("Xác thực chữ ký toàn vẹn HMAC-SHA256 THÀNH CÔNG!\n" +
+                                "Chữ ký: %s\nSố bản ghi hợp lệ: %d sinh viên.\n\n" +
+                                "Bạn có chắc chắn muốn khôi phục toàn bộ bản ghi vào CSDL (Giao dịch ACID) không?",
+                                expectedHmac, records.size()),
+                        "Xác Nhận Khôi Phục Snapshot", JOptionPane.YES_NO_OPTION);
+                if (confirm == JOptionPane.YES_OPTION) {
+                    int restored = DatabaseManager.getInstance().restoreEncryptedSnapshot(records);
+                    String msg = "Đã xác thực HMAC-SHA256 và khôi phục ACID thành công " + restored + " bản ghi từ Snapshot!";
+                    DatabaseManager.getInstance().logAudit("admin", "RESTORE_SNAPSHOT", msg, "127.0.0.1");
+                    onLog("[RESTORE SNAPSHOT] " + msg);
+                    if (udpServer != null) {
+                        udpServer.broadcastPushEvent("RESTORE_SNAPSHOT", msg, String.valueOf(restored));
+                    }
+                    refreshDataInspection();
+                    JOptionPane.showMessageDialog(this, msg, "Khôi Phục Thành Công", JOptionPane.INFORMATION_MESSAGE);
+                }
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this, "Lỗi đọc hoặc khôi phục Snapshot: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+
+    private void runRudpStressBenchmark() {
+        if (udpServer == null || !udpServer.isRunning()) {
+            JOptionPane.showMessageDialog(this, "Máy chủ RUDP chưa chạy! Vui lòng khởi chạy máy chủ trước.", "Thông báo", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        final int totalPackets = 50;
+        final int threadCount = 5;
+        final int packetsPerThread = totalPackets / threadCount;
+
+        new SwingWorker<String, Void>() {
+            @Override
+            protected String doInBackground() throws Exception {
+                long startNs = System.nanoTime();
+                java.util.concurrent.atomic.AtomicInteger successCount = new java.util.concurrent.atomic.AtomicInteger(0);
+                java.util.concurrent.atomic.AtomicLong totalRttMs = new java.util.concurrent.atomic.AtomicLong(0);
+                java.util.concurrent.atomic.AtomicLong maxRttMs = new java.util.concurrent.atomic.AtomicLong(0);
+                java.util.concurrent.atomic.AtomicLong totalRetries = new java.util.concurrent.atomic.AtomicLong(0);
+
+                java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(threadCount);
+                java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(threadCount);
+
+                for (int t = 0; t < threadCount; t++) {
+                    final int threadIdx = t;
+                    pool.submit(() -> {
+                        com.qlsv.client.UDPClient benchClient = null;
+                        try {
+                            benchClient = new com.qlsv.client.UDPClient("127.0.0.1", serverPort);
+                            for (int i = 0; i < packetsPerThread; i++) {
+                                String svId = String.format("SV%03d", ((threadIdx * packetsPerThread + i) % 30) + 1);
+                                benchClient.getDetailedTranscript(svId);
+                                long rtt = benchClient.getLastRttMs();
+                                successCount.incrementAndGet();
+                                totalRttMs.addAndGet(rtt);
+                                maxRttMs.updateAndGet(prev -> Math.max(prev, rtt));
+                            }
+                            totalRetries.addAndGet(benchClient.getTotalRetransmissions());
+                        } catch (Exception ignored) {
+                        } finally {
+                            if (benchClient != null) benchClient.close();
+                            latch.countDown();
+                        }
+                    });
+                }
+                latch.await(30, java.util.concurrent.TimeUnit.SECONDS);
+                pool.shutdownNow();
+
+                long elapsedMs = Math.max(1, (System.nanoTime() - startNs) / 1_000_000);
+                int ok = successCount.get();
+                double throughput = (ok * 1000.0) / elapsedMs;
+                double avgRtt = ok > 0 ? (totalRttMs.get() * 1.0 / ok) : 0.0;
+
+                String summary = String.format(
+                        "=== KẾT QUẢ ĐO KIỂM CHỊU TẢI ĐA LUỒNG RUDP 2.0 ===\n" +
+                        "• Số luồng đồng thời (Concurrent Workers): %d luồng song song\n" +
+                        "• Tổng số gói tin RUDP nén GZIP + ký HMAC-SHA256: %d / %d gói thành công\n" +
+                        "• Tổng thời gian thực thi: %d ms\n" +
+                        "• Thông lượng mạng (Throughput): %.1f gói/giây (Packets/sec)\n" +
+                        "• Độ trễ trung bình (Avg RTT): %.2f ms  |  Độ trễ cực đại (Max RTT): %d ms\n" +
+                        "• Số lần phát lại ARQ (Stop-and-Wait Retries): %d lần\n" +
+                        "• Thuật toán mã hóa CSDL đang bật: %s",
+                        threadCount, ok, totalPackets, elapsedMs, throughput, avgRtt, maxRttMs.get(),
+                        totalRetries.get(), SecurityManager.getCurrentAlgo().getDisplayName());
+                DatabaseManager.getInstance().logAudit("admin", "RUDP_BENCHMARK",
+                        String.format("Benchmark %d/%d gói (%d luồng): %.1f pkt/s, Avg RTT %.2fms, ARQ %d",
+                                ok, totalPackets, threadCount, throughput, avgRtt, totalRetries.get()), "127.0.0.1");
+                return summary;
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    String report = get();
+                    onLog("[RUDP BENCHMARK] Hoàn tất đo kiểm chịu tải 50 gói đa luồng.");
+                    refreshAuditLogs();
+                    updateChaosTelemetryLabel();
+                    JOptionPane.showMessageDialog(ServerGUI.this, report,
+                            "Báo Cáo Đo Kiểm Chịu Tải RUDP (Multi-Thread Stress Benchmark)", JOptionPane.INFORMATION_MESSAGE);
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(ServerGUI.this, "Lỗi chạy Benchmark: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        }.execute();
     }
 
     private JMenuBar createServerDemoMenuBar() {

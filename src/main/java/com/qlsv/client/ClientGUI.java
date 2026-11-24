@@ -3,6 +3,7 @@ package com.qlsv.client;
 import com.formdev.flatlaf.FlatLightLaf;
 import com.qlsv.AppLauncher;
 import com.qlsv.model.CourseGrade;
+import com.qlsv.model.GradeAppeal;
 import com.qlsv.model.SqlConfig;
 import com.qlsv.model.StudentData;
 import com.qlsv.model.StudentResult;
@@ -428,6 +429,13 @@ public class ClientGUI extends JFrame {
         btnExportExcel.setForeground(Color.WHITE);
         btnExportExcel.addActionListener(e -> handleExportExcel());
 
+        JButton btnManageAppeals = new JButton("Xét Duyệt Phúc Khảo");
+        btnManageAppeals.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        btnManageAppeals.setBackground(new Color(214, 51, 132));
+        btnManageAppeals.setForeground(Color.WHITE);
+        btnManageAppeals.setToolTipText("Hội đồng Giảng viên xem xét & phê duyệt đơn phúc khảo điểm 2 chiều");
+        btnManageAppeals.addActionListener(e -> openTeacherAppealsDialog());
+
         toolRow1.add(new JLabel("Từ khóa:"));
         toolRow1.add(txtSearchQuery);
         toolRow1.add(btnSearch);
@@ -438,6 +446,7 @@ public class ClientGUI extends JFrame {
         toolRow1.add(btnToggleForm);
 
         toolRow2.add(btnViewTranscript);
+        toolRow2.add(btnManageAppeals);
         toolRow2.add(btnScholarship);
         toolRow2.add(btnGpaSimulator);
         toolRow2.add(btnDeleteSelected);
@@ -2019,6 +2028,12 @@ public class ClientGUI extends JFrame {
                 BorderFactory.createEmptyBorder(4, 10, 4, 10)
         ));
 
+        JButton btnPortalRegisterCredits = new JButton("Đăng Ký Tín Chỉ HK Tới");
+        btnPortalRegisterCredits.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnPortalRegisterCredits.setBackground(PTIT_RED);
+        btnPortalRegisterCredits.setForeground(Color.WHITE);
+        btnPortalRegisterCredits.addActionListener(e -> openCreditRegistrationDialog());
+
         JButton btnPortalMaterial = new JButton("Tải Đề Cương Ôn Tập (RUDP Stream)");
         btnPortalMaterial.setFont(new Font("Segoe UI", Font.BOLD, 12));
         btnPortalMaterial.setBackground(new Color(0, 123, 255));
@@ -2047,6 +2062,7 @@ public class ClientGUI extends JFrame {
         btnPortalExport.setForeground(Color.WHITE);
         btnPortalExport.addActionListener(e -> exportPortalTranscript());
 
+        southBar.add(btnPortalRegisterCredits);
         southBar.add(btnPortalMaterial);
         southBar.add(btnPortalAppeal);
         southBar.add(btnPortalGpaSim);
@@ -2054,6 +2070,290 @@ public class ClientGUI extends JFrame {
         panel.add(southBar, BorderLayout.SOUTH);
 
         return panel;
+    }
+
+    private void openTeacherAppealsDialog() {
+        if (client == null) {
+            JOptionPane.showMessageDialog(this, "Chưa kết nối máy chủ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        if (currentRole == UserRole.STUDENT) {
+            JOptionPane.showMessageDialog(this, "Chức năng Hội Đồng Xét Duyệt Phúc Khảo chỉ dành cho Giảng viên hoặc Quản trị viên!", "Từ Chối Truy Cập", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        JDialog dlg = new JDialog(this, "HỘI ĐỒNG XÉT DUYỆT ĐƠN PHÚC KHẢO ĐIỂM HỌC PHẦN (2 CHIỀU RUDP)", true);
+        dlg.setSize(920, 520);
+        dlg.setLocationRelativeTo(this);
+        dlg.setLayout(new BorderLayout(10, 10));
+
+        JPanel head = new JPanel(new GridLayout(2, 1));
+        head.setBackground(PTIT_RED);
+        head.setBorder(BorderFactory.createEmptyBorder(10, 16, 10, 16));
+        JLabel lblT = new JLabel("HỘI ĐỒNG XÉT DUYỆT ĐƠN PHÚC KHẢO ĐIỂM TÍN CHỈ - PTIT");
+        lblT.setFont(new Font("Segoe UI", Font.BOLD, 15));
+        lblT.setForeground(Color.WHITE);
+        JLabel lblS = new JLabel("Phê duyệt nâng điểm hoặc giữ nguyên điểm — Tự động đồng bộ CSDL & phát UDP Server-Push xuống Cổng Sinh Viên");
+        lblS.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        lblS.setForeground(new Color(255, 230, 230));
+        head.add(lblT);
+        head.add(lblS);
+        dlg.add(head, BorderLayout.NORTH);
+
+        String[] cols = {"Mã Đơn", "Mã SV", "Mã Môn", "Lý Do Sinh Viên Gửi", "Trạng Thái", "Phản Hồi Hội Đồng Giảng Viên", "Thời Gian"};
+        DefaultTableModel model = new DefaultTableModel(cols, 0) {
+            @Override
+            public boolean isCellEditable(int r, int c) {
+                return false;
+            }
+        };
+        JTable table = new JTable(model);
+        table.setRowHeight(28);
+        table.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        table.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
+
+        Runnable reloadAppeals = () -> {
+            try {
+                List<GradeAppeal> appeals = client.getGradeAppeals();
+                model.setRowCount(0);
+                for (GradeAppeal a : appeals) {
+                    model.addRow(new Object[]{
+                            a.getAppealId(),
+                            a.getStudentId(),
+                            a.getCourseCode(),
+                            a.getReason(),
+                            a.getStatus(),
+                            a.getTeacherNote() != null ? a.getTeacherNote() : "",
+                            a.getTimestamp()
+                    });
+                }
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(dlg, "Lỗi tải danh sách phúc khảo: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+            }
+        };
+        reloadAppeals.run();
+
+        dlg.add(new JScrollPane(table), BorderLayout.CENTER);
+
+        JPanel south = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 8));
+
+        JButton btnApprove = new JButton("Phê Duyệt & Cập Nhật Điểm Mới");
+        btnApprove.setBackground(new Color(40, 167, 69));
+        btnApprove.setForeground(Color.WHITE);
+        btnApprove.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnApprove.addActionListener(e -> {
+            int r = table.getSelectedRow();
+            if (r < 0) r = 0;
+            if (model.getRowCount() == 0) return;
+            int id = (int) model.getValueAt(r, 0);
+            String sv = String.valueOf(model.getValueAt(r, 1));
+            String mh = String.valueOf(model.getValueAt(r, 2));
+
+            JPanel p = new JPanel(new GridLayout(4, 2, 8, 8));
+            p.add(new JLabel("Đơn phúc khảo:"));
+            p.add(new JLabel("#" + id + " - SV: " + sv + " (Môn " + mh + ")"));
+            JTextField tfProc = new JTextField("8.5");
+            JTextField tfExam = new JTextField("8.5");
+            JTextField tfNote = new JTextField("Hội đồng chấm phúc khảo thống nhất điều chỉnh điểm bài thi.");
+            p.add(new JLabel("Điểm Quá trình mới (30%):"));
+            p.add(tfProc);
+            p.add(new JLabel("Điểm Thi kết thúc mới (70%):"));
+            p.add(tfExam);
+            p.add(new JLabel("Kết luận của Hội đồng:"));
+            p.add(tfNote);
+
+            if (JOptionPane.showConfirmDialog(dlg, p, "Phê Duyệt Phúc Khảo & Cập Nhật Điểm", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) {
+                try {
+                    double pScore = InputValidator.parseAndValidateScore(tfProc.getText(), "Điểm Quá trình mới");
+                    double eScore = InputValidator.parseAndValidateScore(tfExam.getText(), "Điểm Thi mới");
+                    client.resolveGradeAppeal(id, true, pScore, eScore, tfNote.getText().trim());
+                    JOptionPane.showMessageDialog(dlg, "Đã phê duyệt đơn phúc khảo #" + id + " và cập nhật điểm mới cho " + sv + "!", "Đã Phê Duyệt Phúc Khảo", JOptionPane.INFORMATION_MESSAGE);
+                    reloadAppeals.run();
+                    loadAllStudents();
+                    loadStudentPortal(sv);
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(dlg, "Lỗi duyệt đơn: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        });
+
+        JButton btnReject = new JButton("Từ Chối (Giữ Nguyên Điểm)");
+        btnReject.setBackground(PTIT_RED);
+        btnReject.setForeground(Color.WHITE);
+        btnReject.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnReject.addActionListener(e -> {
+            int r = table.getSelectedRow();
+            if (r < 0) r = 0;
+            if (model.getRowCount() == 0) return;
+            int id = (int) model.getValueAt(r, 0);
+            String sv = String.valueOf(model.getValueAt(r, 1));
+            String note = JOptionPane.showInputDialog(dlg, "Nhập kết luận từ chối phúc khảo (Giữ nguyên điểm cũ):",
+                    "Hội đồng đã chấm lại bài thi, kết quả tổng điểm không thay đổi so với điểm đã công bố.");
+            if (note != null && !note.trim().isEmpty()) {
+                try {
+                    client.resolveGradeAppeal(id, false, 0, 0, note.trim());
+                    JOptionPane.showMessageDialog(dlg, "Đã từ chối đơn phúc khảo #" + id + " (Giữ nguyên điểm đã công bố)!", "Đã Từ Chối Phúc Khảo", JOptionPane.INFORMATION_MESSAGE);
+                    reloadAppeals.run();
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(dlg, "Lỗi từ chối đơn: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        });
+
+        JButton btnReload = new JButton("Làm Mới Danh Sách");
+        btnReload.addActionListener(e -> reloadAppeals.run());
+
+        JButton btnClose = new JButton("Đóng");
+        btnClose.addActionListener(e -> dlg.dispose());
+
+        south.add(btnApprove);
+        south.add(btnReject);
+        south.add(btnReload);
+        south.add(btnClose);
+        dlg.add(south, BorderLayout.SOUTH);
+
+        dlg.setVisible(true);
+    }
+
+    private void openCreditRegistrationDialog() {
+        if (client == null) {
+            JOptionPane.showMessageDialog(this, "Chưa kết nối máy chủ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        String maSv = (txtPortalSearchMaSV != null && !txtPortalSearchMaSV.getText().trim().isEmpty())
+                ? txtPortalSearchMaSV.getText().trim().toUpperCase() : "SV001";
+        StudentTranscript t = currentPortalTranscript;
+        double gpa4 = (t != null) ? t.getCumulativeGpa4() : 3.2;
+        boolean isWarning = gpa4 < 2.0;
+        int maxCredits = isWarning ? 14 : 22;
+
+        JDialog dlg = new JDialog(this, "CỔNG ĐĂNG KÝ TÍN CHỈ HỌC KỲ MỚI - SINH VIÊN " + maSv, true);
+        dlg.setSize(780, 520);
+        dlg.setLocationRelativeTo(this);
+        dlg.setLayout(new BorderLayout(10, 10));
+
+        JPanel head = new JPanel(new GridLayout(2, 1));
+        head.setBackground(PTIT_RED);
+        head.setBorder(BorderFactory.createEmptyBorder(10, 16, 10, 16));
+        JLabel lblT = new JLabel("ĐĂNG KÝ HỌC PHẦN TÍN CHỈ HỌC KỲ TIẾP THEO (KIỂM RÀNG BUỘC QUY CHẾ)");
+        lblT.setFont(new Font("Segoe UI", Font.BOLD, 15));
+        lblT.setForeground(Color.WHITE);
+        String standingText = isWarning
+                ? String.format("Diện Cảnh Báo Học Vụ (CPA %.2f < 2.00) -> Giới hạn tối đa: 14 Tín Chỉ / Học kỳ", gpa4)
+                : String.format("Học Lực Bình Thường (CPA %.2f >= 2.00) -> Giới hạn tối đa: 22 Tín Chỉ / Học kỳ", gpa4);
+        JLabel lblS = new JLabel("Sinh viên: " + maSv + " | " + standingText);
+        lblS.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        lblS.setForeground(new Color(255, 235, 180));
+        head.add(lblT);
+        head.add(lblS);
+        dlg.add(head, BorderLayout.NORTH);
+
+        String[][] catalog = {
+                {"INT1401", "Hệ Phân Tán & Điện Toán Đám Mây", "3", "Học phần bắt buộc kỳ tới"},
+                {"INT1402", "An Toàn Mạng Nâng Cao & Mật Mã Học", "3", "Học phần bắt buộc kỳ tới"},
+                {"INT1403", "Trí Tuệ Nhân Tạo & Học Sâu (Deep Learning)", "4", "Học phần chuyên ngành"},
+                {"INT1404", "Phát Triển Ứng Dụng Web & Microservices", "3", "Học phần chuyên ngành"},
+                {"INT1405", "Kiểm Thử & Đảm Bảo Chất Lượng Phần Mềm", "3", "Học phần tự chọn"},
+                {"INT1406", "Thực Tập Chuyên Sâu Doanh Nghiệp", "4", "Học phần đồ án / thực tập"},
+                {"INT1407", "Quản Trị Dự Án Công Nghệ Thông Tin", "3", "Học phần tự chọn"}
+        };
+
+        String[] cols = {"Chọn Đăng Ký", "Mã Học Phần", "Tên Học Phần", "Số Tín Chỉ", "Phân Loại / Gợi Ý Học Vụ"};
+        DefaultTableModel model = new DefaultTableModel(cols, 0) {
+            @Override
+            public Class<?> getColumnClass(int columnIndex) {
+                return columnIndex == 0 ? Boolean.class : String.class;
+            }
+
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return column == 0;
+            }
+        };
+
+        if (t != null && t.getGrades() != null) {
+            for (CourseGrade g : t.getGrades()) {
+                if (!g.isPassed()) {
+                    model.addRow(new Object[]{true, g.getCourseCode(), g.getCourseName() + " (Học lại)", String.valueOf(g.getCredits()), "BẮT BUỘC HỌC LẠI (Điểm F)"});
+                } else if ("D".equalsIgnoreCase(g.getLetterGrade()) || "D+".equalsIgnoreCase(g.getLetterGrade())) {
+                    model.addRow(new Object[]{false, g.getCourseCode(), g.getCourseName() + " (Học cải thiện)", String.valueOf(g.getCredits()), "GỢI Ý HỌC CẢI THIỆN GPA (Điểm D/D+)"});
+                }
+            }
+        }
+
+        for (int i = 0; i < catalog.length; i++) {
+            boolean defaultChecked = (i < 3);
+            model.addRow(new Object[]{defaultChecked, catalog[i][0], catalog[i][1], catalog[i][2], catalog[i][3]});
+        }
+
+        JTable table = new JTable(model);
+        table.setRowHeight(28);
+        table.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        table.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
+
+        JLabel lblSummary = new JLabel();
+        lblSummary.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        lblSummary.setBorder(BorderFactory.createEmptyBorder(6, 14, 6, 14));
+
+        Runnable updateSummary = () -> {
+            int totalTc = 0;
+            int count = 0;
+            for (int r = 0; r < model.getRowCount(); r++) {
+                Boolean checked = (Boolean) model.getValueAt(r, 0);
+                if (Boolean.TRUE.equals(checked)) {
+                    totalTc += Integer.parseInt(String.valueOf(model.getValueAt(r, 3)));
+                    count++;
+                }
+            }
+            long tuition = totalTc * 650_000L;
+            lblSummary.setText(String.format("● Đã chọn: %d môn  |  Tổng số tín chỉ: %d / %d TC tối đa  |  Học phí dự kiến: %,d VNĐ",
+                    count, totalTc, maxCredits, tuition));
+            if (totalTc > maxCredits) {
+                lblSummary.setForeground(PTIT_RED);
+            } else {
+                lblSummary.setForeground(new Color(0, 120, 50));
+            }
+        };
+        updateSummary.run();
+        model.addTableModelListener(e -> updateSummary.run());
+
+        JPanel center = new JPanel(new BorderLayout(6, 6));
+        center.setBorder(BorderFactory.createEmptyBorder(8, 12, 4, 12));
+        center.add(new JScrollPane(table), BorderLayout.CENTER);
+        center.add(lblSummary, BorderLayout.SOUTH);
+        dlg.add(center, BorderLayout.CENTER);
+
+        JPanel south = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 8));
+        JButton btnSubmit = new JButton("Xác Nhận Đăng Ký Tín Chỉ (RUDP)");
+        btnSubmit.setBackground(PTIT_RED);
+        btnSubmit.setForeground(Color.WHITE);
+        btnSubmit.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnSubmit.addActionListener(e -> {
+            int totalTc = 0;
+            List<String> selected = new ArrayList<>();
+            for (int r = 0; r < model.getRowCount(); r++) {
+                if (Boolean.TRUE.equals(model.getValueAt(r, 0))) {
+                    int tc = Integer.parseInt(String.valueOf(model.getValueAt(r, 3)));
+                    totalTc += tc;
+                    selected.add(model.getValueAt(r, 1) + " (" + tc + " TC)");
+                }
+            }
+            try {
+                String resp = client.registerSemesterCredits(maSv, totalTc, String.join(", ", selected));
+                JOptionPane.showMessageDialog(dlg, resp, "Đăng Ký Tín Chỉ Thành Công", JOptionPane.INFORMATION_MESSAGE);
+                dlg.dispose();
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(dlg, "Từ chối đăng ký tín chỉ:\n" + ex.getMessage(), "Vi Phạm Quy Chế Tín Chỉ", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+
+        JButton btnClose = new JButton("Đóng");
+        btnClose.addActionListener(e -> dlg.dispose());
+        south.add(btnSubmit);
+        south.add(btnClose);
+        dlg.add(south, BorderLayout.SOUTH);
+
+        dlg.setVisible(true);
     }
 
     private void openGradeAppealDialog() {

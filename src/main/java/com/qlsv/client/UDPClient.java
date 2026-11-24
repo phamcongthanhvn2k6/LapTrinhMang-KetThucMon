@@ -291,6 +291,37 @@ public class UDPClient implements AutoCloseable {
         throw new Exception(response != null ? response.getMessage() : "Lỗi gửi đơn phúc khảo");
     }
 
+    public List<com.qlsv.model.GradeAppeal> getGradeAppeals() throws Exception {
+        UDPPacket request = UDPPacket.createGetGradeAppeals(sessionToken);
+        UDPPacket response = sendAndReceiveWithRetry(request, MAX_RETRIES);
+        if (response != null && response.isSuccess()) {
+            Type listType = new TypeToken<List<com.qlsv.model.GradeAppeal>>() {}.getType();
+            return gson.fromJson(response.getPayload(), listType);
+        }
+        return Collections.emptyList();
+    }
+
+    public List<com.qlsv.model.GradeAppeal> resolveGradeAppeal(int appealId, boolean approved,
+                                                               double newProcScore, double newExamScore,
+                                                               String teacherNote) throws Exception {
+        UDPPacket request = UDPPacket.createResolveGradeAppeal(appealId, approved, newProcScore, newExamScore, teacherNote, sessionToken);
+        UDPPacket response = sendAndReceiveWithRetry(request, MAX_RETRIES);
+        if (response != null && response.isSuccess()) {
+            Type listType = new TypeToken<List<com.qlsv.model.GradeAppeal>>() {}.getType();
+            return gson.fromJson(response.getPayload(), listType);
+        }
+        throw new Exception(response != null ? response.getMessage() : "Lỗi xét duyệt phúc khảo");
+    }
+
+    public String registerSemesterCredits(String studentId, int totalCredits, String coursesCsv) throws Exception {
+        UDPPacket request = UDPPacket.createRegisterCredits(studentId, totalCredits, coursesCsv, sessionToken);
+        UDPPacket response = sendAndReceiveWithRetry(request, MAX_RETRIES);
+        if (response != null && response.isSuccess()) {
+            return response.getMessage();
+        }
+        throw new Exception(response != null ? response.getMessage() : "Lỗi đăng ký tín chỉ");
+    }
+
     public interface ChunkProgressListener {
         void onChunkReceived(int chunkIndex, int totalChunks, String sha256Checksum);
     }

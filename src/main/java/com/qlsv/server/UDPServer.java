@@ -63,6 +63,10 @@ public class UDPServer {
     // Kho đề cương & tài liệu học phần phục vụ truyền tệp phân mảnh qua RUDP (Chunked File Stream)
     private final Map<String, String> courseMaterials = new ConcurrentHashMap<>();
 
+    // Danh sách Đơn Phúc Khảo Điểm Hai Chiều (Student <-> Teacher/Board)
+    private final List<GradeAppeal> gradeAppeals = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private final java.util.concurrent.atomic.AtomicInteger appealIdCounter = new java.util.concurrent.atomic.AtomicInteger(1001);
+
     // RUDP Idempotent Response Cache (LRU cache of 500 recent packetIds -> UDPPacket response)
     private final Map<String, UDPPacket> responseCache = Collections.synchronizedMap(
             new LinkedHashMap<String, UDPPacket>(100, 0.75f, true) {
@@ -76,6 +80,22 @@ public class UDPServer {
     public UDPServer(int port) {
         this.port = port;
         initDefaultCourseMaterials();
+        initDefaultGradeAppeals();
+    }
+
+    private void initDefaultGradeAppeals() {
+        gradeAppeals.add(new GradeAppeal(
+                appealIdCounter.getAndIncrement(),
+                "SV001", "INT1339",
+                "Em xin phúc khảo bài thi kết thúc học phần môn Lập Trình Mạng (Điểm hiện tại 5.70).",
+                "CHỜ DUYỆT", "Đang chờ Hội đồng chuyên môn chấm lại", "2025-11-24 08:30:00"
+        ));
+        gradeAppeals.add(new GradeAppeal(
+                appealIdCounter.getAndIncrement(),
+                "SV006", "INT1310",
+                "Em xin kiểm tra lại điểm cộng thực hành môn Cơ Sở Dữ Liệu SQL.",
+                "CHỜ DUYỆT", "Đang chờ Giảng viên bộ môn xác nhận", "2025-11-24 09:15:00"
+        ));
     }
 
     private void initDefaultCourseMaterials() {
@@ -616,7 +636,13 @@ public class UDPServer {
                         String cCode = parts.length > 1 ? parts[1].trim().toUpperCase() : "INT1339";
                         String reason = parts.length > 2 ? parts[2].trim() : "Xin phúc khảo điểm bài thi cuối kỳ";
 
-                        String appealMsg = String.format("Đơn phúc khảo điểm từ SV %s (Môn %s): \"%s\"", stId, cCode, reason);
+                        int newAppealId = appealIdCounter.getAndIncrement();
+                        String nowStr = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.Date());
+                        GradeAppeal appeal = new GradeAppeal(newAppealId, stId, cCode, reason,
+                                "CHỜ DUYỆT", "Chờ Giảng viên xét duyệt", nowStr);
+                        gradeAppeals.add(0, appeal);
+
+                        String appealMsg = String.format("Đơn phúc khảo #%d từ SV %s (Môn %s): \"%s\"", newAppealId, stId, cCode, reason);
                         DatabaseManager.getInstance().logAudit(stId, "GRADE_APPEAL", appealMsg, clientIp);
                         log("[PHÚC KHẢO ĐIỂM] " + appealMsg);
 
@@ -625,9 +651,108 @@ public class UDPServer {
                             logListener.onDataUpdated();
                         }
                         responsePacket = new UDPPacket(PacketType.SUBMIT_GRADE_APPEAL, true,
-                                "Đã gửi đơn phúc khảo môn " + cCode + " tới Phòng Đào Tạo & Giảng viên bộ môn!", appealMsg);
+                                "Đã gửi đơn phúc khảo #" + newAppealId + " (Môn " + cCode + ") tới Hội đồng & Giảng viên bộ môn!", appealMsg);
                     } catch (Exception ex) {
                         responsePacket = UDPPacket.createError("Lỗi gửi đơn phúc khảo: " + ex.getMessage());
+                    }
+                    break;
+
+                case GET_GRADE_APPEALS:
+                    responsePacket = UDPPacket.createGradeAppealsResult(gson.toJson(gradeAppeals));
+                    break;
+
+                case RESOLVE_GRADE_APPEAL:
+                    try {
+                        String token = packet.getToken();
+                        SessionManager.UserSession session = SessionManager.getInstance().getSession(token);
+                        if (session != null && session.getRole() == UserAccount.Role.HOCSINH) {
+                            responsePacket = UDPPacket.createError("Học sinh không có quyền xét duyệt đơn phúc khảo!");
+                        } else {
+                            String[] parts = packet.getPayload().split("\\|", 5);
+                            int apId = Integer.parseInt(parts[0].trim());
+                            boolean approved = Boolean.parseBoolean(parts[1].trim());
+                            double newProc = Double.parseDouble(parts[2].trim());
+                            double newExam = Double.parseDouble(parts[3].trim());
+                            String note = parts.length > 4 ? parts[4].trim() : "";
+
+                            GradeAppeal target = null;
+                            for (GradeAppeal ga : gradeAppeals) {
+                                if (ga.getAppealId() == apId) {
+                                    target = ga;
+                                    break;
+                                }
+                            }
+                            if (target == null) {
+                                responsePacket = UDPPacket.createError("Không tìm thấy đơn phúc khảo #" + apId);
+                            } else {
+                                String operator = (session != null) ? session.getUsername() : "giangvien";
+                                if (approved) {
+                                    InputValidator.validateScoreValue(newProc, "Điểm Quá trình mới");
+                                    InputValidator.validateScoreValue(newExam, "Điểm Thi mới");
+                                    StudentTranscript updatedT = DatabaseManager.getInstance().updateCourseGrade(
+                                            target.getStudentId(), target.getCourseCode(), newProc, newExam);
+                                    target.setStatus("ĐÃ DUYỆT NÂNG ĐIỂM");
+                                    target.setTeacherNote(String.format("Đạt QT=%.2f, Thi=%.2f (GPA mới: %.2f) - %s",
+                                            newProc, newExam, updatedT.getCumulativeGpa4(), note));
+                                    String msg = String.format("Đơn phúc khảo #%d (%s - Môn %s) ĐÃ ĐƯỢC DUYỆT: Điểm QT=%.2f, Thi=%.2f!",
+                                            apId, target.getStudentId(), target.getCourseCode(), newProc, newExam);
+                                    DatabaseManager.getInstance().logAudit(operator, "APPROVE_APPEAL", msg, clientIp);
+                                    log("[DUYỆT PHÚC KHẢO] " + msg);
+                                    broadcastPushEvent("APPEAL_RESOLVED", msg, target.getStudentId());
+                                } else {
+                                    target.setStatus("TỪ CHỐI");
+                                    target.setTeacherNote(note.isEmpty() ? "Đã chấm thẩm định lại, giữ nguyên điểm gốc" : note);
+                                    String msg = String.format("Đơn phúc khảo #%d (%s - Môn %s) TỪ CHỐI: %s",
+                                            apId, target.getStudentId(), target.getCourseCode(), target.getTeacherNote());
+                                    DatabaseManager.getInstance().logAudit(operator, "REJECT_APPEAL", msg, clientIp);
+                                    log("[TỪ CHỐI PHÚC KHẢO] " + msg);
+                                    broadcastPushEvent("APPEAL_REJECTED", msg, target.getStudentId());
+                                }
+                                if (logListener != null) {
+                                    logListener.onDataUpdated();
+                                }
+                                responsePacket = UDPPacket.createGradeAppealsResult(gson.toJson(gradeAppeals));
+                            }
+                        }
+                    } catch (Exception ex) {
+                        responsePacket = UDPPacket.createError("Lỗi xét duyệt phúc khảo: " + ex.getMessage());
+                    }
+                    break;
+
+                case REGISTER_CREDITS:
+                    try {
+                        String[] parts = packet.getPayload().split("\\|", 3);
+                        String stId = InputValidator.normalizeAndValidateStudentId(parts[0]);
+                        int reqCredits = Integer.parseInt(parts[1].trim());
+                        String coursesCsv = parts.length > 2 ? parts[2].trim() : "";
+
+                        StudentResult student = DatabaseManager.getInstance().getStudentDecrypted(stId);
+                        boolean isWarning = student.getGpa4() < 2.0 || student.isExamBanned() || student.isFinalExamFailed();
+                        int maxCredits = isWarning ? 14 : 22;
+
+                        if (reqCredits <= 0) {
+                            responsePacket = UDPPacket.createError("Vui lòng chọn ít nhất 1 học phần để đăng ký!");
+                        } else if (reqCredits > maxCredits) {
+                            String err = String.format(
+                                    "QUY CHẾ ĐÀO TẠO TÍN CHỈ: Sinh viên %s (%s) hiện có GPA = %.2f (%s),\n" +
+                                    "định mức đăng ký tối đa là %d tín chỉ/học kỳ (Bạn đang chọn %d TC).\n" +
+                                    "Vui lòng bỏ bớt học phần tự chọn để đảm bảo chất lượng học tập!",
+                                    student.getFullName(), stId, student.getGpa4(), student.getAcademicStatus(), maxCredits, reqCredits);
+                            responsePacket = UDPPacket.createError(err);
+                        } else {
+                            long tuitionVnd = reqCredits * 650_000L;
+                            String msg = String.format("Đăng ký học phần HK2 thành công cho %s (%s): %d/%d TC [%s] - Học phí dự kiến: %,d VNĐ",
+                                    student.getFullName(), stId, reqCredits, maxCredits, coursesCsv, tuitionVnd);
+                            DatabaseManager.getInstance().logAudit(stId, "REGISTER_CREDITS", msg, clientIp);
+                            log("[ĐĂNG KÝ TÍN CHỈ] " + msg);
+                            broadcastPushEvent("CREDIT_REGISTERED", msg, stId);
+                            if (logListener != null) {
+                                logListener.onDataUpdated();
+                            }
+                            responsePacket = new UDPPacket(PacketType.REGISTER_CREDITS, true, msg, String.valueOf(reqCredits));
+                        }
+                    } catch (Exception ex) {
+                        responsePacket = UDPPacket.createError("Lỗi đăng ký tín chỉ: " + ex.getMessage());
                     }
                     break;
 

@@ -174,6 +174,13 @@ public class DatabaseManager {
         return count;
     }
 
+    public int restoreEncryptedSnapshot(List<EncryptedRecord> records) throws Exception {
+        if (!isConnected()) {
+            throw new Exception("CSDL chưa được kết nối!");
+        }
+        return studentDAO.restoreEncryptedSnapshot(records);
+    }
+
     public int saveStudentBatch(List<StudentData> list) throws Exception {
         if (!isConnected()) {
             throw new Exception("CSDL chưa được kết nối!");

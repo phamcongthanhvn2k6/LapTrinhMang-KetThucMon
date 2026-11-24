@@ -160,6 +160,25 @@ public class UDPPacket {
         return new UDPPacket(PacketType.SUBMIT_GRADE_APPEAL, true, "Submit Grade Appeal", payload, token);
     }
 
+    public static UDPPacket createGetGradeAppeals(String token) {
+        return new UDPPacket(PacketType.GET_GRADE_APPEALS, true, "Get Grade Appeals", null, token);
+    }
+
+    public static UDPPacket createGradeAppealsResult(String appealsJson) {
+        return new UDPPacket(PacketType.GRADE_APPEALS_RESULT, true, "Grade Appeals List", appealsJson);
+    }
+
+    public static UDPPacket createResolveGradeAppeal(int appealId, boolean approved, double newProcessScore,
+                                                     double newExamScore, String teacherNote, String token) {
+        String payload = appealId + "|" + approved + "|" + newProcessScore + "|" + newExamScore + "|" + (teacherNote != null ? teacherNote : "");
+        return new UDPPacket(PacketType.RESOLVE_GRADE_APPEAL, true, "Resolve Grade Appeal", payload, token);
+    }
+
+    public static UDPPacket createRegisterCredits(String studentId, int totalCredits, String coursesCsv, String token) {
+        String payload = studentId + "|" + totalCredits + "|" + coursesCsv;
+        return new UDPPacket(PacketType.REGISTER_CREDITS, true, "Register Semester Credits", payload, token);
+    }
+
     public static UDPPacket createRotateCryptoKey(String newAlgoName, String newKey, String token) {
         String payload = newAlgoName + "|" + newKey;
         return new UDPPacket(PacketType.ROTATE_CRYPTO_KEY, true, "Rotate Cryptographic Key", payload, token);

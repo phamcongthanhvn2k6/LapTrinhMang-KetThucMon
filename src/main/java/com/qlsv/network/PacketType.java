@@ -20,6 +20,10 @@ public enum PacketType {
     TRANSCRIPT_RESULT,        // Server returns full transcript object
     UPDATE_COURSE_GRADE,      // Teacher updates grade of a specific course in transcript
     SUBMIT_GRADE_APPEAL,      // Student submits a grade appeal request to Teacher/Server
+    GET_GRADE_APPEALS,        // Teacher/Student fetches list of grade appeals
+    GRADE_APPEALS_RESULT,     // Server returns list of GradeAppeal objects
+    RESOLVE_GRADE_APPEAL,     // Teacher approves (with new scores) or rejects a grade appeal
+    REGISTER_CREDITS,         // Student submits next-semester credit registration for validation
     ROTATE_CRYPTO_KEY,        // Admin triggers live re-encryption of all DB records (DES <-> AES-256-GCM)
     DOWNLOAD_COURSE_MATERIAL, // Student requests chunked RUDP download of course syllabus/material
     COURSE_MATERIAL_CHUNK,    // Server sends a specific chunk (chunkIndex/totalChunks) + SHA-256 checksum
