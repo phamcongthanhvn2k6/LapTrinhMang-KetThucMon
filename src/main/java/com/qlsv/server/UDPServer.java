@@ -60,6 +60,9 @@ public class UDPServer {
     // Active Client Push Subscribers (Key: "ip:pushPort" -> InetSocketAddress)
     private final Map<String, InetSocketAddress> pushSubscribers = new ConcurrentHashMap<>();
 
+    // Kho đề cương & tài liệu học phần phục vụ truyền tệp phân mảnh qua RUDP (Chunked File Stream)
+    private final Map<String, String> courseMaterials = new ConcurrentHashMap<>();
+
     // RUDP Idempotent Response Cache (LRU cache of 500 recent packetIds -> UDPPacket response)
     private final Map<String, UDPPacket> responseCache = Collections.synchronizedMap(
             new LinkedHashMap<String, UDPPacket>(100, 0.75f, true) {
@@ -72,6 +75,57 @@ public class UDPServer {
 
     public UDPServer(int port) {
         this.port = port;
+        initDefaultCourseMaterials();
+    }
+
+    private void initDefaultCourseMaterials() {
+        courseMaterials.put("INT1339",
+                "======================================================================\n" +
+                "   HỌC VIỆN CÔNG NGHỆ BƯU CHÍNH VIỄN THÔNG (PTIT) - KHOA CNTT 1\n" +
+                "   ĐỀ CƯƠNG CHI TIẾT & TÀI LIỆU ÔN TẬP HỌC PHẦN: LẬP TRÌNH MẠNG\n" +
+                "   Mã học phần: INT1339  |  Số tín chỉ: 03 (2 LT + 1 TH)\n" +
+                "======================================================================\n\n" +
+                "1. MỤC TIÊU HỌC PHẦN:\n" +
+                "   - Nắm vững kiến trúc phân tầng TCP/IP, lập trình Socket TCP & UDP.\n" +
+                "   - Thiết kế giao thức truyền thông tin cậy RUDP (Sequence, ACK, ARQ, GZIP).\n" +
+                "   - Bảo mật dữ liệu đường truyền với HMAC-SHA256, DES và AES-256-GCM.\n" +
+                "   - Xây dựng hệ thống phân tán đa luồng kết nối Cloud Database Pooler.\n\n" +
+                "2. CẤU TRÚC ĐÁNH GIÁ ĐIỂM HỌC PHẦN (CHUẨN TÍN CHỈ PTIT):\n" +
+                "   - Điểm Chuyên cần (10%): Yêu cầu >= 5.0 (Dưới 5.0 bị CẤM THI - Điểm F).\n" +
+                "   - Điểm Kiểm tra Giữa kỳ & Thực hành (20%): Kiểm tra lập trình Socket.\n" +
+                "   - Điểm Thi Kết thúc học phần (70%): Bảo vệ đồ án & Vấn đáp (Điểm liệt < 4.0).\n\n" +
+                "3. NỘI DUNG ÔN TẬP TRỌNG TÂM:\n" +
+                "   - Chương 1: Quản lý luồng I/O và Đa luồng (ThreadPoolExecutor, SwingWorker).\n" +
+                "   - Chương 2: Lập trình DatagramSocket & DatagramPacket (UDP Unicast/Push).\n" +
+                "   - Chương 3: Cơ chế chống mất gói Stop-and-Wait ARQ & Idempotent Cache.\n" +
+                "   - Chương 4: Tích hợp JDBC HikariCP & An toàn dữ liệu CSDL phân tán.\n");
+        courseMaterials.put("INT1340",
+                "======================================================================\n" +
+                "   ĐỀ CƯƠNG HỌC PHẦN: MÃ HÓA & AN TOÀN THÔNG TIN (INT1340 - 3 TÍN CHỈ)\n" +
+                "======================================================================\n" +
+                "- Trọng tâm 1: Mã hóa khối đối xứng DES (56-bit) & AES-256-GCM (128-bit Tag).\n" +
+                "- Trọng tâm 2: Hàm băm mật mã SHA-256, PBKDF2 & Mã xác thực HMAC-SHA256.\n" +
+                "- Trọng tâm 3: Phòng chống Replay Attack, Brute-Force & Lưu vết Audit Trail.\n");
+        courseMaterials.put("INT1310",
+                "======================================================================\n" +
+                "   ĐỀ CƯƠNG HỌC PHẦN: CƠ SỞ DỮ LIỆU SQL (INT1310 - 3 TÍN CHỈ)\n" +
+                "======================================================================\n" +
+                "- Thiết kế lược đồ ERD chuẩn 3NF, Giao dịch ACID (Commit / Rollback).\n" +
+                "- Tối ưu truy vấn phân trang LIMIT/OFFSET và quản lý HikariCP Connection Pool.\n");
+    }
+
+    private static String computeSha256Hex(String text) {
+        try {
+            java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] hash = md.digest(text.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (byte b : hash) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            return "";
+        }
     }
 
     public void setLogListener(ServerLogListener listener) {
@@ -518,6 +572,128 @@ public class UDPServer {
                         responsePacket = UDPPacket.createTranscriptResult(true, "Lấy bảng điểm thành công", gson.toJson(transcript));
                     } catch (Exception ex) {
                         responsePacket = UDPPacket.createError("Lỗi tải bảng điểm: " + ex.getMessage());
+                    }
+                    break;
+
+                case UPDATE_COURSE_GRADE:
+                    try {
+                        String token = packet.getToken();
+                        SessionManager.UserSession session = SessionManager.getInstance().getSession(token);
+                        if (session != null && session.getRole() == UserAccount.Role.HOCSINH) {
+                            responsePacket = UDPPacket.createError("BẢO VỆ PHÂN QUYỀN SERVER: Học sinh không có quyền chấm điểm học phần!");
+                        } else if (SessionManager.getInstance().isGradebookLocked() &&
+                                (session == null || session.getRole() != UserAccount.Role.ADMIN)) {
+                            responsePacket = UDPPacket.createError("[KHÓA SỔ ĐIỂM] Sổ điểm học kỳ đang khóa! Không thể sửa điểm học phần.");
+                        } else {
+                            String[] parts = packet.getPayload().split("\\|");
+                            String stId = InputValidator.normalizeAndValidateStudentId(parts[0]);
+                            String cCode = parts[1].trim().toUpperCase();
+                            double procScore = InputValidator.validateScoreValue(Double.parseDouble(parts[2]), "Điểm Quá trình");
+                            double exScore = InputValidator.validateScoreValue(Double.parseDouble(parts[3]), "Điểm Thi kết thúc");
+
+                            StudentTranscript updatedT = DatabaseManager.getInstance().updateCourseGrade(stId, cCode, procScore, exScore);
+                            String operator = (session != null) ? session.getUsername() : "giangvien";
+                            String detail = String.format("Chấm điểm môn %s của %s: Quá trình=%.2f, Thi=%.2f -> GPA Tích lũy mới=%.2f (%s)",
+                                    cCode, stId, procScore, exScore, updatedT.getCumulativeGpa4(), updatedT.getAcademicRank());
+                            DatabaseManager.getInstance().logAudit(operator, "UPDATE_COURSE_GRADE", detail, clientIp);
+                            log("[" + operator + "] " + detail);
+
+                            responsePacket = UDPPacket.createTranscriptResult(true, "Đã cập nhật điểm môn " + cCode, gson.toJson(updatedT));
+                            broadcastPushEvent("COURSE_GRADE_UPDATED", detail, stId);
+                            if (logListener != null) {
+                                logListener.onDataUpdated();
+                            }
+                        }
+                    } catch (Exception ex) {
+                        responsePacket = UDPPacket.createError("Lỗi cập nhật điểm môn học: " + ex.getMessage());
+                    }
+                    break;
+
+                case SUBMIT_GRADE_APPEAL:
+                    try {
+                        String[] parts = packet.getPayload().split("\\|", 3);
+                        String stId = InputValidator.normalizeAndValidateStudentId(parts[0]);
+                        String cCode = parts.length > 1 ? parts[1].trim().toUpperCase() : "INT1339";
+                        String reason = parts.length > 2 ? parts[2].trim() : "Xin phúc khảo điểm bài thi cuối kỳ";
+
+                        String appealMsg = String.format("Đơn phúc khảo điểm từ SV %s (Môn %s): \"%s\"", stId, cCode, reason);
+                        DatabaseManager.getInstance().logAudit(stId, "GRADE_APPEAL", appealMsg, clientIp);
+                        log("[PHÚC KHẢO ĐIỂM] " + appealMsg);
+
+                        broadcastPushEvent("GRADE_APPEAL", appealMsg, stId + "|" + cCode);
+                        if (logListener != null) {
+                            logListener.onDataUpdated();
+                        }
+                        responsePacket = new UDPPacket(PacketType.SUBMIT_GRADE_APPEAL, true,
+                                "Đã gửi đơn phúc khảo môn " + cCode + " tới Phòng Đào Tạo & Giảng viên bộ môn!", appealMsg);
+                    } catch (Exception ex) {
+                        responsePacket = UDPPacket.createError("Lỗi gửi đơn phúc khảo: " + ex.getMessage());
+                    }
+                    break;
+
+                case ROTATE_CRYPTO_KEY:
+                    try {
+                        String[] parts = packet.getPayload().split("\\|", 2);
+                        com.qlsv.security.SecurityManager.EncryptionAlgo newAlgo =
+                                com.qlsv.security.SecurityManager.EncryptionAlgo.valueOf(parts[0].trim());
+                        String newKey = parts.length > 1 ? parts[1].trim() : DatabaseManager.getInstance().getDesKey();
+
+                        int count = DatabaseManager.getInstance().rotateEncryptionForAllRecords(newKey, newAlgo);
+                        String msg = String.format("Đã xoay khóa & tái mã hóa thành công %d hồ sơ sinh viên sang chuẩn %s!",
+                                count, newAlgo.getDisplayName());
+                        DatabaseManager.getInstance().logAudit("admin", "KEY_ROTATION", msg, clientIp);
+                        log("[XOAY KHÓA MẬT MÃ CSDL] " + msg);
+                        if (logListener != null) {
+                            logListener.onDataUpdated();
+                        }
+                        broadcastPushEvent("KEY_ROTATION", msg, newAlgo.name());
+                        responsePacket = new UDPPacket(PacketType.ROTATE_CRYPTO_KEY, true, msg, String.valueOf(count));
+                    } catch (Exception ex) {
+                        responsePacket = UDPPacket.createError("Lỗi xoay khóa mã hóa CSDL: " + ex.getMessage());
+                    }
+                    break;
+
+                case DOWNLOAD_COURSE_MATERIAL:
+                    try {
+                        String[] parts = packet.getPayload().split("\\|");
+                        String cCode = parts[0].trim().toUpperCase();
+                        int reqChunk = parts.length > 1 ? Integer.parseInt(parts[1].trim()) : 0;
+
+                        String fullMaterial = courseMaterials.getOrDefault(cCode, courseMaterials.get("INT1339"));
+                        String sha256 = computeSha256Hex(fullMaterial);
+
+                        int chunkSize = 240; // Phân mảnh 240 ký tự/gói để trình diễn trực quan cơ chế RUDP Chunk Streaming
+                        int totalChunks = Math.max(1, (int) Math.ceil((double) fullMaterial.length() / chunkSize));
+                        if (reqChunk < 0) reqChunk = 0;
+                        if (reqChunk >= totalChunks) reqChunk = totalChunks - 1;
+
+                        int startIdx = reqChunk * chunkSize;
+                        int endIdx = Math.min(fullMaterial.length(), startIdx + chunkSize);
+                        String slice = fullMaterial.substring(startIdx, endIdx);
+
+                        log(String.format("[RUDP FILE STREAM] Truyền mảnh %d/%d đề cương %s (%d bytes | SHA-256: %s...)",
+                                reqChunk + 1, totalChunks, cCode, slice.length(), sha256.substring(0, 12)));
+                        responsePacket = UDPPacket.createCourseMaterialChunk(cCode, reqChunk, totalChunks, sha256, slice);
+                    } catch (Exception ex) {
+                        responsePacket = UDPPacket.createError("Lỗi tải tài liệu học phần: " + ex.getMessage());
+                    }
+                    break;
+
+                case UPLOAD_COURSE_MATERIAL:
+                    try {
+                        String[] parts = packet.getPayload().split("\\|", 2);
+                        String cCode = parts[0].trim().toUpperCase();
+                        String content = parts.length > 1 ? parts[1] : "";
+                        courseMaterials.put(cCode, content);
+                        String sha256 = computeSha256Hex(content);
+                        String msg = String.format("Giảng viên vừa cập nhật Đề cương học phần %s (SHA-256: %s...)",
+                                cCode, sha256.substring(0, 12));
+                        DatabaseManager.getInstance().logAudit("giangvien", "UPLOAD_MATERIAL", msg, clientIp);
+                        log("[CẬP NHẬT ĐỀ CƯƠNG] " + msg);
+                        broadcastPushEvent("MATERIAL_UPDATED", msg, cCode);
+                        responsePacket = new UDPPacket(PacketType.UPLOAD_COURSE_MATERIAL, true, msg, sha256);
+                    } catch (Exception ex) {
+                        responsePacket = UDPPacket.createError("Lỗi tải lên đề cương: " + ex.getMessage());
                     }
                     break;
 

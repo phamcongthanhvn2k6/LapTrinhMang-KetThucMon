@@ -398,6 +398,43 @@ public class StudentDAO {
         return list;
     }
 
+    /**
+     * Xoay khóa mật mã và tái mã hóa toàn bộ bản ghi trong CSDL (Live Cryptographic Key & Algorithm Rotation)
+     * trong một giao dịch ACID duy nhất.
+     */
+    public int rotateKeyAndReEncryptAll(String oldKey, String newKey, SecurityManager.EncryptionAlgo newAlgo) throws Exception {
+        List<StudentResult> allStudents = getAllStudentsDecrypted(oldKey);
+        SecurityManager.setCurrentAlgo(newAlgo);
+
+        int rotatedCount = 0;
+        try (Connection conn = ConnectionPool.getConnection()) {
+            boolean origAuto = conn.getAutoCommit();
+            conn.setAutoCommit(false);
+            try {
+                String updateSql = "UPDATE SinhVien SET HoTenEncrypted = ?, DiemToanEncrypted = ?, DiemVanEncrypted = ?, DiemAnhEncrypted = ? WHERE MaSV = ?";
+                try (PreparedStatement ps = conn.prepareStatement(updateSql)) {
+                    for (StudentResult s : allStudents) {
+                        ps.setString(1, SecurityManager.encrypt(s.getFullName(), newKey));
+                        ps.setString(2, SecurityManager.encrypt(String.valueOf(s.getScoreCC()), newKey));
+                        ps.setString(3, SecurityManager.encrypt(String.valueOf(s.getScoreGK()), newKey));
+                        ps.setString(4, SecurityManager.encrypt(String.valueOf(s.getScoreCK()), newKey));
+                        ps.setString(5, s.getStudentId());
+                        ps.addBatch();
+                        rotatedCount++;
+                    }
+                    ps.executeBatch();
+                }
+                conn.commit();
+            } catch (Exception ex) {
+                conn.rollback();
+                throw ex;
+            } finally {
+                conn.setAutoCommit(origAuto);
+            }
+        }
+        return rotatedCount;
+    }
+
     private double parseDoubleSafe(String val, double def) {
         try {
             return Double.parseDouble(val);

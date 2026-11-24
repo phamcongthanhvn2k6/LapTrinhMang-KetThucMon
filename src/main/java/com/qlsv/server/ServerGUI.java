@@ -147,9 +147,25 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
         btnRefreshData.addActionListener(e -> refreshDataInspection());
         tableActionBar.add(btnRefreshData);
 
+        JButton btnRotateKey = new JButton("Xoay Khóa & Tái Mã Hóa CSDL (DES <-> AES-256)");
+        btnRotateKey.setBackground(new Color(111, 66, 193));
+        btnRotateKey.setForeground(Color.WHITE);
+        btnRotateKey.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnRotateKey.setFocusPainted(false);
+        btnRotateKey.addActionListener(e -> handleLiveKeyRotation());
+        tableActionBar.add(btnRotateKey);
+
+        JButton btnBackupSnapshot = new JButton("Sao Lưu Snapshot CSDL");
+        btnBackupSnapshot.setBackground(new Color(40, 167, 69));
+        btnBackupSnapshot.setForeground(Color.WHITE);
+        btnBackupSnapshot.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnBackupSnapshot.setFocusPainted(false);
+        btnBackupSnapshot.addActionListener(e -> handleBackupSnapshot());
+        tableActionBar.add(btnBackupSnapshot);
+
         lblDbStatus = new JLabel("Trạng thái CSDL: Chưa kết nối");
-        lblDbStatus.setFont(new Font("Segoe UI", Font.ITALIC, 12));
-        tableActionBar.add(Box.createHorizontalStrut(20));
+        lblDbStatus.setFont(new Font("Segoe UI", Font.ITALIC, 11));
+        tableActionBar.add(Box.createHorizontalStrut(8));
         tableActionBar.add(lblDbStatus);
 
         tabData.add(tableActionBar, BorderLayout.NORTH);
@@ -205,10 +221,12 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
         tabLogs.add(scrollLog, BorderLayout.CENTER);
         tabLogs.add(logActionBar, BorderLayout.SOUTH);
 
-        tabbedPane.addTab("1. Kiểm Tra Mã Hóa CSDL (DES / AES-256)", tabData);
-        tabbedPane.addTab("2. Thanh Tra Điểm & Giả Lập Mạng RUDP", createAuditAndChaosTab());
-        tabbedPane.addTab("3. Biểu Đồ Thống Kê Học Lực", tabChart);
-        tabbedPane.addTab("4. Nhật Ký Hoạt Động Hệ Thống", tabLogs);
+        tabbedPane.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        tabbedPane.setTabLayoutPolicy(JTabbedPane.SCROLL_TAB_LAYOUT);
+        tabbedPane.addTab("1. Mã Hóa CSDL (DES/AES)", tabData);
+        tabbedPane.addTab("2. Thanh Tra & Giả Lập Mạng", createAuditAndChaosTab());
+        tabbedPane.addTab("3. Biểu Đồ Học Lực", tabChart);
+        tabbedPane.addTab("4. Nhật Ký Hệ Thống", tabLogs);
 
         add(tabbedPane, BorderLayout.CENTER);
 
@@ -647,11 +665,87 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
 
     private void updateDbStatusLabel() {
         if (DatabaseManager.getInstance().isConnected()) {
-            lblDbStatus.setText("Trạng thái CSDL: ĐÃ KẾT NỐI | Mã hóa: " + SecurityManager.getCurrentAlgo().name() + " | Toàn vẹn gói: HMAC-SHA256");
+            lblDbStatus.setText("CSDL: ĐÃ KẾT NỐI | Chuẩn: " + SecurityManager.getCurrentAlgo().name() + " | HMAC-SHA256");
             lblDbStatus.setForeground(new Color(40, 167, 69));
         } else {
             lblDbStatus.setText("Trạng thái CSDL: CHƯA KẾT NỐI");
             lblDbStatus.setForeground(PTIT_RED);
+        }
+    }
+
+    private void handleLiveKeyRotation() {
+        SecurityManager.EncryptionAlgo current = SecurityManager.getCurrentAlgo();
+        SecurityManager.EncryptionAlgo targetAlgo = (current == SecurityManager.EncryptionAlgo.DES)
+                ? SecurityManager.EncryptionAlgo.AES_256
+                : SecurityManager.EncryptionAlgo.DES;
+
+        int confirm = JOptionPane.showConfirmDialog(this,
+                String.format("Bạn có muốn XOAY KHÓA MẬT MÃ TRỰC TUYẾN (Live Key Rotation)\n" +
+                        "và tái mã hóa toàn bộ hồ sơ sinh viên trong CSDL từ [%s] sang [%s] không?\n" +
+                        "(Toàn bộ giao dịch được bảo toàn ACID và đồng bộ tức thời xuống các Client)",
+                        current.getDisplayName(), targetAlgo.getDisplayName()),
+                "Xoay Khóa & Tái Mã Hóa Toàn Bộ CSDL", JOptionPane.YES_NO_OPTION);
+
+        if (confirm == JOptionPane.YES_OPTION) {
+            new SwingWorker<Integer, Void>() {
+                @Override
+                protected Integer doInBackground() throws Exception {
+                    return DatabaseManager.getInstance().rotateEncryptionForAllRecords(
+                            DatabaseManager.getInstance().getDesKey(), targetAlgo);
+                }
+
+                @Override
+                protected void done() {
+                    try {
+                        int count = get();
+                        String msg = String.format("Đã xoay khóa & tái mã hóa thành công %d sinh viên sang chuẩn %s!",
+                                count, targetAlgo.getDisplayName());
+                        DatabaseManager.getInstance().logAudit("admin", "KEY_ROTATION", msg, "127.0.0.1");
+                        onLog("[KEY ROTATION] " + msg);
+                        if (udpServer != null) {
+                            udpServer.broadcastPushEvent("KEY_ROTATION", msg, targetAlgo.name());
+                        }
+                        refreshDataInspection();
+                        JOptionPane.showMessageDialog(ServerGUI.this, msg, "Xoay Khóa Thành Công", JOptionPane.INFORMATION_MESSAGE);
+                    } catch (Exception ex) {
+                        JOptionPane.showMessageDialog(ServerGUI.this, "Lỗi xoay khóa CSDL: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+                    }
+                }
+            }.execute();
+        }
+    }
+
+    private void handleBackupSnapshot() {
+        JFileChooser chooser = new JFileChooser();
+        chooser.setDialogTitle("Lưu Bản Sao Lưu Snapshot CSDL Mã Hóa (Kèm Chữ Ký HMAC-SHA256)");
+        chooser.setSelectedFile(new File("Snapshot_CSDL_PTIT_Encrypted.json"));
+        if (chooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
+            File target = chooser.getSelectedFile();
+            if (!target.getAbsolutePath().endsWith(".json")) {
+                target = new File(target.getAbsolutePath() + ".json");
+            }
+            try {
+                List<DatabaseManager.EncryptedRecord> records = DatabaseManager.getInstance().getAllRecordsForInspection();
+                String payloadJson = new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(records);
+                String hmac = SecurityManager.computeHmacSha256(payloadJson);
+                String fullSnapshot = "{\n  \"system\": \"PTIT-RUDP-2.0-Encrypted-Snapshot\",\n" +
+                        "  \"encryptionAlgorithm\": \"" + SecurityManager.getCurrentAlgo().name() + "\",\n" +
+                        "  \"totalRecords\": " + records.size() + ",\n" +
+                        "  \"hmacSha256Signature\": \"" + hmac + "\",\n" +
+                        "  \"records\": " + payloadJson + "\n}";
+                try (java.io.PrintWriter pw = new java.io.PrintWriter(target, java.nio.charset.StandardCharsets.UTF_8)) {
+                    pw.write(fullSnapshot);
+                }
+                DatabaseManager.getInstance().logAudit("admin", "BACKUP_SNAPSHOT",
+                        "Sao lưu Snapshot " + records.size() + " bản ghi (HMAC: " + hmac.substring(0, 12) + "...)", "127.0.0.1");
+                onLog("[BACKUP SNAPSHOT] Đã xuất bản sao lưu CSDL mã hóa tại: " + target.getAbsolutePath());
+                refreshAuditLogs();
+                JOptionPane.showMessageDialog(this,
+                        "Đã sao lưu thành công " + records.size() + " hồ sơ mã hóa!\nChữ ký toàn vẹn HMAC-SHA256: " + hmac + "\nTệp: " + target.getAbsolutePath(),
+                        "Sao Lưu Thành Công", JOptionPane.INFORMATION_MESSAGE);
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this, "Lỗi sao lưu CSDL: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+            }
         }
     }
 

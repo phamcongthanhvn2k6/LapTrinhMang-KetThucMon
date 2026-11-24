@@ -156,6 +156,24 @@ public class DatabaseManager {
         return transcriptDAO.getDetailedTranscript(studentId, desKey, student);
     }
 
+    public StudentTranscript updateCourseGrade(String studentId, String courseCode, double processScore, double examScore) throws Exception {
+        if (!isConnected()) {
+            throw new Exception("CSDL chưa được kết nối!");
+        }
+        StudentResult student = getStudentDecrypted(studentId);
+        return transcriptDAO.updateCourseGrade(studentId, courseCode, processScore, examScore, desKey, student);
+    }
+
+    public int rotateEncryptionForAllRecords(String newKey, com.qlsv.security.SecurityManager.EncryptionAlgo newAlgo) throws Exception {
+        if (!isConnected()) {
+            throw new Exception("CSDL chưa được kết nối!");
+        }
+        String cleanNewKey = (newKey != null && !newKey.trim().isEmpty()) ? newKey.trim() : this.desKey;
+        int count = studentDAO.rotateKeyAndReEncryptAll(this.desKey, cleanNewKey, newAlgo);
+        this.desKey = cleanNewKey;
+        return count;
+    }
+
     public int saveStudentBatch(List<StudentData> list) throws Exception {
         if (!isConnected()) {
             throw new Exception("CSDL chưa được kết nối!");

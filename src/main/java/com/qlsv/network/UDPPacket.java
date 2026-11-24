@@ -150,6 +150,38 @@ public class UDPPacket {
         return new UDPPacket(PacketType.AUDIT_LOGS_RESULT, true, "Audit Logs Result", logsJson);
     }
 
+    public static UDPPacket createUpdateCourseGrade(String studentId, String courseCode, double processScore, double examScore, String token) {
+        String payload = studentId + "|" + courseCode + "|" + processScore + "|" + examScore;
+        return new UDPPacket(PacketType.UPDATE_COURSE_GRADE, true, "Update Single Course Grade", payload, token);
+    }
+
+    public static UDPPacket createSubmitGradeAppeal(String studentId, String courseCode, String reason, String token) {
+        String payload = studentId + "|" + courseCode + "|" + reason;
+        return new UDPPacket(PacketType.SUBMIT_GRADE_APPEAL, true, "Submit Grade Appeal", payload, token);
+    }
+
+    public static UDPPacket createRotateCryptoKey(String newAlgoName, String newKey, String token) {
+        String payload = newAlgoName + "|" + newKey;
+        return new UDPPacket(PacketType.ROTATE_CRYPTO_KEY, true, "Rotate Cryptographic Key", payload, token);
+    }
+
+    public static UDPPacket createDownloadCourseMaterial(String courseCode, int chunkIndex, String token) {
+        String payload = courseCode + "|" + chunkIndex;
+        return new UDPPacket(PacketType.DOWNLOAD_COURSE_MATERIAL, true, "Download Course Material Chunk", payload, token);
+    }
+
+    public static UDPPacket createCourseMaterialChunk(String courseCode, int chunkIndex, int totalChunks, String sha256Checksum, String chunkContent) {
+        UDPPacket pkt = new UDPPacket(PacketType.COURSE_MATERIAL_CHUNK, true, sha256Checksum, chunkContent);
+        pkt.setChunkIndex(chunkIndex);
+        pkt.setTotalChunks(totalChunks);
+        return pkt;
+    }
+
+    public static UDPPacket createUploadCourseMaterial(String courseCode, String content, String token) {
+        String payload = courseCode + "|" + content;
+        return new UDPPacket(PacketType.UPLOAD_COURSE_MATERIAL, true, "Upload Course Material", payload, token);
+    }
+
     public static UDPPacket createAck(int ackNum, String originalPacketId) {
         UDPPacket p = new UDPPacket(PacketType.ACK, true, "ACK", originalPacketId);
         p.setAckNum(ackNum);

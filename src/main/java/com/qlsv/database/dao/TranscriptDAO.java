@@ -97,6 +97,53 @@ public class TranscriptDAO {
         return transcript;
     }
 
+    /**
+     * Cập nhật trực tiếp điểm của 1 học phần cụ thể trong bảng BangDiem và trả về bảng điểm mới nhất.
+     */
+    public StudentTranscript updateCourseGrade(String studentId, String courseCode, double processScore, double examScore,
+                                               String desKey, StudentResult student) throws Exception {
+        String cleanId = studentId.trim().toUpperCase();
+        String cleanCourse = courseCode.trim().toUpperCase();
+        // Đảm bảo sinh viên đã có đủ 5 học phần trong BangDiem trước khi cập nhật
+        getDetailedTranscript(cleanId, desKey, student);
+
+        CourseGrade updatedCg = new CourseGrade(cleanCourse, cleanCourse, 3, processScore, examScore);
+        String encProc = SecurityManager.encrypt(String.valueOf(processScore), desKey);
+        String encExam = SecurityManager.encrypt(String.valueOf(examScore), desKey);
+
+        try (Connection conn = ConnectionPool.getConnection()) {
+            String updateSql = "UPDATE BangDiem SET DiemQuaTrinhEncrypted = ?, DiemThiEncrypted = ?, " +
+                    "DiemTongKet = ?, DiemChu = ?, DiemHe4 = ? WHERE MaSV = ? AND MaMon = ?";
+            try (PreparedStatement ps = conn.prepareStatement(updateSql)) {
+                ps.setString(1, encProc);
+                ps.setString(2, encExam);
+                ps.setDouble(3, updatedCg.getTotalScore());
+                ps.setString(4, updatedCg.getLetterGrade());
+                ps.setDouble(5, updatedCg.getGpa4());
+                ps.setString(6, cleanId);
+                ps.setString(7, cleanCourse);
+                ps.executeUpdate();
+            }
+
+            // Nếu là học phần chính INT1339 (Lập Trình Mạng), đồng bộ ngược lên bảng SinhVien
+            if ("INT1339".equalsIgnoreCase(cleanCourse)) {
+                String syncSv = "UPDATE SinhVien SET DiemVanEncrypted = ?, DiemAnhEncrypted = ?, DiemTB = ? WHERE MaSV = ?";
+                try (PreparedStatement ps2 = conn.prepareStatement(syncSv)) {
+                    ps2.setString(1, encProc);
+                    ps2.setString(2, encExam);
+                    ps2.setDouble(3, updatedCg.getTotalScore());
+                    ps2.setString(4, cleanId);
+                    ps2.executeUpdate();
+                }
+            }
+        }
+
+        student.setScoreGK(processScore);
+        student.setScoreCK(examScore);
+        student.setAverageScore(StudentResult.calculateWeightedScore(student.getScoreCC(), processScore, examScore));
+        return getDetailedTranscript(cleanId, desKey, student);
+    }
+
     private double parseDoubleSafe(String val, double def) {
         try {
             return Double.parseDouble(val);

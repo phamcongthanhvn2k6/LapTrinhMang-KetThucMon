@@ -273,6 +273,76 @@ public class UDPClient implements AutoCloseable {
         throw new Exception(response != null ? response.getMessage() : "Lỗi tải bảng điểm chi tiết");
     }
 
+    public StudentTranscript updateCourseGrade(String studentId, String courseCode, double processScore, double examScore) throws Exception {
+        UDPPacket request = UDPPacket.createUpdateCourseGrade(studentId, courseCode, processScore, examScore, sessionToken);
+        UDPPacket response = sendAndReceiveWithRetry(request, MAX_RETRIES);
+        if (response != null && response.isSuccess()) {
+            return gson.fromJson(response.getPayload(), StudentTranscript.class);
+        }
+        throw new Exception(response != null ? response.getMessage() : "Lỗi cập nhật điểm môn học");
+    }
+
+    public String submitGradeAppeal(String studentId, String courseCode, String reason) throws Exception {
+        UDPPacket request = UDPPacket.createSubmitGradeAppeal(studentId, courseCode, reason, sessionToken);
+        UDPPacket response = sendAndReceiveWithRetry(request, MAX_RETRIES);
+        if (response != null && response.isSuccess()) {
+            return response.getMessage();
+        }
+        throw new Exception(response != null ? response.getMessage() : "Lỗi gửi đơn phúc khảo");
+    }
+
+    public interface ChunkProgressListener {
+        void onChunkReceived(int chunkIndex, int totalChunks, String sha256Checksum);
+    }
+
+    /**
+     * Tải tệp đề cương học phần phân mảnh qua giao thức RUDP (Chunked Datagram Streaming)
+     * kèm kiểm tra mã băm toàn vẹn SHA-256 Checksum.
+     */
+    public String downloadCourseMaterialChunked(String courseCode, ChunkProgressListener progressListener) throws Exception {
+        UDPPacket firstReq = UDPPacket.createDownloadCourseMaterial(courseCode, 0, sessionToken);
+        UDPPacket firstResp = sendAndReceiveWithRetry(firstReq, MAX_RETRIES);
+        if (firstResp == null || !firstResp.isSuccess()) {
+            throw new Exception(firstResp != null ? firstResp.getMessage() : "Không thể tải mảnh đầu tiên của đề cương!");
+        }
+
+        int totalChunks = Math.max(1, firstResp.getTotalChunks());
+        String expectedSha256 = firstResp.getMessage() != null ? firstResp.getMessage().trim() : "";
+        StringBuilder reassembled = new StringBuilder();
+        reassembled.append(firstResp.getPayload() != null ? firstResp.getPayload() : "");
+
+        if (progressListener != null) {
+            progressListener.onChunkReceived(1, totalChunks, expectedSha256);
+        }
+
+        for (int idx = 1; idx < totalChunks; idx++) {
+            UDPPacket req = UDPPacket.createDownloadCourseMaterial(courseCode, idx, sessionToken);
+            UDPPacket resp = sendAndReceiveWithRetry(req, MAX_RETRIES);
+            if (resp == null || !resp.isSuccess()) {
+                throw new Exception("Lỗi mất mảnh RUDP #" + (idx + 1) + "/" + totalChunks);
+            }
+            reassembled.append(resp.getPayload() != null ? resp.getPayload() : "");
+            if (progressListener != null) {
+                progressListener.onChunkReceived(idx + 1, totalChunks, expectedSha256);
+            }
+        }
+
+        String finalContent = reassembled.toString();
+        // Kiểm tra toàn vẹn SHA-256 Checksum sau khi ghép đủ các mảnh UDP
+        if (!expectedSha256.isEmpty()) {
+            java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] digest = md.digest(finalContent.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (byte b : digest) {
+                sb.append(String.format("%02x", b));
+            }
+            if (!expectedSha256.equalsIgnoreCase(sb.toString())) {
+                throw new Exception("CẢNH BÁO TOÀN VẸN FILE RUDP: Mã băm SHA-256 sau khi ghép mảnh không khớp với Server!");
+            }
+        }
+        return finalContent;
+    }
+
     public int importStudentsFromExcel(List<StudentData> list) throws Exception {
         String jsonPayload = gson.toJson(list);
         UDPPacket request = UDPPacket.createImportExcel(jsonPayload, sessionToken);
