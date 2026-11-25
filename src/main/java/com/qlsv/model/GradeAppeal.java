@@ -86,3 +86,4 @@ public class GradeAppeal implements Serializable {
         this.timestamp = timestamp;
     }
 }
+
