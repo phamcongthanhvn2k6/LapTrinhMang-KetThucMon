@@ -1,9 +1,25 @@
 # 🎓 HỌC VIỆN CÔNG NGHỆ BƯU CHÍNH VIỄN THÔNG (PTIT)
-## Đề Tài 12: Hệ Thống Quản Lý Sinh Viên Truyền Bảng Mạng UDP & Bảo Mật Mã Hóa CSDL SQL
+## Đồ Án Kết Thúc Học Phần: Lập Trình Mạng — Hệ Thống Quản Lý Đào Tạo Tín Chỉ & Sinh Viên Phân Tán Qua Giao Thức Mạng RUDP 2.0, Bảo Mật Đa Lớp (DES / AES-256-GCM / HMAC-SHA256) & Cơ Sở Dữ Liệu Đám Mây Supabase PostgreSQL
 
 ![PTIT System Overview](./screenshots/08_ptit_full_system_overview.png)
 
-Hệ thống ứng dụng quản lý sinh viên phân tán Client-Server viết bằng ngôn ngữ Java, truyền nhận gói tin thời gian thực qua giao thức **UDP (`DatagramSocket`)**, tích hợp cơ chế bảo mật mã hóa đối xứng **AES-256 / DES**, lưu trữ cơ sở dữ liệu đa nền tảng **SQL (Supabase Cloud PostgreSQL / H2 Embedded / SQL Server / MySQL)**, cơ chế **Bảo vệ Phân quyền Giảng viên & Học sinh (Role-Based Access Control)** và xuất báo cáo chuẩn **Excel (.xlsx)**.
+Hệ thống ứng dụng Quản lý Đào tạo Tín chỉ & Sinh viên phân tán Client – Server viết bằng ngôn ngữ **Java (JDK 21 / Swing FlatLaf)**, truyền nhận gói tin thời gian thực qua giao thức **RUDP 2.0 (Reliable UDP trên nền `DatagramSocket`)**, tích hợp động cơ mã hóa đối xứng kép **DES (56-bit) & AES-256-GCM**, ký số toàn vẹn từng gói tin bằng **HMAC-SHA256**, kênh thông báo đẩy hai chiều **Full-Duplex UDP Server-Push**, lưu trữ trên **Cơ sở dữ liệu Đám mây Supabase Cloud PostgreSQL (`HikariCP` + `H2 Embedded Auto-Fallback`)**, kiểm soát phân quyền **RBAC (Sinh viên / Giảng viên / Quản trị viên)** và báo cáo **Excel (`.xlsx` Apache POI)**.
+
+---
+
+## 👥 DANH SÁCH THÀNH VIÊN NHÓM 2 & BẢNG PHÂN CÔNG NHIỆM VỤ
+
+- **Nhóm thực hiện:** **Nhóm 2** (`D24TXCN01-N` / `D24TXCNPM01-N`)
+- **Hồ sơ báo cáo toàn văn 4 Chương:** [`docs/BAO_CAO_DO_AN_KET_THUC_MON.md`](./docs/BAO_CAO_DO_AN_KET_THUC_MON.md)
+
+| STT | Mã Sinh Viên | Họ và Tên | Lớp | Vai Trò | Các Phân Hệ & Chức Năng Kỹ Thuật Đảm Nhận (Theo Mã Nguồn Dự Án) | Tỷ Trọng | Điểm Đóng Góp |
+| :-: | :---: | :--- | :---: | :---: | :--- | :-: | :-: |
+| **1** | **N24DTCN079** | **Phạm Công Thành** | `D24TXCN01-N` | **Nhóm Trưởng (Team Leader & Core Architect)** | • **Thiết kế kiến trúc tổng thể & Giao thức lõi RUDP 2.0** (`UDPPacket.java`, `PacketType.java`): cơ chế đánh số `Seq/ACK`, truyền lại tự động `Stop-and-Wait ARQ` (`Exponential Backoff`), bộ đệm chống trùng gói `Idempotent LRU Cache`, nén tự động `GZIP Compression` và truyền tệp đề cương phân mảnh `RUDP Chunked File Stream` kiểm tra mã băm `SHA-256`.<br>• **Phát triển Máy chủ Đa luồng & Kênh đẩy Hai chiều** (`UDPServer.java`, `UDPClient.java`, `SessionManager.java`): `ThreadPoolExecutor` 20 luồng, kênh thông báo thời gian thực `Full-Duplex UDP Server-Push`, quản lý phiên Token, chống `Brute-Force Lockout` và Khóa sổ điểm học kỳ.<br>• **Động cơ Bảo mật Kép & An toàn Dữ liệu** (`SecurityManager.java`, `DESEncryption.java`, `AESEncryption.java`): mã hóa `DES 56-bit` & `AES-256-GCM (PBKDF2)`, chữ ký số gói tin `HMAC-SHA256`, chống `Replay Attack`, **Xoay khóa & Tái mã hóa toàn bộ CSDL trực tuyến (`Live Key Rotation`)**, Sao lưu & Khôi phục Snapshot xác thực chữ ký `HMAC-SHA256`.<br>• **Phòng thí nghiệm Mạng & Điều phối Hệ thống** (`ServerGUI.java`, `AppLauncher.java`): `Network Chaos Simulator` (giả lập rớt gói 0–60%, độ trễ 0–300ms), công cụ **Đo kiểm chịu tải đa luồng RUDP (`50 gói song song`)**, triển khai Cloud DB `Supabase AWS` và quản lý Git. | **35%** | **10.0 / 10 (100% + Điểm cộng)** |
+| **2** | **N24DTCN042** | **Hồ Quốc Khải** | `D24TXCN01-N` | Thành viên (Database & Cloud Backend) | • **Quản lý Kết nối CSDL Đám mây & Dự phòng** (`DatabaseManager.java`, `DatabaseConfigLoader.java`, `SqlConfig.java`): kết nối `Supabase Cloud PostgreSQL` qua `HikariCP Connection Pool` và cơ chế tự động chuyển đổi dự phòng (`Auto-Fallback`) sang `H2 Embedded`.<br>• **Tầng Truy cập Dữ liệu Sinh viên & Giao dịch ACID** (`StudentDAO.java`): truy vấn CRUD bản ghi mã hóa, bảng điểm 5 học phần tín chỉ `BangDiem` và xử lý Batch Transaction ACID trên 1 kết nối vật lý duy nhất. | **13%** | **9.0 / 10 (90%)** |
+| **3** | **N24DTCN017** | **Dương Trung Dũng** | `D24TXCN01-N` | Thành viên (Auth & Security Audit Trail) | • **Xác thực Tài khoản & Phân quyền RBAC** (`AuthDAO.java`, `UserAccount.java`): cơ chế băm mật khẩu `SHA-256 + Salt` một chiều, quản lý 3 cấp độ quyền `ADMIN / TEACHER / STUDENT`.<br>• **Nhật ký Thanh tra Điểm số Bất biến** (`AuditDAO.java` & Tab Thanh tra trên `ServerGUI.java`): tự động đối chiếu và lưu vết lịch sử thay đổi điểm số (`Điểm cũ -> Điểm mới`), tài khoản thực hiện, địa chỉ IP và thời gian. | **13%** | **9.0 / 10 (90%)** |
+| **4** | **N24DTCN050** | **Cao Thành Long** | `D24TXCN01-N` | Thành viên (Teacher Workspace & Academic Logic) | • **Nghiệp vụ Đào tạo Tín chỉ Đại học** (`StudentResult.java`, `CourseGrade.java`, `StudentTranscript.java`): công thức trọng số `10% Chuyên cần + 20% Giữa kỳ + 70% Thi kết thúc`, quy đổi GPA hệ 4, Điểm chữ (`A+ -> F`), xét tự động **Cấm thi** (`CC < 5.0`) và **Điểm liệt cuối kỳ** (`Thi < 4.0`).<br>• **Phân hệ Quản lý Đào tạo của Giảng viên** (Tab 2 `ClientGUI.java`): bảng quản lý sinh viên phân trang, tìm kiếm, lọc học lực, chấm/sửa điểm từng môn trong phiếu báo điểm và hộp thoại xét Học bổng KKHT & Cảnh báo học vụ. | **13%** | **9.0 / 10 (90%)** |
+| **5** | **N24DTCN119** | **Nguyễn Duy Quang Nhật** | `D24TXCNPM01-N` | Thành viên (Student Portal & Two-Way Appeals) | • **Cổng Thông tin Sinh viên & Giả lập GPA** (Tab 1 `ClientGUI.java`): giao diện tra cứu hồ sơ sinh viên, 4 thẻ KPI học tập và công cụ dự đoán lộ trình học tập `GPA Simulator`.<br>• **Phúc khảo Điểm Hai chiều & Đăng ký Tín chỉ Học kỳ Mới** (`GradeAppeal.java`): chức năng sinh viên gửi đơn phúc khảo, **Hội đồng Giảng viên xét duyệt phúc khảo 2 chiều** và **Cổng đăng ký tín chỉ học kỳ tới** (kiểm tra trần 14 TC cảnh báo học vụ / 22 TC bình thường). | **13%** | **9.0 / 10 (90%)** |
+| **6** | **N24DTCN032** | **Nguyễn Quang Hoàng** | `D24TXCN01-N` | Thành viên (Excel POI, Charts & QA Testing) | • **Nhập/Xuất Báo cáo Excel & Biểu đồ Kép** (`ExcelExporter.java`, `ExcelImporter.java` & Tab 3 `ServerGUI.java`): xuất báo cáo bảng điểm `.xlsx` chuẩn Apache POI, nhập điểm hàng loạt từ file mẫu Excel, trực quan hóa **Biểu đồ Kép `JFreeChart`** (Biểu đồ Tròn tỷ lệ học lực + Biểu đồ Cột phổ điểm thang 10).<br>• **Kiểm tra Dữ liệu & Kiểm thử Tự động** (`InputValidator.java`, `ValidationAndBusinessLogicTest.java`): chuẩn hóa dữ liệu đầu vào, kiểm thử tự động và tổng hợp tài liệu báo cáo. | **13%** | **9.0 / 10 (90%)** |
 
 ---
 
@@ -69,13 +85,25 @@ Toàn bộ ảnh chụp thực tế của hệ thống được lưu trữ trong
 - **Tìm Kiếm & Bộ Lọc Nâng Cao**: Tra cứu theo từ khóa (Mã SV / Họ tên) và lọc nhanh theo xếp loại học lực (`Xuất sắc`, `Giỏi`, `Khá`, `Trung bình`, `Yếu`).
 - **Xuất Báo Cáo Excel (.xlsx)**: Đóng gói và xuất danh sách sinh viên ra tệp Excel định dạng chuẩn văn phòng bằng Apache POI.
 
-### 🛡️ 1.2. Phân Hệ Server (`ServerGUI.java`)
+### 🛡️ 1.2. Phân Hệ Server (`ServerGUI.java`) & Giao Thức Lõi RUDP 2.0
 
-- **Bảng Console Quản trị Server**: Bật / Dừng lắng nghe cổng UDP (Default `9876`), xử lý đa luồng ThreadPool.
-- **Lựa Chọn Thuật Toán Mã Hóa Bảo Mật**: Chuyển đổi linh hoạt giữa **AES-256 (CBC)** và **DES (ECB)** thời gian thực.
-- **Giám Sát Mã Hóa CSDL (Encrypted Data Inspection)**: Hiển thị bảng đối chiếu trực quan giữa chuỗi thô mã hóa Base64 lưu trong SQL và dữ liệu sau khi giải mã.
-- **Biểu Đồ Thống Kê Học Lực (PTIT JFreeChart)**: Trực quan hóa tỷ lệ phần trăm phân bổ xếp loại học lực toàn trường.
-- **Nhật Ký Live UDP Traffic (Real-time Logs)**: Theo dõi từng gói tin UDP gửi/nhận theo thời gian thực (`PING`, `CONNECT_DB`, `ADD_STUDENT`, `SEARCH`, `DELETE`...).
+- **Giao Thức Mạng Tin Cậy RUDP 2.0 (`UDPPacket.java`)**:
+  - Đánh số thứ tự `Sequence Number / ACK Number`, tự động phát lại gói tin khi mất gói (**Stop-and-Wait ARQ** với `Exponential Backoff`).
+  - Bộ nhớ đệm **Idempotent LRU Response Cache** (500 `packetId` UUID) chống thực thi trùng lặp khi mạng rớt gói `ACK`.
+  - Nén tự động **GZIP Compression** cho mọi gói tin `> 512 bytes` và truyền tệp đề cương học phần phân mảnh **RUDP Chunked File Streaming** kèm kiểm tra mã băm toàn vẹn **SHA-256 Checksum**.
+  - Kênh thông báo đẩy hai chiều **Full-Duplex UDP Server-Push** (`PUSH_SUBSCRIBE` / `PUSH_EVENT`) đồng bộ điểm số và thông báo học vụ thời gian thực xuống mọi Client.
+- **Động Cơ Bảo Mật Đa Lớp (`SecurityManager.java`)**:
+  - Chuyển đổi trực tuyến và giải mã chéo giữa **DES (56-bit)** và **AES-256-GCM (PBKDF2WithHmacSHA256)**.
+  - Chữ ký số toàn vẹn gói tin **HMAC-SHA256** và cửa sổ chống tấn công phát lại **Anti-Replay Attack ($\pm 5$ phút)**.
+  - **Xoay Khóa & Tái Mã Hóa Toàn Bộ CSDL Trực Tuyến (`Live Key Rotation`)**: Chuyển đổi toàn bộ 251 bản ghi sinh viên trong CSDL giữa `DES <-> AES-256-GCM` trong một giao dịch ACID.
+  - **Sao Lưu & Khôi Phục Snapshot CSDL Xác Thực Chữ Ký `HMAC-SHA256`**: Tự động phát hiện và từ chối khôi phục nếu tệp `.json` sao lưu bị kẻ gian chỉnh sửa trái phép.
+- **Phòng Thí Nghiệm Mạng (`Network Chaos Simulator`) & Đo Kiểm Chịu Tải (`RUDP Stress Benchmark`)**:
+  - Giả lập tỷ lệ rớt gói UDP (`0% - 60%`) và độ trễ mạng (`0ms - 300ms`) trực tiếp trên giao diện.
+  - Công cụ **Đo kiểm chịu tải đa luồng (`50 gói RUDP song song / 5 luồng`)** đo thông lượng `Packets/sec`, `Avg/Max RTT (ms)` và số lần phát lại `ARQ`.
+- **Hội Đồng Xét Duyệt Phúc Khảo Hai Chiều & Cổng Đăng Ký Tín Chỉ Học Kỳ Mới**:
+  - Sinh viên gửi đơn phúc khảo từ Cổng Sinh viên; Giảng viên phê duyệt nâng điểm hoặc từ chối trực tiếp trên bảng Hội đồng Phúc khảo (tự động cập nhật CSDL và đẩy `UDP Server-Push`).
+  - Cổng đăng ký tín chỉ học kỳ mới tự động kiểm tra quy chế: giới hạn tối đa **14 tín chỉ/kỳ** với sinh viên diện Cảnh báo học vụ (`GPA < 2.0`) và **22 tín chỉ/kỳ** với sinh viên bình thường.
+- **Biểu Đồ Kép Thống Kê Học Lực (`JFreeChart Dual Charts`)**: Hiển thị song song **Biểu đồ Tròn tỷ lệ xếp loại học lực** và **Biểu đồ Cột phổ điểm tổng kết học phần thang 10**.
 
 ---
 
@@ -186,7 +214,14 @@ mvn exec:java -Dexec.mainClass="com.qlsv.CaptureAllScreenshots" -Dexec.classpath
 
 ---
 
-## 🏆 Đóng Góp Dự Án
-- **Tác giả / Lead Developer**: Phạm Công Thành (phamcongthanhvn2k6)
+## 🏆 Thông Tin Học Phần & Nhóm Thực Hiện
 - **Học viện**: Học viện Công nghệ Bưu chính Viễn thông (PTIT)
-- **Môn học**: Lập Trình Mạng - Đề tài 12 Kết thúc môn
+- **Môn học**: Lập Trình Mạng — Đồ án Kết thúc học phần
+- **Nhóm thực hiện**: **Nhóm 2** (`D24TXCN01-N` / `D24TXCNPM01-N`)
+- **Nhóm trưởng (Team Leader & Core Architect)**: **Phạm Công Thành (`N24DTCN079`)** — `n24dtcn079@student.ptithcm.edu.vn`
+- **Các thành viên**:
+  - **Hồ Quốc Khải (`N24DTCN042`)** — `n24dtcn042@student.ptithcm.edu.vn`
+  - **Dương Trung Dũng (`N24DTCN017`)** — `n24dtcn017@student.ptithcm.edu.vn`
+  - **Cao Thành Long (`N24DTCN050`)** — `n24dtcn050@student.ptithcm.edu.vn`
+  - **Nguyễn Duy Quang Nhật (`N24DTCN119`)** — `n24dtcn119@student.ptithcm.edu.vn`
+  - **Nguyễn Quang Hoàng (`N24DTCN032`)** — `n24dtcn032@student.ptithcm.edu.vn`
