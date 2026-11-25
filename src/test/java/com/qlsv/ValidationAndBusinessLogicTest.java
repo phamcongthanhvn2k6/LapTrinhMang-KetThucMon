@@ -102,6 +102,30 @@ public class ValidationAndBusinessLogicTest {
         regPkt.toBytes();
         assertTrue(regPkt.verifyIntegrity(), "Gói tin REGISTER_CREDITS phải được ký HMAC-SHA256 hợp lệ");
 
+        // 7. Test Strict 8-Byte DES Key Validation & Wrong-Key BadPaddingException Safe Recovery (from ptit-ltm/student-udp-des)
+        com.qlsv.security.DESEncryption.validateStrictEightByteKey("PTIT2026");
+        boolean caughtShortKey = false;
+        try {
+            com.qlsv.security.DESEncryption.validateStrictEightByteKey("SHORT");
+        } catch (IllegalArgumentException e) {
+            caughtShortKey = true;
+        }
+        assertTrue(caughtShortKey, "Khóa DES không đủ 8 bytes phải báo lỗi rõ ràng");
+
+        String desCipher = com.qlsv.security.DESEncryption.encrypt("Nguyễn Văn An", "PTIT2026");
+        boolean caughtWrongKey = false;
+        try {
+            String wrongDec = com.qlsv.security.DESEncryption.decrypt(desCipher, "WRONG999");
+            if (!"Nguyễn Văn An".equals(wrongDec)) {
+                caughtWrongKey = true;
+            }
+        } catch (javax.crypto.BadPaddingException | javax.crypto.IllegalBlockSizeException ex) {
+            caughtWrongKey = true;
+        }
+        assertTrue(caughtWrongKey, "Giải mã DES với khóa sai (WRONG999) phải bắt được BadPaddingException hoặc khác bản rõ mà không sập hệ thống");
+        assertTrue("Nguyễn Văn An".equals(com.qlsv.security.DESEncryption.decrypt(desCipher, "PTIT2026")),
+                "Khôi phục lại đúng khóa DES (PTIT2026) phải giải mã chính xác bản rõ ban đầu");
+
         System.out.println("✔ TẤT CẢ CÁC BÀI KIỂM THỬ VALIDATE, BẢO MẬT & LOGIC TÍN CHỈ ĐỀU ĐẠT 100%!");
     }
 }

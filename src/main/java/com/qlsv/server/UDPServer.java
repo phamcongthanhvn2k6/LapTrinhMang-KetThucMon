@@ -472,6 +472,16 @@ public class UDPServer {
 
                                 StudentResult result = DatabaseManager.getInstance().saveStudentEncryptedAndCalculateResult(student);
 
+                                try {
+                                    String k = DatabaseManager.getInstance().getDesKey();
+                                    String encName = com.qlsv.security.SecurityManager.encrypt(result.getFullName(), k);
+                                    String encCC = com.qlsv.security.SecurityManager.encrypt(String.valueOf(result.getScoreCC()), k);
+                                    String encGK = com.qlsv.security.SecurityManager.encrypt(String.valueOf(result.getScoreGK()), k);
+                                    String encCK = com.qlsv.security.SecurityManager.encrypt(String.valueOf(result.getScoreCK()), k);
+                                    log(String.format("[CIPHERTEXT BASE64 LƯU DB] ma_sv=%s | ho_ten=%s | cc=%s | gk=%s | ck=%s",
+                                            result.getStudentId(), encName, encCC, encGK, encCK));
+                                } catch (Exception ignored) {}
+
                                 String auditDetail;
                                 if (oldRecord != null) {
                                     auditDetail = String.format("Sửa điểm %s (%s): ĐTB %.2f -> %.2f [CC: %.1f->%.1f, GK: %.1f->%.1f, CK: %.1f->%.1f | %s]",

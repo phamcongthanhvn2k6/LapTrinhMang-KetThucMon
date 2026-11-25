@@ -11,6 +11,22 @@ public class DESEncryption {
 
     // Default 8-byte (64-bit) key for DES algorithm
     public static final String DEFAULT_KEY = "QLSV_KEY";
+    public static final int DES_KEY_LENGTH_BYTES = 8;
+
+    /**
+     * Kiểm tra khóa DES nhập từ giao diện phải đúng 8 bytes UTF-8 (8 ký tự ASCII) theo chuẩn DES 64-bit.
+     */
+    public static void validateStrictEightByteKey(String rawKey) throws IllegalArgumentException {
+        if (rawKey == null || rawKey.isEmpty()) {
+            throw new IllegalArgumentException("Khóa DES chưa được nhập (yêu cầu đúng 8 ký tự / 8 bytes UTF-8).");
+        }
+        byte[] keyBytes = rawKey.getBytes(StandardCharsets.UTF_8);
+        if (keyBytes.length != DES_KEY_LENGTH_BYTES) {
+            throw new IllegalArgumentException(
+                    "Khóa DES phải đúng 8 bytes UTF-8 (8 ký tự ASCII). Độ dài hiện tại: " + keyBytes.length + " bytes."
+            );
+        }
+    }
 
     /**
      * Encrypts plain text using DES algorithm with specified 8-byte key.
@@ -48,9 +64,15 @@ public class DESEncryption {
         Cipher cipher = Cipher.getInstance("DES/ECB/PKCS5Padding");
         cipher.init(Cipher.DECRYPT_MODE, secretKey);
 
-        byte[] decodedBytes = Base64.getDecoder().decode(cipherText);
-        byte[] decryptedBytes = cipher.doFinal(decodedBytes);
-        return new String(decryptedBytes, StandardCharsets.UTF_8);
+        byte[] decodedBytes = Base64.getDecoder().decode(cipherText.trim());
+        try {
+            byte[] decryptedBytes = cipher.doFinal(decodedBytes);
+            return new String(decryptedBytes, StandardCharsets.UTF_8);
+        } catch (javax.crypto.BadPaddingException ex) {
+            throw new javax.crypto.BadPaddingException("Giải mã DES thất bại (BadPaddingException): Khóa DES không đúng hoặc dữ liệu bị thay đổi.");
+        } catch (javax.crypto.IllegalBlockSizeException ex) {
+            throw new javax.crypto.IllegalBlockSizeException("Giải mã DES thất bại (IllegalBlockSizeException): Kích thước khối dữ liệu không hợp lệ.");
+        }
     }
 
     /**

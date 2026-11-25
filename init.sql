@@ -1,0 +1,26 @@
+CREATE DATABASE IF NOT EXISTS student_db
+    CHARACTER SET utf8mb4
+    COLLATE utf8mb4_unicode_ci;
+
+USE student_db;
+
+CREATE TABLE IF NOT EXISTS SinhVien (
+    MaSV VARCHAR(50) PRIMARY KEY,
+    HoTenEncrypted VARCHAR(255) NOT NULL,
+    DiemToanEncrypted VARCHAR(255),
+    DiemVanEncrypted VARCHAR(255),
+    DiemAnhEncrypted VARCHAR(255),
+    DiemTB DOUBLE NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS BangDiem (
+    Id INT AUTO_INCREMENT PRIMARY KEY,
+    MaSV VARCHAR(50) NOT NULL,
+    MaHP VARCHAR(20) NOT NULL,
+    TenHP VARCHAR(150) NOT NULL,
+    SoTinChi INT NOT NULL,
+    DiemCC DOUBLE NOT NULL,
+    DiemGK DOUBLE NOT NULL,
+    DiemCK DOUBLE NOT NULL,
+    UNIQUE KEY uq_masv_mahp (MaSV, MaHP)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

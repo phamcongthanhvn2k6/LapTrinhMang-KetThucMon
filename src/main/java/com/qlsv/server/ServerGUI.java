@@ -44,6 +44,8 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
     private JLabel lblChaosTelemetry;
     private JButton btnLockGradebook;
     private JPanel chartPanelContainer;
+    private JTextField txtInlineDesKey;
+    private JLabel lblCryptoVerifyStatus;
 
     private SimpleDateFormat dateFormat = new SimpleDateFormat("HH:mm:ss");
 
@@ -175,12 +177,40 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
         btnRestoreSnapshot.addActionListener(e -> handleRestoreSnapshot());
         tableActionBar.add(btnRestoreSnapshot);
 
+        tableActionBar.add(Box.createHorizontalStrut(6));
+        JLabel lblKeyPrompt = new JLabel("Khóa DES (8 ký tự):");
+        lblKeyPrompt.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        tableActionBar.add(lblKeyPrompt);
+
+        txtInlineDesKey = new JTextField(DatabaseManager.getInstance().getDesKey(), 8);
+        txtInlineDesKey.setFont(new Font("Consolas", Font.BOLD, 13));
+        txtInlineDesKey.setToolTipText("Nhập đúng 8 ký tự (ví dụ QLSV_KEY để giải mã đúng, hoặc WRONGKEY để demo bắt lỗi BadPaddingException)");
+        tableActionBar.add(txtInlineDesKey);
+
+        JButton btnApplyDesKey = new JButton("Áp Dụng Khóa & Giải Mã");
+        btnApplyDesKey.setBackground(new Color(0, 123, 255));
+        btnApplyDesKey.setForeground(Color.WHITE);
+        btnApplyDesKey.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnApplyDesKey.setFocusPainted(false);
+        btnApplyDesKey.addActionListener(e -> handleApplyInlineDesKey());
+        tableActionBar.add(btnApplyDesKey);
+
         lblDbStatus = new JLabel("Trạng thái CSDL: Chưa kết nối");
         lblDbStatus.setFont(new Font("Segoe UI", Font.ITALIC, 11));
-        tableActionBar.add(Box.createHorizontalStrut(8));
+        tableActionBar.add(Box.createHorizontalStrut(6));
         tableActionBar.add(lblDbStatus);
 
-        tabData.add(tableActionBar, BorderLayout.NORTH);
+        lblCryptoVerifyStatus = new JLabel("● Khóa giải mã hiện tại: QLSV_KEY (8 bytes hợp lệ)");
+        lblCryptoVerifyStatus.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        lblCryptoVerifyStatus.setForeground(new Color(40, 167, 69));
+        lblCryptoVerifyStatus.setBorder(BorderFactory.createEmptyBorder(2, 6, 4, 6));
+
+        JPanel topInspectionContainer = new JPanel(new BorderLayout(2, 2));
+        topInspectionContainer.setBackground(Color.WHITE);
+        topInspectionContainer.add(tableActionBar, BorderLayout.NORTH);
+        topInspectionContainer.add(lblCryptoVerifyStatus, BorderLayout.SOUTH);
+
+        tabData.add(topInspectionContainer, BorderLayout.NORTH);
         tabData.add(scrollTable, BorderLayout.CENTER);
 
         // Tab 2: Chart
@@ -718,6 +748,90 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
             lblDbStatus.setText("Trạng thái CSDL: CHƯA KẾT NỐI");
             lblDbStatus.setForeground(PTIT_RED);
         }
+    }
+
+    private void handleApplyInlineDesKey() {
+        String keyInput = txtInlineDesKey != null ? txtInlineDesKey.getText() : "";
+        try {
+            com.qlsv.security.DESEncryption.validateStrictEightByteKey(keyInput);
+        } catch (IllegalArgumentException ex) {
+            if (lblCryptoVerifyStatus != null) {
+                lblCryptoVerifyStatus.setForeground(PTIT_RED);
+                lblCryptoVerifyStatus.setText("● LỖI KHÓA DES: " + ex.getMessage());
+            }
+            onLog("[LỖI KHÓA DES] " + ex.getMessage());
+            JOptionPane.showMessageDialog(this, ex.getMessage(), "Khóa DES Không Hợp Lệ (Yêu Cầu Đúng 8 Bytes)", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        DatabaseManager.getInstance().setDesKey(keyInput);
+        onLog("[ÁP DỤNG KHÓA DES] Đã cập nhật khóa giải mã runtime (8 bytes): '" + keyInput + "'. Đang đọc và giải mã lại CSDL...");
+
+        new SwingWorker<List<DatabaseManager.EncryptedRecord>, Void>() {
+            private int failCount = 0;
+            private String firstErrorMsg = null;
+
+            @Override
+            protected List<DatabaseManager.EncryptedRecord> doInBackground() throws Exception {
+                List<DatabaseManager.EncryptedRecord> list = DatabaseManager.getInstance().getAllRecordsForInspection();
+                for (DatabaseManager.EncryptedRecord rec : list) {
+                    try {
+                        // Kiểm thử giải mã nghiêm ngặt bằng khóa DES vừa nhập để bắt BadPaddingException khi sai khóa
+                        if (rec.hoTenEncrypted != null && !rec.hoTenEncrypted.startsWith("GCM:")) {
+                            rec.hoTenDecrypted = com.qlsv.security.DESEncryption.decrypt(rec.hoTenEncrypted, keyInput);
+                        } else {
+                            rec.hoTenDecrypted = SecurityManager.decrypt(rec.hoTenEncrypted, keyInput);
+                        }
+                    } catch (Exception ex) {
+                        failCount++;
+                        if (firstErrorMsg == null) {
+                            firstErrorMsg = ex.getMessage();
+                        }
+                        rec.hoTenDecrypted = "[Giải mã thất bại: Sai khóa DES]";
+                    }
+                }
+                return list;
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    List<DatabaseManager.EncryptedRecord> list = get();
+                    tableModel.setRowCount(0);
+                    for (DatabaseManager.EncryptedRecord rec : list) {
+                        tableModel.addRow(new Object[]{
+                                rec.maSV,
+                                rec.hoTenEncrypted,
+                                rec.diemToanEncrypted,
+                                rec.diemVanEncrypted,
+                                rec.diemAnhEncrypted,
+                                rec.hoTenDecrypted,
+                                String.format("%.2f", rec.diemTB)
+                        });
+                    }
+                    if (failCount > 0) {
+                        String err = "Giải mã DES thất bại trên " + failCount + " bản ghi (" + firstErrorMsg + "). Khóa '" + keyInput + "' không khớp với dữ liệu!";
+                        if (lblCryptoVerifyStatus != null) {
+                            lblCryptoVerifyStatus.setForeground(PTIT_RED);
+                            lblCryptoVerifyStatus.setText("● CẢNH BÁO SAI KHÓA: " + err);
+                        }
+                        onLog("[LỖI GIẢI MÃ DES] " + err);
+                        JOptionPane.showMessageDialog(ServerGUI.this,
+                                err + "\n\n(Hệ thống đã bắt ngoại lệ BadPaddingException an toàn, không gây sập Server. Hãy nhập lại khóa đúng 'QLSV_KEY' để khôi phục!)",
+                                "Phát Hiện Sai Khóa Giải Mã DES (BadPaddingException)", JOptionPane.WARNING_MESSAGE);
+                    } else {
+                        String okMsg = "Đã áp dụng khóa DES '" + keyInput + "' (8 bytes) & giải mã thành công " + list.size() + " sinh viên.";
+                        if (lblCryptoVerifyStatus != null) {
+                            lblCryptoVerifyStatus.setForeground(new Color(40, 167, 69));
+                            lblCryptoVerifyStatus.setText("● " + okMsg);
+                        }
+                        onLog("[GIẢI MÃ DES THÀNH CÔNG] " + okMsg);
+                    }
+                } catch (Exception ex) {
+                    onLog("Lỗi đọc dữ liệu: " + ex.getMessage());
+                }
+            }
+        }.execute();
     }
 
     private void handleLiveKeyRotation() {
