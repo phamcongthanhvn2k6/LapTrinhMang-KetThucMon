@@ -187,5 +187,26 @@ public class AccountDAO {
 
         return null;
     }
+
+    public java.util.List<String[]> getAllAccountsForInspection() {
+        java.util.List<String[]> list = new java.util.ArrayList<>();
+        String sql = "SELECT TenDangNhap, VaiTro, MaSV, HoTen, Email, Salt, MatKhauHash FROM TaiKhoan ORDER BY TenDangNhap ASC";
+        try (Connection conn = ConnectionPool.getConnection();
+             Statement st = conn.createStatement();
+             ResultSet rs = st.executeQuery(sql)) {
+            while (rs.next()) {
+                list.add(new String[]{
+                        rs.getString("TenDangNhap"),
+                        rs.getString("VaiTro"),
+                        rs.getString("MaSV") != null ? rs.getString("MaSV") : "---",
+                        rs.getString("HoTen") != null ? rs.getString("HoTen") : "---",
+                        rs.getString("Email") != null ? rs.getString("Email") : "---",
+                        rs.getString("Salt"),
+                        rs.getString("MatKhauHash")
+                });
+            }
+        } catch (Exception ignored) {}
+        return list;
+    }
 }
 

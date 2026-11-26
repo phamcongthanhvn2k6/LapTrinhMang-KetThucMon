@@ -152,6 +152,13 @@ public class DatabaseManager {
         return accountDAO.changePassword(username, oldPassword, newPassword);
     }
 
+    public List<String[]> getAllAccountsForInspection() {
+        if (!isConnected()) {
+            return List.of();
+        }
+        return accountDAO.getAllAccountsForInspection();
+    }
+
     public void logAudit(String username, String action, String details, String ip) {
         auditDAO.logAudit(username, action, details, ip);
     }

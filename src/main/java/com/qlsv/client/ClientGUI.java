@@ -439,6 +439,13 @@ public class ClientGUI extends JFrame {
         btnManageAppeals.setToolTipText("Hội đồng Giảng viên xem xét & phê duyệt đơn phúc khảo điểm 2 chiều");
         btnManageAppeals.addActionListener(e -> openTeacherAppealsDialog());
 
+        JButton btnUploadMaterial = new JButton("Cập Nhật Đề Cương");
+        btnUploadMaterial.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        btnUploadMaterial.setBackground(new Color(32, 201, 151));
+        btnUploadMaterial.setForeground(Color.WHITE);
+        btnUploadMaterial.setToolTipText("Giảng viên soạn thảo & phát hành đề cương ôn tập học phần lên Server RUDP");
+        btnUploadMaterial.addActionListener(e -> openUploadCourseMaterialDialog());
+
         toolRow1.add(new JLabel("Từ khóa:"));
         toolRow1.add(txtSearchQuery);
         toolRow1.add(btnSearch);
@@ -450,6 +457,7 @@ public class ClientGUI extends JFrame {
 
         toolRow2.add(btnViewTranscript);
         toolRow2.add(btnManageAppeals);
+        toolRow2.add(btnUploadMaterial);
         toolRow2.add(btnScholarship);
         toolRow2.add(btnGpaSimulator);
         toolRow2.add(btnDeleteSelected);
@@ -1747,9 +1755,9 @@ public class ClientGUI extends JFrame {
             }
 
             JFileChooser chooser = new JFileChooser();
-            chooser.setDialogTitle("Lưu Báo Cáo Danh Sách Sinh Viên");
+            chooser.setDialogTitle("Lưu Báo Cáo Danh Sách Sinh Viên (Toàn Bộ Hệ Thống)");
             chooser.setFileFilter(new FileNameExtensionFilter("Excel Workbook (*.xlsx)", "xlsx"));
-            chooser.setSelectedFile(new File("BaoCao_DanhSach_SinhVien.xlsx"));
+            chooser.setSelectedFile(new File("BaoCao_DanhSach_SinhVien_PTIT.xlsx"));
 
             int userSelection = chooser.showSaveDialog(this);
             if (userSelection == JFileChooser.APPROVE_OPTION) {
@@ -1758,9 +1766,15 @@ public class ClientGUI extends JFrame {
                     fileToSave = new File(fileToSave.getAbsolutePath() + ".xlsx");
                 }
 
-                ExcelExporter.exportStudentsToExcel(currentStudentList, fileToSave);
+                List<StudentResult> exportList = currentStudentList;
+                try {
+                    String q = txtSearchQuery != null ? txtSearchQuery.getText().trim() : "";
+                    exportList = q.isEmpty() ? client.getAllStudents() : client.searchStudents(q);
+                } catch (Exception ignored) {}
+
+                ExcelExporter.exportStudentsToExcel(exportList, fileToSave);
                 JOptionPane.showMessageDialog(this,
-                        "Xuất Báo Cáo THÀNH CÔNG!\nĐã lưu tại: " + fileToSave.getAbsolutePath(),
+                        "Xuất Báo Cáo THÀNH CÔNG (" + exportList.size() + " sinh viên)!\nĐã lưu tại: " + fileToSave.getAbsolutePath(),
                         "Thông Báo", JOptionPane.INFORMATION_MESSAGE);
             }
         } catch (Exception ex) {
@@ -1907,11 +1921,29 @@ public class ClientGUI extends JFrame {
                 btnBar.add(btnEditCourse);
             }
 
-            JButton btnPrint = new JButton("In / Xuất Báo Cáo Phiếu Điểm");
+            JButton btnPrint = new JButton("Xuất Phiếu Báo Điểm (.xlsx)");
             btnPrint.setBackground(new Color(40, 167, 69));
             btnPrint.setForeground(Color.WHITE);
             btnPrint.setFont(new Font("Segoe UI", Font.BOLD, 12));
-            btnPrint.addActionListener(e -> JOptionPane.showMessageDialog(dialog, "Đã gửi lệnh in phiếu điểm sinh viên " + hoTen + " (" + maSv + ")!", "Thông Báo", JOptionPane.INFORMATION_MESSAGE));
+            btnPrint.addActionListener(e -> {
+                JFileChooser chooser = new JFileChooser();
+                chooser.setDialogTitle("Lưu Phiếu Báo Điểm Tín Chỉ (.xlsx)");
+                chooser.setSelectedFile(new File("PhieuDiem_" + transcript.getStudentId() + "_PTIT.xlsx"));
+                if (chooser.showSaveDialog(dialog) == JFileChooser.APPROVE_OPTION) {
+                    try {
+                        File file = chooser.getSelectedFile();
+                        if (!file.getAbsolutePath().endsWith(".xlsx")) {
+                            file = new File(file.getAbsolutePath() + ".xlsx");
+                        }
+                        ExcelExporter.exportTranscriptToExcel(transcript, file);
+                        JOptionPane.showMessageDialog(dialog,
+                                "Đã xuất phiếu báo điểm tín chỉ của " + hoTen + " (" + maSv + ") tại:\n" + file.getAbsolutePath(),
+                                "Xuất Báo Cáo Thành Công", JOptionPane.INFORMATION_MESSAGE);
+                    } catch (Exception ex) {
+                        JOptionPane.showMessageDialog(dialog, "Lỗi xuất phiếu điểm: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+                    }
+                }
+            });
 
             JButton btnClose = new JButton("Đóng");
             btnClose.setFont(new Font("Segoe UI", Font.PLAIN, 12));
@@ -2515,6 +2547,85 @@ public class ClientGUI extends JFrame {
         JButton btnClose = new JButton("Đóng");
         btnClose.addActionListener(e -> dlg.dispose());
         south.add(btnSubmit);
+        south.add(btnClose);
+        dlg.add(south, BorderLayout.SOUTH);
+
+        dlg.setVisible(true);
+    }
+
+    private void openUploadCourseMaterialDialog() {
+        if (client == null) {
+            JOptionPane.showMessageDialog(this, "Chưa kết nối máy chủ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        if (currentRole == UserRole.STUDENT) {
+            JOptionPane.showMessageDialog(this, "Chỉ Giảng viên hoặc Quản trị viên mới có quyền cập nhật Đề cương học phần!", "Từ Chối Truy Cập", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        JDialog dlg = new JDialog(this, "CẬP NHẬT & PHÁT HÀNH ĐỀ CƯƠNG ÔN TẬP HỌC PHẦN QUA RUDP", true);
+        dlg.setSize(720, 500);
+        dlg.setLocationRelativeTo(this);
+        dlg.setLayout(new BorderLayout(10, 10));
+
+        JPanel top = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 8));
+        top.setBackground(Color.WHITE);
+        top.add(new JLabel("Chọn Học Phần Cập Nhật Đề Cương:"));
+        JComboBox<String> cbCourse = new JComboBox<>(new String[]{
+                "INT1339 - Lập Trình Mạng",
+                "INT1340 - Mã Hóa & An Toàn Thông Tin",
+                "INT1310 - Cơ Sở Dữ Liệu SQL",
+                "INT1306 - Cấu Trúc Dữ Liệu & Giải Thuật",
+                "INT1332 - Kiến Trúc Máy Tính"
+        });
+        cbCourse.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        top.add(cbCourse);
+
+        JTextArea txtEditor = new JTextArea();
+        txtEditor.setFont(new Font("Consolas", Font.PLAIN, 13));
+        txtEditor.setBorder(BorderFactory.createEmptyBorder(10, 12, 10, 12));
+
+        Runnable loadCurrentSyllabus = () -> {
+            String item = (String) cbCourse.getSelectedItem();
+            String code = item != null ? item.split(" - ")[0].trim() : "INT1339";
+            try {
+                txtEditor.setText(client.downloadCourseMaterialChunked(code, null));
+                txtEditor.setCaretPosition(0);
+            } catch (Exception ex) {
+                txtEditor.setText("Đề cương học phần " + code + ":\n- Nội dung ôn tập trọng tâm...");
+            }
+        };
+        loadCurrentSyllabus.run();
+        cbCourse.addActionListener(e -> loadCurrentSyllabus.run());
+
+        dlg.add(top, BorderLayout.NORTH);
+        dlg.add(new JScrollPane(txtEditor), BorderLayout.CENTER);
+
+        JPanel south = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 8));
+        JButton btnPublish = new JButton("Phát Hành Đề Cương Lên Server (Ký SHA-256 & UDP Push)");
+        btnPublish.setBackground(PTIT_RED);
+        btnPublish.setForeground(Color.WHITE);
+        btnPublish.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnPublish.addActionListener(e -> {
+            String item = (String) cbCourse.getSelectedItem();
+            String code = item != null ? item.split(" - ")[0].trim() : "INT1339";
+            String content = txtEditor.getText().trim();
+            if (content.isEmpty()) {
+                JOptionPane.showMessageDialog(dlg, "Nội dung đề cương không được để trống!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            try {
+                String msg = client.uploadCourseMaterial(code, content);
+                JOptionPane.showMessageDialog(dlg, msg + "\nSinh viên có thể tải ngay đề cương mới qua luồng RUDP Chunked Stream!",
+                        "Phát Hành Đề Cương Thành Công", JOptionPane.INFORMATION_MESSAGE);
+                dlg.dispose();
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(dlg, "Lỗi cập nhật đề cương: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+        JButton btnClose = new JButton("Đóng");
+        btnClose.addActionListener(e -> dlg.dispose());
+        south.add(btnPublish);
         south.add(btnClose);
         dlg.add(south, BorderLayout.SOUTH);
 

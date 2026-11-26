@@ -183,6 +183,14 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
         btnRestoreSnapshot.addActionListener(e -> handleRestoreSnapshot());
         actionRow1.add(btnRestoreSnapshot);
 
+        JButton btnInspectAccounts = new JButton("Bảng Tài Khoản (SHA-256 + Salt)");
+        btnInspectAccounts.setBackground(new Color(23, 162, 184));
+        btnInspectAccounts.setForeground(Color.WHITE);
+        btnInspectAccounts.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnInspectAccounts.setFocusPainted(false);
+        btnInspectAccounts.addActionListener(e -> openAccountsInspectionDialog());
+        actionRow1.add(btnInspectAccounts);
+
         JLabel lblKeyPrompt = new JLabel("Khóa DES (8 ký tự):");
         lblKeyPrompt.setFont(new Font("Segoe UI", Font.BOLD, 12));
         actionRow2.add(lblKeyPrompt);
@@ -906,6 +914,60 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
             lblDbStatus.setText("Trạng thái CSDL: CHƯA KẾT NỐI");
             lblDbStatus.setForeground(PTIT_RED);
         }
+    }
+
+    private void openAccountsInspectionDialog() {
+        JDialog dlg = new JDialog(this, "GIÁM SÁT BẢNG TÀI KHOẢN & MẬT KHẨU BĂM MỘT CHIỀU (SHA-256 + 16-BYTE RANDOM SALT)", true);
+        dlg.setSize(940, 480);
+        dlg.setLocationRelativeTo(this);
+        dlg.setLayout(new BorderLayout(8, 8));
+
+        JPanel head = new JPanel(new GridLayout(2, 1));
+        head.setBackground(PTIT_RED);
+        head.setBorder(BorderFactory.createEmptyBorder(10, 16, 10, 16));
+        JLabel lblT = new JLabel("BẢNG TÀI KHOẢN NGƯỜI DÙNG TRONG CSDL SQL (TAIKHOAN TABLE)");
+        lblT.setFont(new Font("Segoe UI", Font.BOLD, 15));
+        lblT.setForeground(Color.WHITE);
+        JLabel lblS = new JLabel("Mọi mật khẩu đăng ký đều được cộng chuỗi Salt ngẫu nhiên 16 bytes và băm SHA-256 một chiều (Không lưu mật khẩu rõ)");
+        lblS.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        lblS.setForeground(new Color(255, 230, 230));
+        head.add(lblT);
+        head.add(lblS);
+        dlg.add(head, BorderLayout.NORTH);
+
+        String[] cols = {"Tên Đăng Nhập", "Vai Trò (RBAC)", "Mã SV", "Họ và Tên", "Email", "Chuỗi Salt (Base64)", "Bản Băm Mật Khẩu (SHA-256 Hash)"};
+        DefaultTableModel model = new DefaultTableModel(cols, 0) {
+            @Override
+            public boolean isCellEditable(int r, int c) {
+                return false;
+            }
+        };
+        JTable tbl = new JTable(model);
+        tbl.setRowHeight(27);
+        tbl.setFont(new Font("Consolas", Font.PLAIN, 12));
+        tbl.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
+
+        Runnable reload = () -> {
+            model.setRowCount(0);
+            List<String[]> rows = DatabaseManager.getInstance().getAllAccountsForInspection();
+            for (String[] r : rows) {
+                model.addRow(r);
+            }
+        };
+        reload.run();
+
+        dlg.add(new JScrollPane(tbl), BorderLayout.CENTER);
+
+        JPanel south = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 8));
+        JButton btnReload = new JButton("Làm Mới Danh Sách Tài Khoản");
+        btnReload.addActionListener(e -> reload.run());
+        JButton btnClose = new JButton("Đóng");
+        btnClose.addActionListener(e -> dlg.dispose());
+        south.add(btnReload);
+        south.add(btnClose);
+        dlg.add(south, BorderLayout.SOUTH);
+
+        dlg.setVisible(true);
     }
 
     private void handleApplyInlineDesKey() {

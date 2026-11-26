@@ -346,6 +346,15 @@ public class UDPClient implements AutoCloseable {
         throw new Exception(response != null ? response.getMessage() : "Lỗi đăng ký tín chỉ");
     }
 
+    public String uploadCourseMaterial(String courseCode, String content) throws Exception {
+        UDPPacket request = UDPPacket.createUploadCourseMaterial(courseCode, content, sessionToken);
+        UDPPacket response = sendAndReceiveWithRetry(request, MAX_RETRIES);
+        if (response != null && response.isSuccess()) {
+            return response.getMessage();
+        }
+        throw new Exception(response != null ? response.getMessage() : "Lỗi tải lên đề cương học phần");
+    }
+
     public interface ChunkProgressListener {
         void onChunkReceived(int chunkIndex, int totalChunks, String sha256Checksum);
     }

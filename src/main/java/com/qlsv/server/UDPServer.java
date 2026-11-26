@@ -320,11 +320,21 @@ public class UDPServer {
 
             log(String.format("Nhận [Seq#%d | %s | HMAC:OK] từ Client %s:%d", seq, packet.getType(), clientIp, clientPort));
 
-            // 3. Idempotent Deduplication Check (Nếu gói ACK trước bị rơi và Client gửi lại cùng packetId, trả về ngay phản hồi cũ mà không ghi đè CSDL lần 2)
-            if (packet.getPacketId() != null && responseCache.containsKey(packet.getPacketId())) {
+            // 3. Idempotent Deduplication Check (Chỉ cache cho các lệnh ghi/sửa để bảo vệ ACID, không cache các lệnh truy vấn đọc)
+            boolean isMutatingRequest = (packet.getType() == PacketType.ADD_STUDENT ||
+                    packet.getType() == PacketType.UPDATE_STUDENT ||
+                    packet.getType() == PacketType.DELETE_STUDENT ||
+                    packet.getType() == PacketType.UPDATE_COURSE_GRADE ||
+                    packet.getType() == PacketType.SUBMIT_GRADE_APPEAL ||
+                    packet.getType() == PacketType.RESOLVE_GRADE_APPEAL ||
+                    packet.getType() == PacketType.REGISTER_CREDITS ||
+                    packet.getType() == PacketType.REGISTER_ACCOUNT ||
+                    packet.getType() == PacketType.CHANGE_PASSWORD ||
+                    packet.getType() == PacketType.IMPORT_EXCEL);
+            if (isMutatingRequest && packet.getPacketId() != null && responseCache.containsKey(packet.getPacketId())) {
                 UDPPacket cachedResp = responseCache.get(packet.getPacketId());
                 if (cachedResp != null) {
-                    log(String.format("[ARQ IDEMPOTENT CACHE] Phát hiện gói truyền lại #%d [%s] -> Gửi lại phản hồi đã cache, bảo vệ toàn vẹn CSDL.",
+                    log(String.format("[ARQ IDEMPOTENT CACHE] Phát hiện gói ghi truyền lại #%d [%s] -> Gửi lại phản hồi đã cache, bảo vệ toàn vẹn CSDL.",
                             seq, packet.getPacketId().substring(0, 8)));
                     sendPacket(cachedResp, seq, clientAddress, clientPort);
                     return;
@@ -958,7 +968,7 @@ public class UDPServer {
                     break;
             }
 
-            if (packet.getPacketId() != null && responsePacket != null) {
+            if (isMutatingRequest && packet.getPacketId() != null && responsePacket != null) {
                 responseCache.put(packet.getPacketId(), responsePacket);
             }
             sendPacket(responsePacket, seq, clientAddress, clientPort);
