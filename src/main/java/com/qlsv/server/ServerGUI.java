@@ -200,7 +200,7 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
 
         txtInlineDesKey = new JTextField(DatabaseManager.getInstance().getDesKey(), 8);
         txtInlineDesKey.setFont(new Font("Consolas", Font.BOLD, 13));
-        txtInlineDesKey.setToolTipText("Nhập đúng 8 ký tự (ví dụ QLSV_KEY để giải mã đúng, hoặc WRONGKEY để demo bắt lỗi BadPaddingException)");
+        txtInlineDesKey.setToolTipText("Nhập khóa giải mã DES (đúng 8 bytes UTF-8 / 8 ký tự ASCII)");
         actionRow2.add(txtInlineDesKey);
 
         JButton btnApplyDesKey = new JButton("Áp Dụng Khóa & Giải Mã");
@@ -219,7 +219,7 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
         tableActionBar.add(actionRow1);
         tableActionBar.add(actionRow2);
 
-        lblCryptoVerifyStatus = new JLabel("● Khóa giải mã hiện tại: QLSV_KEY (8 bytes hợp lệ)");
+        lblCryptoVerifyStatus = new JLabel("● Trạng thái giải mã: Đã xác thực khóa DES hợp lệ (8 bytes)");
         lblCryptoVerifyStatus.setFont(new Font("Segoe UI", Font.BOLD, 12));
         lblCryptoVerifyStatus.setForeground(new Color(40, 167, 69));
         lblCryptoVerifyStatus.setBorder(BorderFactory.createEmptyBorder(2, 6, 4, 6));
@@ -962,40 +962,24 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
                 BorderFactory.createEmptyBorder(30, 40, 30, 40)
         ));
 
-        JPanel box = new JPanel(new GridLayout(4, 1, 10, 10));
+        JPanel box = new JPanel(new GridLayout(3, 1, 12, 12));
         box.setOpaque(false);
 
-        JLabel lblIconTitle = new JLabel("CẢNH BÁO BẢO MẬT: SAI KHÓA GIẢI MÃ DES — ĐÃ ẨN TOÀN BỘ DANH SÁCH SINH VIÊN!", SwingConstants.CENTER);
+        JLabel lblIconTitle = new JLabel("TRUY CẬP BỊ TỪ CHỐI: SAI KHÓA GIẢI MÃ DES — ĐÃ KHÓA & ẨN TOÀN BỘ DỮ LIỆU!", SwingConstants.CENTER);
         lblIconTitle.setFont(new Font("Segoe UI", Font.BOLD, 17));
         lblIconTitle.setForeground(PTIT_RED);
 
-        lblLockedKeyDetail = new JLabel("Khóa giải mã bạn vừa nhập không khớp với dữ liệu mã hóa trong CSDL (BadPaddingException).", SwingConstants.CENTER);
+        lblLockedKeyDetail = new JLabel("Khóa giải mã không khớp với bản mã trong CSDL (BadPaddingException).", SwingConstants.CENTER);
         lblLockedKeyDetail.setFont(new Font("Segoe UI", Font.BOLD, 13));
         lblLockedKeyDetail.setForeground(new Color(80, 20, 20));
 
-        JLabel lblGuide = new JLabel("Để bảo vệ an toàn dữ liệu và chống rò rỉ thông tin, hệ thống đã đóng băng & ẩn toàn bộ bảng danh sách trên cả Server và Client.", SwingConstants.CENTER);
+        JLabel lblGuide = new JLabel("Hệ thống đã phong tỏa toàn bộ danh sách trên Server và Client. Quản trị viên bắt buộc phải tự nhập đúng Khóa Bí Mật 8 ký tự ở ô phía trên để mở khóa!", SwingConstants.CENTER);
         lblGuide.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         lblGuide.setForeground(new Color(90, 90, 90));
-
-        JPanel btnWrap = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        btnWrap.setOpaque(false);
-        JButton btnQuickRestoreKey = new JButton("Khôi Phục Khóa Chuẩn (QLSV_KEY) & Mở Lại Danh Sách");
-        btnQuickRestoreKey.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        btnQuickRestoreKey.setBackground(new Color(40, 167, 69));
-        btnQuickRestoreKey.setForeground(Color.WHITE);
-        btnQuickRestoreKey.setFocusPainted(false);
-        btnQuickRestoreKey.addActionListener(e -> {
-            if (txtInlineDesKey != null) {
-                txtInlineDesKey.setText("QLSV_KEY");
-            }
-            handleApplyInlineDesKey();
-        });
-        btnWrap.add(btnQuickRestoreKey);
 
         box.add(lblIconTitle);
         box.add(lblLockedKeyDetail);
         box.add(lblGuide);
-        box.add(btnWrap);
 
         lockPanel.add(box);
         return lockPanel;
@@ -1150,9 +1134,9 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
                         JOptionPane.showMessageDialog(ServerGUI.this,
                                 "SAI KHÓA GIẢI MÃ DES ('" + keyInput + "')!\n\n" +
                                 "• Chi tiết kỹ thuật: " + firstErrorMsg + "\n" +
-                                "• Hệ thống đã ẨN HOÀN TOÀN bảng danh sách sinh viên trên cả Server và Client.\n" +
-                                "• Vui lòng nhập lại khóa đúng ('QLSV_KEY') hoặc nhấn nút Khôi phục trên màn hình để mở lại danh sách!",
-                                "Sai Khóa Giải Mã DES — Đã Ẩn Danh Sách", JOptionPane.ERROR_MESSAGE);
+                                "• Hệ thống đã ẨN & PHONG TỎA HOÀN TOÀN bảng danh sách sinh viên trên cả Server và Client.\n" +
+                                "• Yêu cầu nhập đúng Khóa Bí Mật DES (8 bytes) để giải mã dữ liệu!",
+                                "Sai Khóa Giải Mã DES — Truy Cập Bị Từ Chối", JOptionPane.ERROR_MESSAGE);
                     } else {
                         if (dataCardLayout != null && dataCenterContainer != null) {
                             dataCardLayout.show(dataCenterContainer, "TABLE");
