@@ -32,7 +32,7 @@ public class InputValidator {
         if (rawUser == null || rawUser.trim().isEmpty()) {
             throw new IllegalArgumentException("Tên đăng nhập không được để trống!");
         }
-        String clean = rawUser.trim();
+        String clean = rawUser.trim().toLowerCase();
         if (!USERNAME_PATTERN.matcher(clean).matches()) {
             throw new IllegalArgumentException("Tên đăng nhập '" + rawUser + "' không hợp lệ (Chỉ gồm chữ cái không dấu, chữ số, dấu '_', '.', '-', độ dài 3-30 ký tự)!");
         }
