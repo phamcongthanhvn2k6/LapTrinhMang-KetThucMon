@@ -130,13 +130,14 @@ public class TranscriptDAO {
                 ps.executeUpdate();
             }
 
-            // Nếu là học phần chính INT1339 (Lập Trình Mạng), đồng bộ ngược lên bảng SinhVien
+            // Nếu là học phần chính INT1339 (Lập Trình Mạng), đồng bộ ngược lên bảng SinhVien (bảo toàn 10% CC + 20% GK + 70% CK)
             if ("INT1339".equalsIgnoreCase(cleanCourse)) {
+                double weightedMainAvg = StudentResult.calculateWeightedScore(student.getScoreCC(), processScore, examScore);
                 String syncSv = "UPDATE SinhVien SET DiemVanEncrypted = ?, DiemAnhEncrypted = ?, DiemTB = ? WHERE MaSV = ?";
                 try (PreparedStatement ps2 = conn.prepareStatement(syncSv)) {
                     ps2.setString(1, encProc);
                     ps2.setString(2, encExam);
-                    ps2.setDouble(3, updatedCg.getTotalScore());
+                    ps2.setDouble(3, weightedMainAvg);
                     ps2.setString(4, cleanId);
                     ps2.executeUpdate();
                 }

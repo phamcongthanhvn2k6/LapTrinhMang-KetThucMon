@@ -1070,8 +1070,9 @@ public class ClientGUI extends JFrame {
         });
         JTextField tfRegSvId = new JTextField("SV001");
         JTextField tfRegFullName = new JTextField("Phạm Công Thành");
-        JTextField tfRegInvite = new JTextField("PTIT-GV-2025");
-        tfRegInvite.setToolTipText("Mã xác thực dành riêng khi đăng ký tài khoản Giảng viên: PTIT-GV-2025 hoặc ptit123");
+        JPasswordField pfRegInvite = new JPasswordField("");
+        pfRegInvite.setEchoChar('•');
+        pfRegInvite.setToolTipText("Nhập Mã xác thực do Bộ môn / Phòng Đào tạo cấp để đăng ký quyền Giảng viên");
 
         regForm.add(new JLabel("Tên đăng nhập mới (>= 3 ký tự):"));
         regForm.add(tfRegUser);
@@ -1086,7 +1087,7 @@ public class ClientGUI extends JFrame {
         regForm.add(new JLabel("Họ và Tên hiển thị:"));
         regForm.add(tfRegFullName);
         regForm.add(new JLabel("Mã cấp quyền GV (nếu chọn GV):"));
-        regForm.add(tfRegInvite);
+        regForm.add(pfRegInvite);
         tabRegister.add(regForm, BorderLayout.CENTER);
 
         JPanel regBtnBar = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 6));
@@ -1106,7 +1107,7 @@ public class ClientGUI extends JFrame {
             String svId = tfRegSvId.getText().trim().toUpperCase();
             String fName = tfRegFullName.getText().trim();
             String email = u.toLowerCase() + "@student.ptithcm.edu.vn";
-            String invite = tfRegInvite.getText().trim();
+            String invite = new String(pfRegInvite.getPassword()).trim();
             try {
                 UserAccount newAcc = client.registerAccount(u, p1, roleCode, svId, fName, email, invite);
                 applyAuthenticatedUser(newAcc, dlg, "Đăng ký tài khoản mới & lưu CSDL thành công!");

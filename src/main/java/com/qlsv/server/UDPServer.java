@@ -432,7 +432,10 @@ public class UDPServer {
                         UserAccount.Role targetRole = UserAccount.Role.HOCSINH;
                         if ("GIANGVIEN".equalsIgnoreCase(regRoleStr)) {
                             if (!"PTIT-GV-2025".equalsIgnoreCase(inviteCode) && !"ptit123".equalsIgnoreCase(inviteCode)) {
-                                responsePacket = UDPPacket.createError("Mã xác thực Giảng viên không đúng (Gợi ý mã cấp quyền: PTIT-GV-2025 hoặc ptit123)!");
+                                totalSecurityThreatsBlocked.incrementAndGet();
+                                DatabaseManager.getInstance().logAudit(regUser, "REGISTER_GV_REJECTED",
+                                        "Từ chối đăng ký quyền Giảng viên do nhập sai Mã cấp quyền Bộ môn", clientIp);
+                                responsePacket = UDPPacket.createError("BẢO MẬT PHÂN QUYỀN: Mã xác thực cấp quyền Giảng viên không chính xác! Vui lòng liên hệ Phòng Đào tạo.");
                                 break;
                             }
                             targetRole = UserAccount.Role.GIANGVIEN;
@@ -478,6 +481,15 @@ public class UDPServer {
 
                 case CONNECT_DB:
                     try {
+                        String token = packet.getToken();
+                        SessionManager.UserSession session = SessionManager.getInstance().getSession(token);
+                        if (session != null && session.getRole() == UserAccount.Role.HOCSINH) {
+                            totalSecurityThreatsBlocked.incrementAndGet();
+                            DatabaseManager.getInstance().logAudit(session.getUsername(), "RBAC_VIOLATION_DB",
+                                    "Chặn Học sinh thay đổi cấu hình kết nối CSDL", clientIp);
+                            responsePacket = UDPPacket.createDbStatus(false, "BẢO VỆ PHÂN QUYỀN SERVER: Học sinh không có quyền thay đổi cấu hình kết nối Cơ sở dữ liệu!");
+                            break;
+                        }
                         SqlConfig config = gson.fromJson(packet.getPayload(), SqlConfig.class);
                         boolean ok = DatabaseManager.getInstance().connect(config);
                         if (ok) {
@@ -761,6 +773,20 @@ public class UDPServer {
                         String cCode = parts.length > 1 ? parts[1].trim().toUpperCase() : "INT1339";
                         String reason = parts.length > 2 ? parts[2].trim() : "Xin phúc khảo điểm bài thi cuối kỳ";
 
+                        boolean hasPendingAppeal = false;
+                        for (GradeAppeal existing : gradeAppeals) {
+                            if (existing.getStudentId().equalsIgnoreCase(stId)
+                                    && existing.getCourseCode().equalsIgnoreCase(cCode)
+                                    && "CHỜ DUYỆT".equalsIgnoreCase(existing.getStatus())) {
+                                responsePacket = UDPPacket.createError("Sinh viên " + stId + " đã có 1 đơn phúc khảo môn " + cCode + " đang ở trạng thái CHỜ DUYỆT (#" + existing.getAppealId() + ")! Vui lòng chờ Hội đồng xét duyệt.");
+                                hasPendingAppeal = true;
+                                break;
+                            }
+                        }
+                        if (hasPendingAppeal) {
+                            break;
+                        }
+
                         int newAppealId = appealIdCounter.getAndIncrement();
                         String nowStr = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.Date());
                         GradeAppeal appeal = new GradeAppeal(newAppealId, stId, cCode, reason,
@@ -791,7 +817,11 @@ public class UDPServer {
                         String token = packet.getToken();
                         SessionManager.UserSession session = SessionManager.getInstance().getSession(token);
                         if (session != null && session.getRole() == UserAccount.Role.HOCSINH) {
-                            responsePacket = UDPPacket.createError("Học sinh không có quyền xét duyệt đơn phúc khảo!");
+                            totalSecurityThreatsBlocked.incrementAndGet();
+                            responsePacket = UDPPacket.createError("BẢO VỆ PHÂN QUYỀN SERVER: Học sinh không có quyền xét duyệt đơn phúc khảo!");
+                        } else if (SessionManager.getInstance().isGradebookLocked() &&
+                                (session == null || session.getRole() != UserAccount.Role.ADMIN)) {
+                            responsePacket = UDPPacket.createError("[KHÓA SỔ ĐIỂM] Sổ điểm học kỳ đã khóa bởi Phòng Giáo Vụ! Không thể duyệt sửa điểm phúc khảo khi sổ đang khóa.");
                         } else {
                             String[] parts = packet.getPayload().split("\\|", 5);
                             int apId = Integer.parseInt(parts[0].trim());
@@ -884,6 +914,15 @@ public class UDPServer {
 
                 case ROTATE_CRYPTO_KEY:
                     try {
+                        String token = packet.getToken();
+                        SessionManager.UserSession session = SessionManager.getInstance().getSession(token);
+                        if (session != null && session.getRole() == UserAccount.Role.HOCSINH) {
+                            totalSecurityThreatsBlocked.incrementAndGet();
+                            DatabaseManager.getInstance().logAudit(session.getUsername(), "RBAC_VIOLATION_KEY",
+                                    "Chặn Học sinh thực hiện Xoay khóa mật mã CSDL", clientIp);
+                            responsePacket = UDPPacket.createError("BẢO VỆ PHÂN QUYỀN SERVER: Chỉ Quản trị viên mới có quyền Xoay khóa & Tái mã hóa CSDL!");
+                            break;
+                        }
                         String[] parts = packet.getPayload().split("\\|", 2);
                         com.qlsv.security.SecurityManager.EncryptionAlgo newAlgo =
                                 com.qlsv.security.SecurityManager.EncryptionAlgo.valueOf(parts[0].trim());
@@ -937,6 +976,15 @@ public class UDPServer {
 
                 case UPLOAD_COURSE_MATERIAL:
                     try {
+                        String token = packet.getToken();
+                        SessionManager.UserSession session = SessionManager.getInstance().getSession(token);
+                        if (session != null && session.getRole() == UserAccount.Role.HOCSINH) {
+                            totalSecurityThreatsBlocked.incrementAndGet();
+                            DatabaseManager.getInstance().logAudit(session.getUsername(), "RBAC_VIOLATION_UPLOAD",
+                                    "Chặn Học sinh phát hành đề cương học phần trái phép", clientIp);
+                            responsePacket = UDPPacket.createError("BẢO VỆ PHÂN QUYỀN SERVER: Học sinh không có quyền phát hành hoặc sửa đề cương học phần!");
+                            break;
+                        }
                         String[] parts = packet.getPayload().split("\\|", 2);
                         String cCode = parts[0].trim().toUpperCase();
                         String content = parts.length > 1 ? parts[1] : "";

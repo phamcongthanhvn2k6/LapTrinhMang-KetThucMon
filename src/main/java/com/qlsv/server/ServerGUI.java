@@ -44,7 +44,7 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
     private JLabel lblChaosTelemetry;
     private JButton btnLockGradebook;
     private JPanel chartPanelContainer;
-    private JTextField txtInlineDesKey;
+    private JPasswordField txtInlineDesKey;
     private JLabel lblCryptoVerifyStatus;
     private CardLayout dataCardLayout;
     private JPanel dataCenterContainer;
@@ -198,10 +198,17 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
         lblKeyPrompt.setFont(new Font("Segoe UI", Font.BOLD, 12));
         actionRow2.add(lblKeyPrompt);
 
-        txtInlineDesKey = new JTextField(DatabaseManager.getInstance().getDesKey(), 8);
+        txtInlineDesKey = new JPasswordField(DatabaseManager.getInstance().getDesKey(), 8);
         txtInlineDesKey.setFont(new Font("Consolas", Font.BOLD, 13));
+        txtInlineDesKey.setEchoChar('•');
         txtInlineDesKey.setToolTipText("Nhập khóa giải mã DES (đúng 8 bytes UTF-8 / 8 ký tự ASCII)");
         actionRow2.add(txtInlineDesKey);
+
+        JCheckBox chkShowKey = new JCheckBox("Hiện khóa");
+        chkShowKey.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        chkShowKey.setOpaque(false);
+        chkShowKey.addActionListener(e -> txtInlineDesKey.setEchoChar(chkShowKey.isSelected() ? (char) 0 : '•'));
+        actionRow2.add(chkShowKey);
 
         JButton btnApplyDesKey = new JButton("Áp Dụng Khóa & Giải Mã");
         btnApplyDesKey.setBackground(new Color(0, 123, 255));
@@ -353,7 +360,8 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
         JTextField tfPort = new JTextField(String.valueOf(serverPort));
         JComboBox<SecurityManager.EncryptionAlgo> cbAlgo = new JComboBox<>(SecurityManager.EncryptionAlgo.values());
         cbAlgo.setSelectedItem(SecurityManager.getCurrentAlgo());
-        JTextField tfKey = new JTextField(DatabaseManager.getInstance().getDesKey());
+        JPasswordField tfKey = new JPasswordField(DatabaseManager.getInstance().getDesKey());
+        tfKey.setEchoChar('•');
 
         p.add(new JLabel("Cổng kết nối nội bộ:"));
         p.add(tfPort);
@@ -372,8 +380,13 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
             try {
                 this.serverPort = Integer.parseInt(tfPort.getText().trim());
                 SecurityManager.setCurrentAlgo((SecurityManager.EncryptionAlgo) cbAlgo.getSelectedItem());
-                DatabaseManager.getInstance().setDesKey(tfKey.getText().trim());
-                JOptionPane.showMessageDialog(d, "Đã lưu thiết lập tham số thành công!");
+                String newKeyStr = new String(tfKey.getPassword()).trim();
+                com.qlsv.security.DESEncryption.validateStrictEightByteKey(newKeyStr);
+                DatabaseManager.getInstance().setDesKey(newKeyStr);
+                if (txtInlineDesKey != null) {
+                    txtInlineDesKey.setText(newKeyStr);
+                }
+                handleApplyInlineDesKey();
                 d.dispose();
             } catch (Exception ex) {
                 JOptionPane.showMessageDialog(d, "Lỗi nhập tham số: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
@@ -1040,7 +1053,7 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
     }
 
     private void handleApplyInlineDesKey() {
-        String keyInput = txtInlineDesKey != null ? txtInlineDesKey.getText() : "";
+        String keyInput = txtInlineDesKey != null ? new String(txtInlineDesKey.getPassword()) : "";
         try {
             com.qlsv.security.DESEncryption.validateStrictEightByteKey(keyInput);
         } catch (IllegalArgumentException ex) {
@@ -1113,15 +1126,15 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
                     if (failCount > 0) {
                         tableModel.setRowCount(0); // Xóa sạch bảng và ẩn hoàn toàn giao diện danh sách
                         if (lblLockedKeyDetail != null) {
-                            lblLockedKeyDetail.setText("Khóa DES '" + keyInput + "' KHÔNG CHÍNH XÁC (" + firstErrorMsg + ") — Từ chối hiển thị " + failCount + " bản ghi!");
+                            lblLockedKeyDetail.setText("Khóa giải mã DES vừa nhập KHÔNG CHÍNH XÁC (" + firstErrorMsg + ") — Từ chối hiển thị " + failCount + " bản ghi!");
                         }
                         if (dataCardLayout != null && dataCenterContainer != null) {
                             dataCardLayout.show(dataCenterContainer, "LOCKED");
                         }
                         updateChartFromCounts(0, 0, 0, 0, 0);
-                        String err = "SAI KHÓA GIẢI MÃ DES ('" + keyInput + "'): Đã ẩn hoàn toàn giao diện danh sách sinh viên để bảo vệ dữ liệu!";
+                        String err = "SAI KHÓA GIẢI MÃ DES: Đã ẩn & phong tỏa hoàn toàn giao diện danh sách sinh viên để bảo vệ dữ liệu!";
                         DatabaseManager.getInstance().logAudit("admin", "DES_KEY_INVALID",
-                                "Nhập sai khóa giải mã DES ('" + keyInput + "') -> Hệ thống tự động ẩn toàn bộ danh sách 251 bản ghi", "127.0.0.1");
+                                "Nhập sai khóa giải mã DES -> Hệ thống tự động ẩn toàn bộ danh sách 251 bản ghi", "127.0.0.1");
                         refreshAuditLogs();
                         if (lblCryptoVerifyStatus != null) {
                             lblCryptoVerifyStatus.setForeground(PTIT_RED);
@@ -1129,10 +1142,10 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
                         }
                         onLog("[LỖI GIẢI MÃ DES] " + err);
                         if (udpServer != null) {
-                            udpServer.broadcastPushEvent("CRYPTO_ERROR", "CẢNH BÁO BẢO MẬT: Khóa giải mã DES trên Server không hợp lệ ('" + keyInput + "') — Tạm khóa truy xuất bảng điểm!", keyInput);
+                            udpServer.broadcastPushEvent("CRYPTO_ERROR", "CẢNH BÁO BẢO MẬT: Khóa giải mã DES trên Server không hợp lệ — Đã khóa truy xuất bảng điểm!", "LOCKED");
                         }
                         JOptionPane.showMessageDialog(ServerGUI.this,
-                                "SAI KHÓA GIẢI MÃ DES ('" + keyInput + "')!\n\n" +
+                                "SAI KHÓA GIẢI MÃ DES!\n\n" +
                                 "• Chi tiết kỹ thuật: " + firstErrorMsg + "\n" +
                                 "• Hệ thống đã ẨN & PHONG TỎA HOÀN TOÀN bảng danh sách sinh viên trên cả Server và Client.\n" +
                                 "• Yêu cầu nhập đúng Khóa Bí Mật DES (8 bytes) để giải mã dữ liệu!",
@@ -1151,7 +1164,7 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
                                     rankStats.getOrDefault("Yếu", 0)
                             );
                         } catch (Exception ignored) {}
-                        String okMsg = "Đã áp dụng khóa DES '" + keyInput + "' (8 bytes) & giải mã thành công " + list.size() + " sinh viên.";
+                        String okMsg = "Đã xác thực khóa DES (8 bytes) & giải mã thành công " + list.size() + " sinh viên.";
                         DatabaseManager.getInstance().logAudit("admin", "DES_KEY_APPLIED",
                                 okMsg, "127.0.0.1");
                         refreshAuditLogs();
@@ -1161,7 +1174,7 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
                         }
                         onLog("[GIẢI MÃ DES THÀNH CÔNG] " + okMsg);
                         if (udpServer != null) {
-                            udpServer.broadcastPushEvent("CRYPTO_RESTORED", "Đã khôi phục khóa giải mã DES hợp lệ trên Server!", keyInput);
+                            udpServer.broadcastPushEvent("CRYPTO_RESTORED", "Đã xác thực khóa giải mã DES hợp lệ trên Server!", "UNLOCKED");
                         }
                     }
                 } catch (Exception ex) {
