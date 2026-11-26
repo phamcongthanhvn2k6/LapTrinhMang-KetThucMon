@@ -345,7 +345,7 @@ public class UDPServer {
                 }
             }
 
-            UDPPacket responsePacket;
+            UDPPacket responsePacket = null;
 
             switch (packet.getType()) {
                 case PING:
