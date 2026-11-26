@@ -424,6 +424,32 @@ public class StudentDAO {
                     }
                     ps.executeBatch();
                 }
+
+                // Đồng thời xoay khóa và tái mã hóa toàn bộ bảng BangDiem trong cùng giao dịch ACID
+                String selectBdSql = "SELECT Id, DiemQuaTrinhEncrypted, DiemThiEncrypted FROM BangDiem";
+                String updateBdSql = "UPDATE BangDiem SET DiemQuaTrinhEncrypted = ?, DiemThiEncrypted = ? WHERE Id = ?";
+                try (Statement stBd = conn.createStatement();
+                     ResultSet rsBd = stBd.executeQuery(selectBdSql);
+                     PreparedStatement psBd = conn.prepareStatement(updateBdSql)) {
+                    while (rsBd.next()) {
+                        int bdId = rsBd.getInt("Id");
+                        String oldQt = rsBd.getString("DiemQuaTrinhEncrypted");
+                        String oldThi = rsBd.getString("DiemThiEncrypted");
+                        String plainQt = "8.0";
+                        String plainThi = "8.0";
+                        try {
+                            if (oldQt != null) plainQt = SecurityManager.decrypt(oldQt, oldKey);
+                        } catch (Exception ignored) {}
+                        try {
+                            if (oldThi != null) plainThi = SecurityManager.decrypt(oldThi, oldKey);
+                        } catch (Exception ignored) {}
+                        psBd.setString(1, SecurityManager.encrypt(plainQt, newKey));
+                        psBd.setString(2, SecurityManager.encrypt(plainThi, newKey));
+                        psBd.setInt(3, bdId);
+                        psBd.addBatch();
+                    }
+                    psBd.executeBatch();
+                }
                 conn.commit();
             } catch (Exception ex) {
                 conn.rollback();

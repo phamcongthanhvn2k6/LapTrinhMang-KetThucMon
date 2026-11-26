@@ -24,3 +24,4 @@ CREATE TABLE IF NOT EXISTS BangDiem (
     DiemCK DOUBLE NOT NULL,
     UNIQUE KEY uq_masv_mahp (MaSV, MaHP)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+

@@ -659,7 +659,6 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
                 try {
                     List<DatabaseManager.EncryptedRecord> list = get();
                     tableModel.setRowCount(0);
-                    int xs = 0, gioi = 0, kha = 0, tb = 0, yeu = 0;
                     for (DatabaseManager.EncryptedRecord rec : list) {
                         tableModel.addRow(new Object[]{
                                 rec.maSV,
@@ -670,12 +669,13 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
                                 rec.hoTenDecrypted,
                                 String.format("%.2f", rec.diemTB)
                         });
-                        if (rec.diemTB >= 9.0) xs++;
-                        else if (rec.diemTB >= 8.0) gioi++;
-                        else if (rec.diemTB >= 6.5) kha++;
-                        else if (rec.diemTB >= 5.0) tb++;
-                        else yeu++;
                     }
+                    Map<String, Integer> rankStats = DatabaseManager.getInstance().getRankStatistics();
+                    int xs = rankStats.getOrDefault("Xuất sắc", 0);
+                    int gioi = rankStats.getOrDefault("Giỏi", 0);
+                    int kha = rankStats.getOrDefault("Khá", 0);
+                    int tb = rankStats.getOrDefault("Trung bình", 0);
+                    int yeu = rankStats.getOrDefault("Yếu", 0);
                     updateChartFromCounts(xs, gioi, kha, tb, yeu);
                     updateDbStatusLabel();
                     refreshAuditLogs();

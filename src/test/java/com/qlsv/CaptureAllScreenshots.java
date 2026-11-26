@@ -10,8 +10,13 @@ import com.qlsv.security.SecurityManager;
 import com.qlsv.server.ServerGUI;
 import com.qlsv.server.UDPServer;
 import org.jfree.chart.ChartFactory;
+import org.jfree.chart.ChartPanel;
 import org.jfree.chart.JFreeChart;
+import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.chart.plot.PiePlot;
+import org.jfree.chart.plot.PlotOrientation;
+import org.jfree.chart.renderer.category.BarRenderer;
+import org.jfree.data.category.DefaultCategoryDataset;
 import org.jfree.data.general.DefaultPieDataset;
 
 import javax.imageio.ImageIO;
@@ -155,9 +160,9 @@ public class CaptureAllScreenshots {
                         saveFrame(serverGUI, new File("screenshots/06_server_admin_dashboard.png"));
                         System.out.println("✅ Đã chụp: screenshots/06_server_admin_dashboard.png");
 
-                        // 7. Chụp Biểu đồ Thống kê JFreeChart độc lập độ nét cao
+                        // 7. Chụp Biểu đồ Kép Thống kê JFreeChart (Pie + Bar Chart) độ nét cao
                         saveChartScreenshot(new File("screenshots/07_server_jfreechart_stats.png"));
-                        System.out.println("✅ Đã chụp: screenshots/07_server_jfreechart_stats.png");
+                        System.out.println("Đã chụp: screenshots/07_server_jfreechart_stats.png");
 
                         // 8. Chụp Toàn cảnh Hệ thống (System Overview)
                         BufferedImage combined = new BufferedImage(1920, 800, BufferedImage.TYPE_INT_RGB);
@@ -176,9 +181,27 @@ public class CaptureAllScreenshots {
 
                         g.dispose();
                         ImageIO.write(combined, "png", new File("screenshots/08_ptit_full_system_overview.png"));
-                        System.out.println("✅ Đã chụp: screenshots/08_ptit_full_system_overview.png");
+                        System.out.println("Đã chụp: screenshots/08_ptit_full_system_overview.png");
 
-                        System.out.println("🎉 HOÀN TẤT CHỤP TẤT CẢ 8 ẢNH CHUẨN ĐỘ NÉT CAO VÀO THƯ MỤC screenshots/!");
+                        // 9. Chụp Phòng thí nghiệm Mạng RUDP 2.0 (Chaos Simulator & Audit Trail - Tab 2 ServerGUI)
+                        JTabbedPane serverTabs = findTabbedPane(serverGUI);
+                        if (serverTabs != null) {
+                            serverTabs.setSelectedIndex(1);
+                            serverGUI.revalidate();
+                            serverGUI.repaint();
+                        }
+                        saveFrame(serverGUI, new File("screenshots/09_server_chaos_audit_benchmark.png"));
+                        System.out.println("Đã chụp: screenshots/09_server_chaos_audit_benchmark.png");
+
+                        // 10. Chụp Hội đồng Xét duyệt Phúc khảo 2 chiều & Đăng ký Tín chỉ Học kỳ mới
+                        JFrame frameAppealsAndCredits = createAppealsAndCreditsPreviewFrame();
+                        frameAppealsAndCredits.setLocation(180, 140);
+                        frameAppealsAndCredits.setVisible(true);
+                        saveFrame(frameAppealsAndCredits, new File("screenshots/10_appeals_and_credit_registration.png"));
+                        frameAppealsAndCredits.dispose();
+                        System.out.println("Đã chụp: screenshots/10_appeals_and_credit_registration.png");
+
+                        System.out.println("HOÀN TẤT CHỤP TẤT CẢ 10 ẢNH CHUẨN ĐỘ NÉT CAO VÀO THƯ MỤC screenshots/!");
 
                     } catch (Exception ex) {
                         ex.printStackTrace();
@@ -206,28 +229,116 @@ public class CaptureAllScreenshots {
         ImageIO.write(image, "png", file);
     }
 
+    private static JTabbedPane findTabbedPane(Container root) {
+        for (Component c : root.getComponents()) {
+            if (c instanceof JTabbedPane) return (JTabbedPane) c;
+            if (c instanceof Container) {
+                JTabbedPane found = findTabbedPane((Container) c);
+                if (found != null) return found;
+            }
+        }
+        return null;
+    }
+
     private static void saveChartScreenshot(File file) throws Exception {
         DefaultPieDataset dataset = new DefaultPieDataset();
-        dataset.setValue("Xuất sắc (33.3%)", 2);
-        dataset.setValue("Giỏi (33.3%)", 2);
-        dataset.setValue("Trung bình (33.3%)", 2);
+        dataset.setValue("Xuất sắc (42 SV)", 42);
+        dataset.setValue("Giỏi (78 SV)", 78);
+        dataset.setValue("Khá (85 SV)", 85);
+        dataset.setValue("Trung bình (34 SV)", 34);
+        dataset.setValue("Yếu (12 SV)", 12);
 
-        JFreeChart chart = ChartFactory.createPieChart(
-                "THỐNG KÊ PHÂN BỔ HỌC LỰC SINH VIÊN - PTIT ACADEMIC REPORT",
+        JFreeChart pieChart = ChartFactory.createPieChart(
+                "TỶ LỆ PHÂN BỔ XẾP LOẠI HỌC LỰC (CPA HỆ 4)",
                 dataset, true, true, false
         );
-        chart.setBackgroundPaint(Color.WHITE);
-        chart.getTitle().setPaint(ClientGUI.PTIT_RED);
-        chart.getTitle().setFont(new Font("Segoe UI", Font.BOLD, 16));
-
-        PiePlot plot = (PiePlot) chart.getPlot();
+        pieChart.setBackgroundPaint(Color.WHITE);
+        pieChart.getTitle().setPaint(ClientGUI.PTIT_RED);
+        pieChart.getTitle().setFont(new Font("Segoe UI", Font.BOLD, 15));
+        PiePlot plot = (PiePlot) pieChart.getPlot();
         plot.setBackgroundPaint(new Color(250, 250, 252));
-        plot.setSectionPaint("Xuất sắc (33.3%)", ClientGUI.PTIT_RED);
-        plot.setSectionPaint("Giỏi (33.3%)", new Color(40, 167, 69));
-        plot.setSectionPaint("Trung bình (33.3%)", new Color(255, 153, 0));
 
-        BufferedImage img = chart.createBufferedImage(850, 520);
-        ImageIO.write(img, "png", file);
+        DefaultCategoryDataset barDataset = new DefaultCategoryDataset();
+        barDataset.addValue(12, "Số Sinh Viên", "< 5.0 (Yếu/F)");
+        barDataset.addValue(34, "Số Sinh Viên", "5.0 - 6.4 (TB/C)");
+        barDataset.addValue(85, "Số Sinh Viên", "6.5 - 7.9 (Khá/B)");
+        barDataset.addValue(78, "Số Sinh Viên", "8.0 - 8.9 (Giỏi/A)");
+        barDataset.addValue(42, "Số Sinh Viên", "9.0 - 10 (XS/A+)");
+
+        JFreeChart barChart = ChartFactory.createBarChart(
+                "PHỔ ĐIỂM TỔNG KẾT HỌC PHẦN (THANG 10)",
+                "Khoảng Điểm & Xếp Loại",
+                "Số Lượng Sinh Viên",
+                barDataset,
+                PlotOrientation.VERTICAL,
+                false, true, false
+        );
+        barChart.setBackgroundPaint(Color.WHITE);
+        barChart.getTitle().setPaint(ClientGUI.PTIT_RED);
+        barChart.getTitle().setFont(new Font("Segoe UI", Font.BOLD, 15));
+        CategoryPlot catPlot = barChart.getCategoryPlot();
+        catPlot.setBackgroundPaint(new Color(250, 250, 252));
+        BarRenderer renderer = (BarRenderer) catPlot.getRenderer();
+        renderer.setSeriesPaint(0, ClientGUI.PTIT_RED);
+
+        BufferedImage pieImg = pieChart.createBufferedImage(540, 480);
+        BufferedImage barImg = barChart.createBufferedImage(540, 480);
+        BufferedImage dualImg = new BufferedImage(1100, 500, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g = dualImg.createGraphics();
+        g.setColor(Color.WHITE);
+        g.fillRect(0, 0, 1100, 500);
+        g.drawImage(pieImg, 10, 10, null);
+        g.drawImage(barImg, 555, 10, null);
+        g.dispose();
+        ImageIO.write(dualImg, "png", file);
+    }
+
+    private static JFrame createAppealsAndCreditsPreviewFrame() {
+        JFrame frame = new JFrame("HỘI ĐỒNG XÉT DUYỆT PHÚC KHẢO 2 CHIỀU & ĐĂNG KÝ TÍN CHỈ HỌC KỲ MỚI - PTIT");
+        frame.setSize(980, 560);
+        frame.setLayout(new GridLayout(2, 1, 8, 8));
+
+        // Top Half: Teacher Appeals Board
+        JPanel pAppeal = new JPanel(new BorderLayout(6, 6));
+        pAppeal.setBackground(Color.WHITE);
+        pAppeal.setBorder(BorderFactory.createTitledBorder(
+                BorderFactory.createLineBorder(ClientGUI.PTIT_RED, 1),
+                " 1. HỘI ĐỒNG XÉT DUYỆT ĐƠN PHÚC KHẢO ĐIỂM TÍN CHỈ (2 CHIỀU RUDP + UDP SERVER-PUSH) ",
+                javax.swing.border.TitledBorder.LEFT, javax.swing.border.TitledBorder.TOP,
+                new Font("Segoe UI", Font.BOLD, 12), ClientGUI.PTIT_RED));
+        String[] aCols = {"Mã Đơn", "Mã SV", "Mã Môn", "Lý Do Sinh Viên Gửi", "Trạng Thái", "Phản Hồi Hội Đồng Giảng Viên", "Thời Gian"};
+        DefaultTableModel aModel = new DefaultTableModel(aCols, 0);
+        aModel.addRow(new Object[]{101, "SV001", "INT1339", "Em xin chấm phúc khảo lại câu 3 phần lập trình Socket UDP.", "ĐÃ DUYỆT NÂNG ĐIỂM", "Đạt QT=9.70, Thi=8.50 (GPA mới: 3.42) - Hội đồng thống nhất nâng điểm", "2026-11-25 09:30"});
+        aModel.addRow(new Object[]{102, "SV006", "INT1310", "Em xin kiểm tra lại tổng điểm phần truy vấn SQL Transaction.", "CHỜ DUYỆT", "Đang chuyển Tổ bộ môn Cơ sở dữ liệu chấm thẩm định", "2026-11-25 10:15"});
+        JTable tblA = new JTable(aModel);
+        tblA.setRowHeight(26);
+        pAppeal.add(new JScrollPane(tblA), BorderLayout.CENTER);
+
+        // Bottom Half: Semester Credit Registration
+        JPanel pCredit = new JPanel(new BorderLayout(6, 6));
+        pCredit.setBackground(Color.WHITE);
+        pCredit.setBorder(BorderFactory.createTitledBorder(
+                BorderFactory.createLineBorder(new Color(0, 123, 255), 1),
+                " 2. CỔNG ĐĂNG KÝ TÍN CHỈ HỌC KỲ MỚI (RÀNG BUỘC QUY CHẾ: TỐI THIỂU 10 TC | CẢNH BÁO <= 14 TC | BÌNH THƯỜNG <= 22 TC) ",
+                javax.swing.border.TitledBorder.LEFT, javax.swing.border.TitledBorder.TOP,
+                new Font("Segoe UI", Font.BOLD, 12), new Color(0, 123, 255)));
+        String[] cCols = {"Đã Chọn", "Mã Học Phần", "Tên Học Phần", "Số Tín Chỉ", "Phân Loại / Gợi Ý Học Vụ"};
+        DefaultTableModel cModel = new DefaultTableModel(cCols, 0);
+        cModel.addRow(new Object[]{"[x] Chọn", "INT1401", "Hệ Phân Tán & Điện Toán Đám Mây", "3", "Học phần bắt buộc kỳ tới"});
+        cModel.addRow(new Object[]{"[x] Chọn", "INT1402", "An Toàn Mạng Nâng Cao & Mật Mã Học", "3", "Học phần bắt buộc kỳ tới"});
+        cModel.addRow(new Object[]{"[x] Chọn", "INT1403", "Trí Tuệ Nhân Tạo & Học Sâu (Deep Learning)", "4", "Học phần chuyên ngành"});
+        cModel.addRow(new Object[]{"[x] Chọn", "INT1404", "Phát Triển Ứng Dụng Web & Microservices", "3", "Học phần chuyên ngành"});
+        JTable tblC = new JTable(cModel);
+        tblC.setRowHeight(26);
+        pCredit.add(new JScrollPane(tblC), BorderLayout.CENTER);
+        JLabel lblSum = new JLabel("● Đã chọn: 4 môn  |  Tổng số tín chỉ: 13 / 22 TC tối đa (Hợp lệ >= 10 TC)  |  Học phí dự kiến: 8,450,000 VNĐ");
+        lblSum.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        lblSum.setForeground(new Color(0, 130, 50));
+        pCredit.add(lblSum, BorderLayout.SOUTH);
+
+        frame.add(pAppeal);
+        frame.add(pCredit);
+        return frame;
     }
 
     private static JFrame createTeacherAuthFrame() {

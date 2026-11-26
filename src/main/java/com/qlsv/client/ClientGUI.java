@@ -1385,20 +1385,28 @@ public class ClientGUI extends JFrame {
         String filterRank = (String) cbFilterRank.getSelectedItem();
         List<StudentResult> filtered = currentStudentList;
 
-        if (filterRank != null && !filterRank.equalsIgnoreCase("Tất cả xếp loại") && filtered != null) {
-            filtered = currentStudentList.stream()
-                    .filter(s -> {
-                        if (filterRank.contains("Học Bổng")) return s.isScholarshipEligible();
-                        if (filterRank.contains("Xuất sắc")) return s.getAcademicRankCredit().equals("Xuất sắc");
-                        if (filterRank.contains("Giỏi")) return s.getAcademicRankCredit().equals("Giỏi");
-                        if (filterRank.contains("Khá")) return s.getAcademicRankCredit().equals("Khá");
-                        if (filterRank.contains("Trung bình")) return s.getAcademicRankCredit().equals("Trung bình");
-                        if (filterRank.contains("Cảnh báo")) return s.getAcademicStatus().contains("Cảnh báo")
-                                || s.isExamBanned() || s.isFinalExamFailed()
-                                || s.getAcademicRankCredit().equals("Yếu") || s.getAcademicRankCredit().equals("Kém");
-                        return true;
-                    })
-                    .collect(Collectors.toList());
+        if (filterRank != null && !filterRank.equalsIgnoreCase("Tất cả xếp loại")) {
+            try {
+                if (client != null) {
+                    String q = txtSearchQuery != null ? txtSearchQuery.getText().trim() : "";
+                    filtered = q.isEmpty() ? client.getAllStudents() : client.searchStudents(q);
+                }
+            } catch (Exception ignored) {}
+            if (filtered != null) {
+                filtered = filtered.stream()
+                        .filter(s -> {
+                            if (filterRank.contains("Học Bổng")) return s.isScholarshipEligible();
+                            if (filterRank.contains("Xuất sắc")) return s.getAcademicRankCredit().equals("Xuất sắc");
+                            if (filterRank.contains("Giỏi")) return s.getAcademicRankCredit().equals("Giỏi");
+                            if (filterRank.contains("Khá")) return s.getAcademicRankCredit().equals("Khá");
+                            if (filterRank.contains("Trung bình")) return s.getAcademicRankCredit().equals("Trung bình");
+                            if (filterRank.contains("Cảnh báo")) return s.getAcademicStatus().contains("Cảnh báo")
+                                    || s.isExamBanned() || s.isFinalExamFailed()
+                                    || s.getAcademicRankCredit().equals("Yếu") || s.getAcademicRankCredit().equals("Kém");
+                            return true;
+                        })
+                        .collect(Collectors.toList());
+            }
         }
 
         tableModel.setRowCount(0);

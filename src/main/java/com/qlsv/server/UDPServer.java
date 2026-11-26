@@ -740,8 +740,9 @@ public class UDPServer {
                         boolean isWarning = student.getGpa4() < 2.0 || student.isExamBanned() || student.isFinalExamFailed();
                         int maxCredits = isWarning ? 14 : 22;
 
-                        if (reqCredits <= 0) {
-                            responsePacket = UDPPacket.createError("Vui lòng chọn ít nhất 1 học phần để đăng ký!");
+                        if (reqCredits < 10) {
+                            responsePacket = UDPPacket.createError(
+                                    "QUY CHẾ ĐÀO TẠO TÍN CHỈ: Số tín chỉ đăng ký tối thiểu trong 1 học kỳ chính là 10 tín chỉ (Bạn đang chọn " + reqCredits + " TC).\nVui lòng chọn thêm học phần!");
                         } else if (reqCredits > maxCredits) {
                             String err = String.format(
                                     "QUY CHẾ ĐÀO TẠO TÍN CHỈ: Sinh viên %s (%s) hiện có GPA = %.2f (%s),\n" +

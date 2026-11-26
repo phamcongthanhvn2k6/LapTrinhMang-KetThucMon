@@ -7,49 +7,55 @@ Hệ thống ứng dụng Quản lý Đào tạo Tín chỉ & Sinh viên phân t
 
 ---
 
-## 👥 DANH SÁCH THÀNH VIÊN NHÓM 2 & BẢNG PHÂN CÔNG NHIỆM VỤ
+## 👥 DANH SÁCH THÀNH VIÊN NHÓM 2 & BẢNG PHÂN CÔNG NHIỆM VỤ (KHÔNG XUNG ĐỘT FILE/TÍNH NĂNG)
 
 - **Nhóm thực hiện:** **Nhóm 2** (`D24TXCN01-N` / `D24TXCNPM01-N`)
+- **Nguyên tắc phân chia:** Mỗi thành viên phụ trách trọn vẹn một gói chức năng (`package` / `class`) độc lập, không đụng chạm hoặc xung đột code (`merge conflict`) với nhau. **Nhóm trưởng Phạm Công Thành (`N24DTCN079`)** đảm nhận phần lõi kỹ thuật mạng và mật mã học lớn nhất (**35%**), **5 thành viên còn lại** chia đều nhau (**13% / người**, tổng $35\% + 5 \times 13\% = 100\%$).
 - **Hồ sơ báo cáo toàn văn 4 Chương:** [`docs/BAO_CAO_DO_AN_KET_THUC_MON.md`](./docs/BAO_CAO_DO_AN_KET_THUC_MON.md)
 
-| STT | Mã Sinh Viên | Họ và Tên | Lớp | Vai Trò | Các Phân Hệ & Chức Năng Kỹ Thuật Đảm Nhận (Theo Mã Nguồn Dự Án) | Tỷ Trọng | Điểm Đóng Góp |
+| STT | Mã Sinh Viên | Họ và Tên | Lớp | Vai Trò & Phân Hệ Độc Lập | Các File Code & Tính Năng Cụ Thể Đảm Nhận (Tách Biệt 100% Tránh Xung Đột) | Tỷ Trọng | Điểm Đóng Góp |
 | :-: | :---: | :--- | :---: | :---: | :--- | :-: | :-: |
-| **1** | **N24DTCN079** | **Phạm Công Thành** | `D24TXCN01-N` | **Nhóm Trưởng (Team Leader & Core Architect)** | • **Thiết kế kiến trúc tổng thể & Giao thức lõi RUDP 2.0** (`UDPPacket.java`, `PacketType.java`): cơ chế đánh số `Seq/ACK`, truyền lại tự động `Stop-and-Wait ARQ` (`Exponential Backoff`), bộ đệm chống trùng gói `Idempotent LRU Cache`, nén tự động `GZIP Compression` và truyền tệp đề cương phân mảnh `RUDP Chunked File Stream` kiểm tra mã băm `SHA-256`.<br>• **Phát triển Máy chủ Đa luồng & Kênh đẩy Hai chiều** (`UDPServer.java`, `UDPClient.java`, `SessionManager.java`): `ThreadPoolExecutor` 20 luồng, kênh thông báo thời gian thực `Full-Duplex UDP Server-Push`, quản lý phiên Token, chống `Brute-Force Lockout` và Khóa sổ điểm học kỳ.<br>• **Động cơ Bảo mật Kép & An toàn Dữ liệu** (`SecurityManager.java`, `DESEncryption.java`, `AESEncryption.java`): mã hóa `DES 56-bit` & `AES-256-GCM (PBKDF2)`, chữ ký số gói tin `HMAC-SHA256`, chống `Replay Attack`, **Xoay khóa & Tái mã hóa toàn bộ CSDL trực tuyến (`Live Key Rotation`)**, Sao lưu & Khôi phục Snapshot xác thực chữ ký `HMAC-SHA256`.<br>• **Phòng thí nghiệm Mạng & Điều phối Hệ thống** (`ServerGUI.java`, `AppLauncher.java`): `Network Chaos Simulator` (giả lập rớt gói 0–60%, độ trễ 0–300ms), công cụ **Đo kiểm chịu tải đa luồng RUDP (`50 gói song song`)**, triển khai Cloud DB `Supabase AWS` và quản lý Git. | **35%** | **10.0 / 10 (100% + Điểm cộng)** |
-| **2** | **N24DTCN042** | **Hồ Quốc Khải** | `D24TXCN01-N` | Thành viên (Database & Cloud Backend) | • **Quản lý Kết nối CSDL Đám mây & Dự phòng** (`DatabaseManager.java`, `DatabaseConfigLoader.java`, `SqlConfig.java`): kết nối `Supabase Cloud PostgreSQL` qua `HikariCP Connection Pool` và cơ chế tự động chuyển đổi dự phòng (`Auto-Fallback`) sang `H2 Embedded`.<br>• **Tầng Truy cập Dữ liệu Sinh viên & Giao dịch ACID** (`StudentDAO.java`): truy vấn CRUD bản ghi mã hóa, bảng điểm 5 học phần tín chỉ `BangDiem` và xử lý Batch Transaction ACID trên 1 kết nối vật lý duy nhất. | **13%** | **9.0 / 10 (90%)** |
-| **3** | **N24DTCN017** | **Dương Trung Dũng** | `D24TXCN01-N` | Thành viên (Auth & Security Audit Trail) | • **Xác thực Tài khoản & Phân quyền RBAC** (`AuthDAO.java`, `UserAccount.java`): cơ chế băm mật khẩu `SHA-256 + Salt` một chiều, quản lý 3 cấp độ quyền `ADMIN / TEACHER / STUDENT`.<br>• **Nhật ký Thanh tra Điểm số Bất biến** (`AuditDAO.java` & Tab Thanh tra trên `ServerGUI.java`): tự động đối chiếu và lưu vết lịch sử thay đổi điểm số (`Điểm cũ -> Điểm mới`), tài khoản thực hiện, địa chỉ IP và thời gian. | **13%** | **9.0 / 10 (90%)** |
-| **4** | **N24DTCN050** | **Cao Thành Long** | `D24TXCN01-N` | Thành viên (Teacher Workspace & Academic Logic) | • **Nghiệp vụ Đào tạo Tín chỉ Đại học** (`StudentResult.java`, `CourseGrade.java`, `StudentTranscript.java`): công thức trọng số `10% Chuyên cần + 20% Giữa kỳ + 70% Thi kết thúc`, quy đổi GPA hệ 4, Điểm chữ (`A+ -> F`), xét tự động **Cấm thi** (`CC < 5.0`) và **Điểm liệt cuối kỳ** (`Thi < 4.0`).<br>• **Phân hệ Quản lý Đào tạo của Giảng viên** (Tab 2 `ClientGUI.java`): bảng quản lý sinh viên phân trang, tìm kiếm, lọc học lực, chấm/sửa điểm từng môn trong phiếu báo điểm và hộp thoại xét Học bổng KKHT & Cảnh báo học vụ. | **13%** | **9.0 / 10 (90%)** |
-| **5** | **N24DTCN119** | **Nguyễn Duy Quang Nhật** | `D24TXCNPM01-N` | Thành viên (Student Portal & Two-Way Appeals) | • **Cổng Thông tin Sinh viên & Giả lập GPA** (Tab 1 `ClientGUI.java`): giao diện tra cứu hồ sơ sinh viên, 4 thẻ KPI học tập và công cụ dự đoán lộ trình học tập `GPA Simulator`.<br>• **Phúc khảo Điểm Hai chiều & Đăng ký Tín chỉ Học kỳ Mới** (`GradeAppeal.java`): chức năng sinh viên gửi đơn phúc khảo, **Hội đồng Giảng viên xét duyệt phúc khảo 2 chiều** và **Cổng đăng ký tín chỉ học kỳ tới** (kiểm tra trần 14 TC cảnh báo học vụ / 22 TC bình thường). | **13%** | **9.0 / 10 (90%)** |
-| **6** | **N24DTCN032** | **Nguyễn Quang Hoàng** | `D24TXCN01-N` | Thành viên (Excel POI, Charts & QA Testing) | • **Nhập/Xuất Báo cáo Excel & Biểu đồ Kép** (`ExcelExporter.java`, `ExcelImporter.java` & Tab 3 `ServerGUI.java`): xuất báo cáo bảng điểm `.xlsx` chuẩn Apache POI, nhập điểm hàng loạt từ file mẫu Excel, trực quan hóa **Biểu đồ Kép `JFreeChart`** (Biểu đồ Tròn tỷ lệ học lực + Biểu đồ Cột phổ điểm thang 10).<br>• **Kiểm tra Dữ liệu & Kiểm thử Tự động** (`InputValidator.java`, `ValidationAndBusinessLogicTest.java`): chuẩn hóa dữ liệu đầu vào, kiểm thử tự động và tổng hợp tài liệu báo cáo. | **13%** | **9.0 / 10 (90%)** |
+| **1** | **N24DTCN079** | **Phạm Công Thành** | `D24TXCN01-N` | **Nhóm Trưởng**<br>*(Giao Thức Mạng RUDP 2.0, Bảo Mật Đa Lớp & Điều Phối Server)* | • **Package `network` & `server` (`UDPPacket.java`, `PacketType.java`, `UDPServer.java`, `UDPClient.java`, `SessionManager.java`, `AppLauncher.java`)**: Thiết kế giao thức **RUDP 2.0** (`Seq/ACK`, truyền lại tự động `Stop-and-Wait ARQ` với `Exponential Backoff`, bộ đệm chống trùng gói `Idempotent LRU Cache`, nén `GZIP`, truyền tệp đề cương phân mảnh `Chunked File Stream SHA-256`, xử lý đa luồng `ThreadPoolExecutor 20 workers` và kênh đẩy thời gian thực `Full-Duplex UDP Server-Push`).<br>• **Package `security` (`SecurityManager.java`, `DESEncryption.java`, `AESEncryption.java`)**: Động cơ mã hóa kép `DES 56-bit` (kiểm chứng khóa 8-byte & bắt lỗi `BadPaddingException` trực tiếp trên UI) & `AES-256-GCM (PBKDF2)`, chữ ký số gói tin `HMAC-SHA256`, chống `Replay Attack`, **Xoay khóa & Tái mã hóa toàn bộ CSDL trực tuyến (`Live Key Rotation`)**, Sao lưu & Khôi phục Snapshot xác thực chữ ký `HMAC-SHA256`.<br>• **Phòng thí nghiệm Mạng (`ServerGUI.java`)**: `Network Chaos Simulator` (giả lập rớt gói 0–60%, độ trễ 0–300ms) và công cụ **Đo kiểm chịu tải đa luồng RUDP (`50 gói song song / 5 luồng`)**. | **35%** | **10.0 / 10 (100% + Điểm cộng)** |
+| **2** | **N24DTCN042** | **Hồ Quốc Khải** | `D24TXCN01-N` | Thành viên<br>*(Hạ Tầng Kết Nối CSDL Cloud, Docker & DAO Sinh Viên)* | • **Package `database` (`DatabaseManager.java`, `ConnectionPool.java`, `DatabaseConfigLoader.java`, `SqlConfig.java`, `docker-compose.yml`, `init.sql`)**: Quản lý kết nối `Supabase Cloud PostgreSQL` qua `HikariCP Connection Pool`, cơ chế tự động chuyển đổi dự phòng (`Auto-Fallback`) sang `H2 Embedded` và cấu hình Docker `MySQL 8.0`.<br>• **Tầng DAO Sinh viên (`StudentDAO.java`, `SubjectDAO.java`)**: Truy vấn CRUD hồ sơ sinh viên mã hóa, phân trang SQL (`LIMIT / OFFSET`) và giao dịch Batch Transaction ACID trên 1 kết nối vật lý duy nhất. | **13%** | **9.0 / 10 (90%)** |
+| **3** | **N24DTCN017** | **Dương Trung Dũng** | `D24TXCN01-N` | Thành viên<br>*(Xác Thực Tài Khoản RBAC & Nhật Ký Thanh Tra Điểm)* | • **Xác thực & Băm mật khẩu (`AccountDAO.java`, `PasswordHasher.java`, `UserAccount.java`)**: Cơ chế băm mật khẩu một chiều `SHA-256 + Salt`, kiểm soát phân quyền 3 vai trò `ADMIN / TEACHER / STUDENT` và hộp thoại đăng nhập xác thực.<br>• **Nhật ký Thanh tra Bất biến (`AuditDAO.java` & Bảng Thanh tra trên `ServerGUI.java`)**: Tự động đối chiếu và ghi vết lịch sử sửa điểm (`Điểm cũ -> Điểm mới`), tài khoản thực hiện, địa chỉ IP và thời gian. | **13%** | **9.0 / 10 (90%)** |
+| **4** | **N24DTCN050** | **Cao Thành Long** | `D24TXCN01-N` | Thành viên<br>*(Nghiệp Vụ Điểm Tín Chỉ & Phân Hệ Quản Lý Giảng Viên)* | • **Mô hình & DAO Bảng điểm Tín chỉ (`StudentResult.java`, `CourseGrade.java`, `StudentTranscript.java`, `TranscriptDAO.java`)**: Công thức trọng số `10% Chuyên cần + 20% Giữa kỳ + 70% Thi kết thúc`, quy đổi đồng nhất GPA hệ 4, Điểm chữ (`A+ -> F`), xét tự động **Cấm thi** (`CC < 5.0`) và **Điểm liệt cuối kỳ** (`Thi < 4.0`).<br>• **Phân hệ Giảng viên (Tab 2 `ClientGUI.java`)**: Form nhập/sửa điểm sinh viên, bộ lọc học lực toàn cục, chấm/sửa điểm từng môn trong phiếu báo điểm và hộp thoại xét **Học bổng KKHT & Cảnh báo học vụ**. | **13%** | **9.0 / 10 (90%)** |
+| **5** | **N24DTCN119** | **Nguyễn Duy Quang Nhật** | `D24TXCNPM01-N` | Thành viên<br>*(Cổng Sinh Viên, Phúc Khảo 2 Chiều & Đăng Ký Tín Chỉ)* | • **Cổng Thông tin Sinh viên & Giả lập GPA (Tab 1 `ClientGUI.java`)**: Giao diện tra cứu hồ sơ cá nhân theo Mã SV, 4 thẻ KPI học tập trực quan và công cụ dự đoán lộ trình nâng hạng học lực `GPA Simulator`.<br>• **Phúc khảo Điểm Hai chiều & Đăng ký Tín chỉ Học kỳ Mới (`GradeAppeal.java`)**: Hộp thoại sinh viên gửi đơn phúc khảo, **Hội đồng Giảng viên xét duyệt phúc khảo 2 chiều** và **Cổng đăng ký tín chỉ học kỳ tới** (kiểm tra quy chế tối thiểu 10 TC, trần 14 TC cảnh báo học vụ / 22 TC bình thường). | **13%** | **9.0 / 10 (90%)** |
+| **6** | **N24DTCN032** | **Nguyễn Quang Hoàng** | `D24TXCN01-N` | Thành viên<br>*(Báo Cáo Excel POI, Biểu Đồ Kép & Kiểm Thử QA)* | • **Tiện ích Báo cáo Excel & Biểu đồ Kép (`ExcelExporter.java`, `ExcelImporter.java` & Tab 3 `ServerGUI.java`)**: Xuất phiếu báo điểm & danh sách học bổng ra `.xlsx` chuẩn Apache POI, nhập điểm hàng loạt từ file mẫu Excel, trực quan hóa **Biểu đồ Kép `JFreeChart`** (Biểu đồ Tròn tỷ lệ học lực CPA hệ 4 + Biểu đồ Cột phổ điểm thang 10).<br>• **Chuẩn hóa Dữ liệu & Kiểm thử Tự động (`InputValidator.java`, `ValidationAndBusinessLogicTest.java`, `CaptureAllScreenshots.java`)**: Kiểm tra hợp lệ dữ liệu đầu vào, viết kịch bản Unit Test tự động và chụp bộ ảnh thực nghiệm báo cáo. | **13%** | **9.0 / 10 (90%)** |
 
 ---
 
-## 📸 BỘ ẢNH CHỤP MÀN HÌNH GIAO DIỆN HỆ THỐNG (SCREENSHOTS GALLERY)
+## 📸 BỘ 10 ẢNH CHỤP MÀN HÌNH GIAO DIỆN HỆ THỐNG MỚI NHẤT (SCREENSHOTS GALLERY)
 
-Toàn bộ ảnh chụp thực tế của hệ thống được lưu trữ trong thư mục [`screenshots/`](./screenshots):
+Toàn bộ 10 ảnh chụp thực tế độ nét cao của hệ thống được lưu trữ trong thư mục [`screenshots/`](./screenshots):
 
-### 1️⃣ Phân Hệ Client - Chế Độ Học Sinh & Giảng Viên
+### 1️⃣ Phân Hệ Client — Cổng Sinh Viên, Phân Hệ Giảng Viên, Phúc Khảo & Đăng Ký Tín Chỉ
 
-| Chế độ Học sinh (Safe Mode - Chỉ xem) | Xác thực Mật khẩu Giảng viên |
+| Cổng Thông Tin Sinh Viên (Tra Cứu & 4 Thẻ KPI) | Xác Thực Mật Khẩu Phân Quyền Giảng Viên |
 | :---: | :---: |
 | ![Student Mode](./screenshots/01_client_student_mode.png) | ![Teacher Auth](./screenshots/02_teacher_auth_dialog.png) |
-| *Học sinh chỉ tra cứu điểm, Form nhập bị ẩn, nút xóa bị khóa* | *Nhập mật khẩu (`ptit123`) để mở khóa quyền Giảng viên* |
+| *Sinh viên tra cứu bảng điểm 5 môn, tải đề cương RUDP Stream, gửi đơn phúc khảo & đăng ký tín chỉ* | *Xác thực tài khoản Giảng viên (`giangvien / ptit123`) hoặc Quản trị viên (`admin / admin123`)* |
 
-| Chế độ Giảng viên (Toàn quyền quản lý) | Báo Cáo Phiếu Điểm Chi Tiết Môn Học |
+| Phân Hệ Quản Lý Đào Tạo Giảng Viên (Toàn Quyền) | Phiếu Báo Điểm Chi Tiết Tín Chỉ & Chấm Điểm Môn |
 | :---: | :---: |
 | ![Teacher Mode](./screenshots/03_client_teacher_mode.png) | ![Transcript Modal](./screenshots/04_student_transcript_modal.png) |
-| *Mở khóa Form nhập điểm, nút Xóa kích hoạt, Tab Cấu hình CSDL* | *Xem điểm chi tiết 5 môn, điểm quá trình 30%, điểm thi 70%, điểm chữ A+* |
+| *Quản lý danh sách 251 sinh viên, xét Học bổng KKHT, Cảnh báo học vụ, Duyệt phúc khảo & Nhập/Xuất Excel* | *Xem và chấm điểm trực tiếp từng môn học phần: Điểm quá trình (30%), Điểm thi (70%), GPA hệ 4 & Điểm chữ* |
 
-| Bộ Giả Lập Điểm GPA Simulator | Biểu Đồ Thống Kê Học Lực JFreeChart |
+| Bộ Giả Lập Điểm Mục Tiêu (GPA Simulator) | Hội Đồng Duyệt Phúc Khảo 2 Chiều & Đăng Ký Tín Chỉ HK Mới |
 | :---: | :---: |
-| ![GPA Simulator](./screenshots/05_gpa_simulator_modal.png) | ![JFreeChart](./screenshots/07_server_jfreechart_stats.png) |
-| *Tính toán số điểm cần đạt ở môn tiếp theo để nâng hạng học lực* | *Trực quan hóa tỷ lệ phân bổ xếp loại học lực toàn trường* |
+| ![GPA Simulator](./screenshots/05_gpa_simulator_modal.png) | ![Appeals and Credit Registration](./screenshots/10_appeals_and_credit_registration.png) |
+| *Tính toán số điểm cần đạt ở các tín chỉ kỳ tới để nâng hạng CPA* | *Xét duyệt đơn phúc khảo 2 chiều (tự động đẩy UDP Push) & Kiểm tra trần tín chỉ 14 TC / 22 TC* |
 
-### 2️⃣ Phân Hệ Server - Quản Trị Viên & An Toàn Thông Tin
+### 2️⃣ Phân Hệ Server — Kiểm Chứng Mã Hóa DES/AES-256, Phòng Thí Nghiệm RUDP & Biểu Đồ Kép
 
-| Bảng Quản Trị Server & CSDL Mã Hóa Base64 | Toàn Cảnh Kết Nối Client - Server UDP |
+| Trung Tâm Kiểm Tra Mã Hóa CSDL & Khóa DES 8-Byte | Phòng Thí Nghiệm Mạng RUDP (Chaos, Benchmark & Audit) |
 | :---: | :---: |
-| ![Server Admin](./screenshots/06_server_admin_dashboard.png) | ![System Overview](./screenshots/08_ptit_full_system_overview.png) |
-| *Đối chiếu Ciphertext mã hóa trong SQL và dữ liệu giải mã* | *Mô hình truyền nhận gói tin thời gian thực qua cổng UDP 9876* |
+| ![Server Admin](./screenshots/06_server_admin_dashboard.png) | ![Chaos Audit Benchmark](./screenshots/09_server_chaos_audit_benchmark.png) |
+| *Đối chiếu bản mã Base64, xoay khóa trực tuyến `DES <-> AES-256`, Sao lưu/Khôi phục Snapshot HMAC & Thử khóa DES 8 ký tự* | *Giả lập rớt gói UDP (0–60%), đo kiểm chịu tải 50 gói đa luồng, Khóa sổ điểm học kỳ & Nhật ký thanh tra sửa điểm* |
+
+| Biểu Đồ Kép JFreeChart (Tròn Xếp Loại + Cột Phổ Điểm) | Toàn Cảnh Hệ Thống Phân Tán Client – Server RUDP 2.0 |
+| :---: | :---: |
+| ![JFreeChart Dual](./screenshots/07_server_jfreechart_stats.png) | ![System Overview](./screenshots/08_ptit_full_system_overview.png) |
+| *Trực quan hóa đồng thời Tỷ lệ xếp loại học lực (CPA hệ 4) và Phổ điểm học phần (Thang 10)* | *Mô hình truyền nhận gói tin RUDP 2.0 và đồng bộ kênh đẩy UDP Server-Push thời gian thực* |
 
 ---
 

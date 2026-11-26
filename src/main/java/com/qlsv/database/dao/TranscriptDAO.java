@@ -107,7 +107,12 @@ public class TranscriptDAO {
         // Đảm bảo sinh viên đã có đủ 5 học phần trong BangDiem trước khi cập nhật
         getDetailedTranscript(cleanId, desKey, student);
 
-        CourseGrade updatedCg = new CourseGrade(cleanCourse, cleanCourse, 3, processScore, examScore);
+        CourseGrade updatedCg;
+        if ("INT1339".equalsIgnoreCase(cleanCourse)) {
+            updatedCg = new CourseGrade(cleanCourse, "Lập Trình Mạng", 3, student.getScoreCC(), processScore, examScore);
+        } else {
+            updatedCg = new CourseGrade(cleanCourse, cleanCourse, 3, processScore, examScore);
+        }
         String encProc = SecurityManager.encrypt(String.valueOf(processScore), desKey);
         String encExam = SecurityManager.encrypt(String.valueOf(examScore), desKey);
 
