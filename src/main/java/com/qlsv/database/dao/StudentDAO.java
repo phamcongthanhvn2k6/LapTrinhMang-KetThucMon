@@ -163,9 +163,12 @@ public class StudentDAO {
 
                     String fullName = SecurityManager.decrypt(encFullName, desKey);
                     double dbAvg = rs.getDouble("DiemTB");
-                    double scoreMath = parseDoubleSafe(SecurityManager.decrypt(encToan, desKey), dbAvg);
-                    double scoreVan = parseDoubleSafe(SecurityManager.decrypt(encVan, desKey), dbAvg);
-                    double scoreAnh = parseDoubleSafe(SecurityManager.decrypt(encAnh, desKey), dbAvg);
+                    double scoreMath = (encToan != null && !encToan.isEmpty())
+                            ? Double.parseDouble(SecurityManager.decrypt(encToan, desKey)) : dbAvg;
+                    double scoreVan = (encVan != null && !encVan.isEmpty())
+                            ? Double.parseDouble(SecurityManager.decrypt(encVan, desKey)) : dbAvg;
+                    double scoreAnh = (encAnh != null && !encAnh.isEmpty())
+                            ? Double.parseDouble(SecurityManager.decrypt(encAnh, desKey)) : dbAvg;
 
                     double avg = StudentResult.calculateWeightedScore(scoreMath, scoreVan, scoreAnh);
 
@@ -222,27 +225,14 @@ public class StudentDAO {
                 String encVan = rs.getString("DiemVanEncrypted");
                 String encAnh = rs.getString("DiemAnhEncrypted");
 
-                String fullName;
-                try {
-                    fullName = SecurityManager.decrypt(encName, desKey);
-                } catch (Exception ex) {
-                    fullName = "[SV " + id + "]";
-                }
-
+                String fullName = SecurityManager.decrypt(encName, desKey);
                 double avg = rs.getDouble("DiemTB");
-                double scoreMath = avg > 0 ? avg : 8.0;
-                double scoreVan = avg > 0 ? avg : 8.0;
-                double scoreAnh = avg > 0 ? avg : 8.0;
-
-                try {
-                    if (encToan != null) scoreMath = parseDoubleSafe(SecurityManager.decrypt(encToan, desKey), avg);
-                } catch (Exception ignored) {}
-                try {
-                    if (encVan != null) scoreVan = parseDoubleSafe(SecurityManager.decrypt(encVan, desKey), avg);
-                } catch (Exception ignored) {}
-                try {
-                    if (encAnh != null) scoreAnh = parseDoubleSafe(SecurityManager.decrypt(encAnh, desKey), avg);
-                } catch (Exception ignored) {}
+                double scoreMath = (encToan != null && !encToan.isEmpty())
+                        ? Double.parseDouble(SecurityManager.decrypt(encToan, desKey)) : avg;
+                double scoreVan = (encVan != null && !encVan.isEmpty())
+                        ? Double.parseDouble(SecurityManager.decrypt(encVan, desKey)) : avg;
+                double scoreAnh = (encAnh != null && !encAnh.isEmpty())
+                        ? Double.parseDouble(SecurityManager.decrypt(encAnh, desKey)) : avg;
 
                 double weightedAvg = StudentResult.calculateWeightedScore(scoreMath, scoreVan, scoreAnh);
                 StudentResult res = new StudentResult(id, fullName, weightedAvg);
@@ -303,27 +293,14 @@ public class StudentDAO {
                     String encVan = rs.getString("DiemVanEncrypted");
                     String encAnh = rs.getString("DiemAnhEncrypted");
 
-                    String fullName;
-                    try {
-                        fullName = SecurityManager.decrypt(encName, desKey);
-                    } catch (Exception ex) {
-                        fullName = "[SV " + id + "]";
-                    }
-
+                    String fullName = SecurityManager.decrypt(encName, desKey);
                     double avg = rs.getDouble("DiemTB");
-                    double scoreMath = avg > 0 ? avg : 8.0;
-                    double scoreVan = avg > 0 ? avg : 8.0;
-                    double scoreAnh = avg > 0 ? avg : 8.0;
-
-                    try {
-                        if (encToan != null) scoreMath = parseDoubleSafe(SecurityManager.decrypt(encToan, desKey), avg);
-                    } catch (Exception ignored) {}
-                    try {
-                        if (encVan != null) scoreVan = parseDoubleSafe(SecurityManager.decrypt(encVan, desKey), avg);
-                    } catch (Exception ignored) {}
-                    try {
-                        if (encAnh != null) scoreAnh = parseDoubleSafe(SecurityManager.decrypt(encAnh, desKey), avg);
-                    } catch (Exception ignored) {}
+                    double scoreMath = (encToan != null && !encToan.isEmpty())
+                            ? Double.parseDouble(SecurityManager.decrypt(encToan, desKey)) : avg;
+                    double scoreVan = (encVan != null && !encVan.isEmpty())
+                            ? Double.parseDouble(SecurityManager.decrypt(encVan, desKey)) : avg;
+                    double scoreAnh = (encAnh != null && !encAnh.isEmpty())
+                            ? Double.parseDouble(SecurityManager.decrypt(encAnh, desKey)) : avg;
 
                     double weightedAvg = StudentResult.calculateWeightedScore(scoreMath, scoreVan, scoreAnh);
                     StudentResult res = new StudentResult(id, fullName, weightedAvg);
@@ -389,8 +366,13 @@ public class StudentDAO {
 
                 try {
                     rec.hoTenDecrypted = SecurityManager.decrypt(rec.hoTenEncrypted, desKey);
+                    double cc = Double.parseDouble(SecurityManager.decrypt(rec.diemToanEncrypted, desKey));
+                    double gk = Double.parseDouble(SecurityManager.decrypt(rec.diemVanEncrypted, desKey));
+                    double ck = Double.parseDouble(SecurityManager.decrypt(rec.diemAnhEncrypted, desKey));
+                    rec.diemTB = StudentResult.calculateWeightedScore(cc, gk, ck);
                 } catch (Exception ex) {
-                    rec.hoTenDecrypted = "[Giải mã lỗi: " + ex.getMessage() + "]";
+                    rec.hoTenDecrypted = "[GIẢI MÃ THẤT BẠI: SAI KHÓA]";
+                    rec.diemTB = -1.0; // Tuyệt đối không dùng cột DiemTB không mã hóa khi khóa giải mã sai!
                 }
                 list.add(rec);
             }

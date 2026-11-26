@@ -825,24 +825,33 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
                 try {
                     List<DatabaseManager.EncryptedRecord> list = get();
                     tableModel.setRowCount(0);
+                    int failCount = 0;
                     for (DatabaseManager.EncryptedRecord rec : list) {
+                        if (rec.diemTB < 0) failCount++;
+                        String scoreDisplay = (rec.diemTB < 0)
+                                ? "[ĐÃ KHÓA: SAI KHÓA DES]"
+                                : String.format("%.2f", rec.diemTB);
                         tableModel.addRow(new Object[]{
-                                rec.maSV,
+                                rec.diemTB < 0 ? "[ẨN]" : rec.maSV,
                                 rec.hoTenEncrypted,
                                 rec.diemToanEncrypted,
                                 rec.diemVanEncrypted,
                                 rec.diemAnhEncrypted,
                                 rec.hoTenDecrypted,
-                                String.format("%.2f", rec.diemTB)
+                                scoreDisplay
                         });
                     }
-                    Map<String, Integer> rankStats = DatabaseManager.getInstance().getRankStatistics();
-                    int xs = rankStats.getOrDefault("Xuất sắc", 0);
-                    int gioi = rankStats.getOrDefault("Giỏi", 0);
-                    int kha = rankStats.getOrDefault("Khá", 0);
-                    int tb = rankStats.getOrDefault("Trung bình", 0);
-                    int yeu = rankStats.getOrDefault("Yếu", 0);
-                    updateChartFromCounts(xs, gioi, kha, tb, yeu);
+                    if (failCount > 0) {
+                        updateChartFromCounts(0, 0, 0, 0, 0);
+                    } else {
+                        Map<String, Integer> rankStats = DatabaseManager.getInstance().getRankStatistics();
+                        int xs = rankStats.getOrDefault("Xuất sắc", 0);
+                        int gioi = rankStats.getOrDefault("Giỏi", 0);
+                        int kha = rankStats.getOrDefault("Khá", 0);
+                        int tb = rankStats.getOrDefault("Trung bình", 0);
+                        int yeu = rankStats.getOrDefault("Yếu", 0);
+                        updateChartFromCounts(xs, gioi, kha, tb, yeu);
+                    }
                     updateDbStatusLabel();
                     refreshAuditLogs();
                     updateChaosTelemetryLabel();
@@ -996,18 +1005,27 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
                 List<DatabaseManager.EncryptedRecord> list = DatabaseManager.getInstance().getAllRecordsForInspection();
                 for (DatabaseManager.EncryptedRecord rec : list) {
                     try {
-                        // Kiểm thử giải mã nghiêm ngặt bằng khóa DES vừa nhập để bắt BadPaddingException khi sai khóa
+                        // Kiểm thử giải mã nghiêm ngặt cả Họ tên lẫn 3 cột Điểm bằng khóa DES vừa nhập
                         if (rec.hoTenEncrypted != null && !rec.hoTenEncrypted.startsWith("GCM:")) {
                             rec.hoTenDecrypted = com.qlsv.security.DESEncryption.decrypt(rec.hoTenEncrypted, keyInput);
+                            double cc = Double.parseDouble(com.qlsv.security.DESEncryption.decrypt(rec.diemToanEncrypted, keyInput));
+                            double gk = Double.parseDouble(com.qlsv.security.DESEncryption.decrypt(rec.diemVanEncrypted, keyInput));
+                            double ck = Double.parseDouble(com.qlsv.security.DESEncryption.decrypt(rec.diemAnhEncrypted, keyInput));
+                            rec.diemTB = com.qlsv.model.StudentResult.calculateWeightedScore(cc, gk, ck);
                         } else {
                             rec.hoTenDecrypted = SecurityManager.decrypt(rec.hoTenEncrypted, keyInput);
+                            double cc = Double.parseDouble(SecurityManager.decrypt(rec.diemToanEncrypted, keyInput));
+                            double gk = Double.parseDouble(SecurityManager.decrypt(rec.diemVanEncrypted, keyInput));
+                            double ck = Double.parseDouble(SecurityManager.decrypt(rec.diemAnhEncrypted, keyInput));
+                            rec.diemTB = com.qlsv.model.StudentResult.calculateWeightedScore(cc, gk, ck);
                         }
                     } catch (Exception ex) {
                         failCount++;
                         if (firstErrorMsg == null) {
                             firstErrorMsg = ex.getMessage();
                         }
-                        rec.hoTenDecrypted = "[Giải mã thất bại: Sai khóa DES]";
+                        rec.hoTenDecrypted = "[GIẢI MÃ THẤT BẠI: SAI KHÓA]";
+                        rec.diemTB = -1.0; // Tuyệt đối không hiển thị điểm khi khóa giải mã sai!
                     }
                 }
                 return list;
@@ -1019,33 +1037,53 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
                     List<DatabaseManager.EncryptedRecord> list = get();
                     tableModel.setRowCount(0);
                     for (DatabaseManager.EncryptedRecord rec : list) {
+                        String scoreDisplay = (rec.diemTB < 0)
+                                ? "[ĐÃ KHÓA: SAI KHÓA DES]"
+                                : String.format("%.2f", rec.diemTB);
                         tableModel.addRow(new Object[]{
-                                rec.maSV,
+                                failCount > 0 ? "[ẨN]" : rec.maSV,
                                 rec.hoTenEncrypted,
                                 rec.diemToanEncrypted,
                                 rec.diemVanEncrypted,
                                 rec.diemAnhEncrypted,
                                 rec.hoTenDecrypted,
-                                String.format("%.2f", rec.diemTB)
+                                scoreDisplay
                         });
                     }
                     if (failCount > 0) {
-                        String err = "Giải mã DES thất bại trên " + failCount + " bản ghi (" + firstErrorMsg + "). Khóa '" + keyInput + "' không khớp với dữ liệu!";
+                        updateChartFromCounts(0, 0, 0, 0, 0);
+                        String err = "Giải mã DES thất bại trên " + failCount + " bản ghi (" + firstErrorMsg + "). Khóa '" + keyInput + "' không khớp — Toàn bộ thông tin giải mã & điểm số đã bị khóa!";
                         if (lblCryptoVerifyStatus != null) {
                             lblCryptoVerifyStatus.setForeground(PTIT_RED);
                             lblCryptoVerifyStatus.setText("● CẢNH BÁO SAI KHÓA: " + err);
                         }
                         onLog("[LỖI GIẢI MÃ DES] " + err);
+                        if (udpServer != null) {
+                            udpServer.broadcastPushEvent("CRYPTO_ERROR", "CẢNH BÁO BẢO MẬT: Khóa giải mã DES trên Server không hợp lệ ('" + keyInput + "') — Tạm khóa truy xuất bảng điểm!", keyInput);
+                        }
                         JOptionPane.showMessageDialog(ServerGUI.this,
-                                err + "\n\n(Hệ thống đã bắt ngoại lệ BadPaddingException an toàn, không gây sập Server. Hãy nhập lại khóa đúng 'QLSV_KEY' để khôi phục!)",
-                                "Phát Hiện Sai Khóa Giải Mã DES (BadPaddingException)", JOptionPane.WARNING_MESSAGE);
+                                err + "\n\n(Hệ thống đã ẩn hoàn toàn Họ tên, Mã SV, Điểm HP và khóa truy vấn Client để ngăn rò rỉ dữ liệu. Hãy nhập lại khóa đúng 'QLSV_KEY' để khôi phục!)",
+                                "Phát Hiện Sai Khóa Giải Mã DES — Đã Khóa Hiển Thị Thông Tin", JOptionPane.WARNING_MESSAGE);
                     } else {
+                        try {
+                            Map<String, Integer> rankStats = DatabaseManager.getInstance().getRankStatistics();
+                            updateChartFromCounts(
+                                    rankStats.getOrDefault("Xuất sắc", 0),
+                                    rankStats.getOrDefault("Giỏi", 0),
+                                    rankStats.getOrDefault("Khá", 0),
+                                    rankStats.getOrDefault("Trung bình", 0),
+                                    rankStats.getOrDefault("Yếu", 0)
+                            );
+                        } catch (Exception ignored) {}
                         String okMsg = "Đã áp dụng khóa DES '" + keyInput + "' (8 bytes) & giải mã thành công " + list.size() + " sinh viên.";
                         if (lblCryptoVerifyStatus != null) {
                             lblCryptoVerifyStatus.setForeground(new Color(40, 167, 69));
                             lblCryptoVerifyStatus.setText("● " + okMsg);
                         }
                         onLog("[GIẢI MÃ DES THÀNH CÔNG] " + okMsg);
+                        if (udpServer != null) {
+                            udpServer.broadcastPushEvent("CRYPTO_RESTORED", "Đã khôi phục khóa giải mã DES hợp lệ trên Server!", keyInput);
+                        }
                     }
                 } catch (Exception ex) {
                     onLog("Lỗi đọc dữ liệu: " + ex.getMessage());

@@ -275,7 +275,7 @@ public class UDPClient implements AutoCloseable {
             Type pageType = new TypeToken<com.qlsv.model.PageResult<StudentResult>>() {}.getType();
             return gson.fromJson(response.getPayload(), pageType);
         }
-        return new com.qlsv.model.PageResult<>(Collections.emptyList(), page, pageSize, 0);
+        throw new Exception(response != null ? response.getMessage() : "Lỗi tải danh sách phân trang từ Server!");
     }
 
     public List<StudentResult> getAllStudents() throws Exception {

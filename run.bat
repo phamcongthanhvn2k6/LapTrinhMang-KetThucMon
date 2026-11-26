@@ -32,4 +32,4 @@ if not exist "target\LapTrinhMang-KetThucMon-1.0-SNAPSHOT-jar-with-dependencies.
 )
 
 echo [THÀNH CÔNG] Đang khởi chạy hệ thống Quản lý sinh viên PTIT...
-"%JAVA_CMD%" -jar "target\LapTrinhMang-KetThucMon-1.0-SNAPSHOT-jar-with-dependencies.jar"
+"%JAVA_CMD%" -cp "target\classes;target\LapTrinhMang-KetThucMon-1.0-SNAPSHOT-jar-with-dependencies.jar" com.qlsv.AppLauncher

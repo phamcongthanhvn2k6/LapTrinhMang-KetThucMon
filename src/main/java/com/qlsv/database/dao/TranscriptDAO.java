@@ -40,8 +40,8 @@ public class TranscriptDAO {
                                 student.getScoreCC(), student.getScoreGK(), student.getScoreCK());
                         transcript.addCourseGrade(cg);
                     } else {
-                        double midterm = parseDoubleSafe(SecurityManager.decrypt(rs.getString("DiemQuaTrinhEncrypted"), desKey), 8.0);
-                        double finalExam = parseDoubleSafe(SecurityManager.decrypt(rs.getString("DiemThiEncrypted"), desKey), 8.0);
+                        double midterm = Double.parseDouble(SecurityManager.decrypt(rs.getString("DiemQuaTrinhEncrypted"), desKey));
+                        double finalExam = Double.parseDouble(SecurityManager.decrypt(rs.getString("DiemThiEncrypted"), desKey));
                         CourseGrade cg = new CourseGrade(code, name, credits, midterm, finalExam);
                         transcript.addCourseGrade(cg);
                     }

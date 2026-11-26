@@ -1527,7 +1527,12 @@ public class ClientGUI extends JFrame {
                     updatePaginationUI();
                     applyFilters();
                 } catch (Exception ex) {
-                    System.err.println("Lỗi tải phân trang: " + ex.getMessage());
+                    currentStudentList = new ArrayList<>();
+                    tableModel.setRowCount(0);
+                    if (lblTableSummary != null) {
+                        lblTableSummary.setText("LỖI GIẢI MÃ CSDL: Sai khóa DES trên Server — Đã khóa hiển thị thông tin!");
+                        lblTableSummary.setForeground(PTIT_RED);
+                    }
                 }
             }
         }.execute();
@@ -2816,7 +2821,13 @@ public class ClientGUI extends JFrame {
                     currentPortalTranscript = t;
                     updateStudentPortalUI(t);
                 } catch (Exception ex) {
-                    System.err.println("Lỗi tải hồ sơ sinh viên: " + ex.getMessage());
+                    currentPortalTranscript = null;
+                    if (portalTableModel != null) portalTableModel.setRowCount(0);
+                    if (lblPortalHoTen != null) lblPortalHoTen.setText("[ĐÃ KHÓA: SAI KHÓA GIẢI MÃ]");
+                    if (lblPortalCredits != null) lblPortalCredits.setText("---");
+                    if (lblPortalGpa10 != null) lblPortalGpa10.setText("---");
+                    if (lblPortalGpa4 != null) lblPortalGpa4.setText("---");
+                    if (lblPortalRank != null) lblPortalRank.setText("[SAI KHÓA DES]");
                 }
             }
         }.execute();
