@@ -164,9 +164,6 @@ public class DatabaseManager {
     }
 
     public List<AuditDAO.AuditEntry> getRecentAuditLogs(int limit) {
-        if (!isConnected()) {
-            return List.of();
-        }
         return auditDAO.getRecentAuditLogs(limit);
     }
 

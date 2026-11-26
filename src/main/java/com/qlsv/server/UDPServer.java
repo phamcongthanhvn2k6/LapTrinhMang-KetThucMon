@@ -196,6 +196,8 @@ public class UDPServer {
         threadPool = Executors.newFixedThreadPool(20);
 
         log(String.format("Server RUDP 2.0 khởi chạy trên cổng %d (20 Workers, HMAC-SHA256, Anti-Replay, Server-Push)", port));
+        DatabaseManager.getInstance().logAudit("system", "SERVER_START",
+                "Khởi chạy Máy chủ RUDP 2.0 trên cổng " + port + " (20 Workers, HMAC-SHA256, Anti-Replay, Server-Push)", "127.0.0.1");
 
         serverThread = new Thread(() -> {
             if (!DatabaseManager.getInstance().isConnected()) {
@@ -203,6 +205,8 @@ public class UDPServer {
                     SqlConfig config = com.qlsv.database.DatabaseConfigLoader.loadConfig();
                     DatabaseManager.getInstance().connect(config);
                     log("Tự động kết nối CSDL (" + config.getDbType() + ") từ db.properties qua HikariCP thành công.");
+                    DatabaseManager.getInstance().logAudit("system", "DB_CONNECTED",
+                            "Kết nối CSDL đám mây " + config.getDbType() + " qua HikariCP thành công (Chuẩn mã hóa: " + com.qlsv.security.SecurityManager.getCurrentAlgo().name() + ")", "127.0.0.1");
                     if (logListener != null) {
                         logListener.onDataUpdated();
                     }
@@ -661,6 +665,10 @@ public class UDPServer {
                     try {
                         String query = packet.getPayload();
                         List<StudentResult> list = DatabaseManager.getInstance().searchStudents(query);
+                        if (query != null && !query.trim().isEmpty()) {
+                            DatabaseManager.getInstance().logAudit("client", "SEARCH_STUDENTS",
+                                    "Tra cứu danh sách sinh viên với từ khóa: '" + query.trim() + "' (Kết quả: " + list.size() + " SV)", clientIp);
+                        }
                         responsePacket = UDPPacket.createStudentsListResponse(true, "Tìm kiếm thành công", gson.toJson(list));
                     } catch (Exception ex) {
                         responsePacket = UDPPacket.createError("Lỗi tìm kiếm: " + ex.getMessage());
@@ -676,6 +684,8 @@ public class UDPServer {
                         com.qlsv.model.PageResult<StudentResult> pageResult;
                         if (pageReq.getQuery() != null && !pageReq.getQuery().trim().isEmpty()) {
                             pageResult = DatabaseManager.getInstance().searchStudentsPaged(pageReq.getQuery(), pageReq.getPage(), pageReq.getPageSize());
+                            DatabaseManager.getInstance().logAudit("client", "SEARCH_STUDENTS",
+                                    "Tìm kiếm phân trang từ khóa: '" + pageReq.getQuery().trim() + "' (Trang " + pageReq.getPage() + ")", clientIp);
                         } else {
                             pageResult = DatabaseManager.getInstance().getStudentsPaged(pageReq.getPage(), pageReq.getPageSize());
                         }
@@ -698,6 +708,12 @@ public class UDPServer {
                     try {
                         String studentId = packet.getPayload();
                         StudentTranscript transcript = DatabaseManager.getInstance().getDetailedTranscript(studentId);
+                        DatabaseManager.getInstance().logAudit(studentId != null ? studentId.trim().toUpperCase() : "student",
+                                "VIEW_TRANSCRIPT",
+                                String.format("Tra cứu bảng điểm học phần của %s (%s) - CPA: %.2f (%s)",
+                                        transcript.getFullName(), transcript.getStudentId(),
+                                        transcript.getCumulativeGpa4(), transcript.getAcademicRank()),
+                                clientIp);
                         responsePacket = UDPPacket.createTranscriptResult(true, "Lấy bảng điểm thành công", gson.toJson(transcript));
                     } catch (Exception ex) {
                         responsePacket = UDPPacket.createError("Lỗi tải bảng điểm: " + ex.getMessage());
@@ -908,6 +924,11 @@ public class UDPServer {
 
                         log(String.format("[RUDP FILE STREAM] Truyền mảnh %d/%d đề cương %s (%d bytes | SHA-256: %s...)",
                                 reqChunk + 1, totalChunks, cCode, slice.length(), sha256.substring(0, 12)));
+                        if (reqChunk == totalChunks - 1) {
+                            DatabaseManager.getInstance().logAudit("student", "DOWNLOAD_SYLLABUS",
+                                    String.format("Tải hoàn tất đề cương học phần %s (%d mảnh RUDP | SHA-256: %s...)",
+                                            cCode, totalChunks, sha256.substring(0, 12)), clientIp);
+                        }
                         responsePacket = UDPPacket.createCourseMaterialChunk(cCode, reqChunk, totalChunks, sha256, slice);
                     } catch (Exception ex) {
                         responsePacket = UDPPacket.createError("Lỗi tải tài liệu học phần: " + ex.getMessage());

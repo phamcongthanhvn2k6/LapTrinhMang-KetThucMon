@@ -450,6 +450,7 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
             txtLog.setCaretPosition(txtLog.getDocument().getLength());
             updateDbStatusLabel();
             updateChaosTelemetryLabel();
+            refreshAuditLogs();
         });
     }
 
@@ -489,7 +490,10 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
             if (udpServer != null) {
                 udpServer.setSimulatedDropRatePercent(rate);
             }
+            DatabaseManager.getInstance().logAudit("admin", "CHAOS_DROP_CONFIG",
+                    "Cấu hình giả lập tỷ lệ rớt gói mạng RUDP = " + rate + "%", "127.0.0.1");
             updateChaosTelemetryLabel();
+            refreshAuditLogs();
         });
 
         JComboBox<String> cbLatency = new JComboBox<>(new String[]{
@@ -504,7 +508,10 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
             if (udpServer != null) {
                 udpServer.setSimulatedLatencyMs(lat);
             }
+            DatabaseManager.getInstance().logAudit("admin", "CHAOS_LATENCY_CONFIG",
+                    "Cấu hình giả lập độ trễ đường truyền mạng RUDP = " + lat + " ms", "127.0.0.1");
             updateChaosTelemetryLabel();
+            refreshAuditLogs();
         });
 
         JComboBox<SecurityManager.EncryptionAlgo> cbCipher = new JComboBox<>(SecurityManager.EncryptionAlgo.values());
@@ -513,8 +520,11 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
         cbCipher.addActionListener(e -> {
             SecurityManager.EncryptionAlgo selected = (SecurityManager.EncryptionAlgo) cbCipher.getSelectedItem();
             SecurityManager.setCurrentAlgo(selected);
+            DatabaseManager.getInstance().logAudit("admin", "SWITCH_CIPHER_ALGO",
+                    "Chuyển thuật toán mã hóa CSDL sang: " + selected.getDisplayName(), "127.0.0.1");
             onLog("[BẢO MẬT CSDL] Đã chuyển thuật toán mã hóa sang: " + selected.getDisplayName());
             updateDbStatusLabel();
+            refreshAuditLogs();
         });
 
         row1.add(new JLabel("Giả lập mất gói UDP:"));
@@ -582,7 +592,7 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
         btnStressBenchmark.setFocusPainted(false);
         btnStressBenchmark.addActionListener(e -> runRudpStressBenchmark());
 
-        lblChaosTelemetry = new JLabel("● Gói nhận: 0 | Rớt giả lập: 0 | IDS chặn tấn công: 0 | Push Clients: 0");
+        lblChaosTelemetry = new JLabel("● Gói nhận: 0 | Rớt: 0 | IDS chặn: 0 | Push: 0");
         lblChaosTelemetry.setFont(new Font("Segoe UI", Font.BOLD, 12));
         lblChaosTelemetry.setForeground(new Color(30, 90, 160));
 
@@ -590,30 +600,32 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
         row2.add(btnBroadcast);
         row2.add(btnRefreshAudit);
         row2.add(btnStressBenchmark);
+        row2.add(Box.createHorizontalStrut(6));
+        row2.add(lblChaosTelemetry);
 
         // Row 3: Live Cyber-Attack & Intrusion Detection System (IDS) Simulator
-        JPanel row3 = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 2));
+        JPanel row3 = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));
         row3.setOpaque(false);
 
-        JLabel lblIdsTitle = new JLabel("Giả lập Tấn công Bảo mật (IDS Test):");
+        JLabel lblIdsTitle = new JLabel("Kiểm thử IDS:");
         lblIdsTitle.setFont(new Font("Segoe UI", Font.BOLD, 12));
         lblIdsTitle.setForeground(PTIT_DARK_RED);
 
-        JButton btnAttackMitm = new JButton("1. Tấn Công Sửa Điểm MITM (HMAC Tamper)");
+        JButton btnAttackMitm = new JButton("1. Tấn Công MITM (HMAC Tamper)");
         btnAttackMitm.setFont(new Font("Segoe UI", Font.BOLD, 11));
         btnAttackMitm.setBackground(new Color(220, 53, 69));
         btnAttackMitm.setForeground(Color.WHITE);
         btnAttackMitm.setFocusPainted(false);
         btnAttackMitm.addActionListener(e -> simulateMitmTamperingAttack());
 
-        JButton btnAttackReplay = new JButton("2. Tấn Công Phát Lại Gói Cũ (Replay Attack)");
+        JButton btnAttackReplay = new JButton("2. Phát Lại Gói Cũ (Replay Attack)");
         btnAttackReplay.setFont(new Font("Segoe UI", Font.BOLD, 11));
         btnAttackReplay.setBackground(new Color(230, 126, 34));
         btnAttackReplay.setForeground(Color.WHITE);
         btnAttackReplay.setFocusPainted(false);
         btnAttackReplay.addActionListener(e -> simulateReplayAttack());
 
-        JButton btnAttackBruteForce = new JButton("3. Tấn Công Dò Mật Khẩu (Brute-Force 5 Lần)");
+        JButton btnAttackBruteForce = new JButton("3. Dò Mật Khẩu (Brute-Force 5 Lần)");
         btnAttackBruteForce.setFont(new Font("Segoe UI", Font.BOLD, 11));
         btnAttackBruteForce.setBackground(new Color(108, 117, 125));
         btnAttackBruteForce.setForeground(Color.WHITE);
@@ -624,8 +636,6 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
         row3.add(btnAttackMitm);
         row3.add(btnAttackReplay);
         row3.add(btnAttackBruteForce);
-        row3.add(Box.createHorizontalStrut(6));
-        row3.add(lblChaosTelemetry);
 
         topBox.add(row1);
         topBox.add(row2);
@@ -658,11 +668,11 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
     }
 
     private void refreshAuditLogs() {
-        if (auditTableModel == null || !DatabaseManager.getInstance().isConnected()) return;
+        if (auditTableModel == null) return;
         new SwingWorker<List<AuditDAO.AuditEntry>, Void>() {
             @Override
             protected List<AuditDAO.AuditEntry> doInBackground() {
-                return DatabaseManager.getInstance().getRecentAuditLogs(80);
+                return DatabaseManager.getInstance().getRecentAuditLogs(150);
             }
 
             @Override
@@ -1053,6 +1063,9 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
                     if (failCount > 0) {
                         updateChartFromCounts(0, 0, 0, 0, 0);
                         String err = "Giải mã DES thất bại trên " + failCount + " bản ghi (" + firstErrorMsg + "). Khóa '" + keyInput + "' không khớp — Toàn bộ thông tin giải mã & điểm số đã bị khóa!";
+                        DatabaseManager.getInstance().logAudit("admin", "DES_KEY_INVALID",
+                                "Nhập sai khóa giải mã DES ('" + keyInput + "') -> Hệ thống tự động khóa hiển thị 251 bản ghi", "127.0.0.1");
+                        refreshAuditLogs();
                         if (lblCryptoVerifyStatus != null) {
                             lblCryptoVerifyStatus.setForeground(PTIT_RED);
                             lblCryptoVerifyStatus.setText("● CẢNH BÁO SAI KHÓA: " + err);
@@ -1076,6 +1089,9 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
                             );
                         } catch (Exception ignored) {}
                         String okMsg = "Đã áp dụng khóa DES '" + keyInput + "' (8 bytes) & giải mã thành công " + list.size() + " sinh viên.";
+                        DatabaseManager.getInstance().logAudit("admin", "DES_KEY_APPLIED",
+                                okMsg, "127.0.0.1");
+                        refreshAuditLogs();
                         if (lblCryptoVerifyStatus != null) {
                             lblCryptoVerifyStatus.setForeground(new Color(40, 167, 69));
                             lblCryptoVerifyStatus.setText("● " + okMsg);
