@@ -46,6 +46,9 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
     private JPanel chartPanelContainer;
     private JTextField txtInlineDesKey;
     private JLabel lblCryptoVerifyStatus;
+    private CardLayout dataCardLayout;
+    private JPanel dataCenterContainer;
+    private JLabel lblLockedKeyDetail;
 
     private SimpleDateFormat dateFormat = new SimpleDateFormat("HH:mm:ss");
 
@@ -226,8 +229,14 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
         topInspectionContainer.add(tableActionBar, BorderLayout.NORTH);
         topInspectionContainer.add(lblCryptoVerifyStatus, BorderLayout.SOUTH);
 
+        dataCardLayout = new CardLayout();
+        dataCenterContainer = new JPanel(dataCardLayout);
+        dataCenterContainer.setBackground(Color.WHITE);
+        dataCenterContainer.add(scrollTable, "TABLE");
+        dataCenterContainer.add(createWrongKeyLockoutPanel(), "LOCKED");
+
         tabData.add(topInspectionContainer, BorderLayout.NORTH);
-        tabData.add(scrollTable, BorderLayout.CENTER);
+        tabData.add(dataCenterContainer, BorderLayout.CENTER);
 
         // Tab 2: Chart
         JPanel tabChart = new JPanel(new BorderLayout(5, 5));
@@ -852,8 +861,18 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
                         });
                     }
                     if (failCount > 0) {
+                        tableModel.setRowCount(0); // Xóa sạch toàn bộ dòng trong bảng
+                        if (lblLockedKeyDetail != null) {
+                            lblLockedKeyDetail.setText("Khóa '" + DatabaseManager.getInstance().getDesKey() + "' KHÔNG HỢP LỆ (Giải mã thất bại trên " + failCount + " bản ghi CSDL)!");
+                        }
+                        if (dataCardLayout != null && dataCenterContainer != null) {
+                            dataCardLayout.show(dataCenterContainer, "LOCKED");
+                        }
                         updateChartFromCounts(0, 0, 0, 0, 0);
                     } else {
+                        if (dataCardLayout != null && dataCenterContainer != null) {
+                            dataCardLayout.show(dataCenterContainer, "TABLE");
+                        }
                         Map<String, Integer> rankStats = DatabaseManager.getInstance().getRankStatistics();
                         int xs = rankStats.getOrDefault("Xuất sắc", 0);
                         int gioi = rankStats.getOrDefault("Giỏi", 0);
@@ -933,6 +952,53 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
             lblDbStatus.setText("Trạng thái CSDL: CHƯA KẾT NỐI");
             lblDbStatus.setForeground(PTIT_RED);
         }
+    }
+
+    private JPanel createWrongKeyLockoutPanel() {
+        JPanel lockPanel = new JPanel(new GridBagLayout());
+        lockPanel.setBackground(new Color(255, 245, 245));
+        lockPanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(PTIT_RED, 2),
+                BorderFactory.createEmptyBorder(30, 40, 30, 40)
+        ));
+
+        JPanel box = new JPanel(new GridLayout(4, 1, 10, 10));
+        box.setOpaque(false);
+
+        JLabel lblIconTitle = new JLabel("CẢNH BÁO BẢO MẬT: SAI KHÓA GIẢI MÃ DES — ĐÃ ẨN TOÀN BỘ DANH SÁCH SINH VIÊN!", SwingConstants.CENTER);
+        lblIconTitle.setFont(new Font("Segoe UI", Font.BOLD, 17));
+        lblIconTitle.setForeground(PTIT_RED);
+
+        lblLockedKeyDetail = new JLabel("Khóa giải mã bạn vừa nhập không khớp với dữ liệu mã hóa trong CSDL (BadPaddingException).", SwingConstants.CENTER);
+        lblLockedKeyDetail.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        lblLockedKeyDetail.setForeground(new Color(80, 20, 20));
+
+        JLabel lblGuide = new JLabel("Để bảo vệ an toàn dữ liệu và chống rò rỉ thông tin, hệ thống đã đóng băng & ẩn toàn bộ bảng danh sách trên cả Server và Client.", SwingConstants.CENTER);
+        lblGuide.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        lblGuide.setForeground(new Color(90, 90, 90));
+
+        JPanel btnWrap = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        btnWrap.setOpaque(false);
+        JButton btnQuickRestoreKey = new JButton("Khôi Phục Khóa Chuẩn (QLSV_KEY) & Mở Lại Danh Sách");
+        btnQuickRestoreKey.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        btnQuickRestoreKey.setBackground(new Color(40, 167, 69));
+        btnQuickRestoreKey.setForeground(Color.WHITE);
+        btnQuickRestoreKey.setFocusPainted(false);
+        btnQuickRestoreKey.addActionListener(e -> {
+            if (txtInlineDesKey != null) {
+                txtInlineDesKey.setText("QLSV_KEY");
+            }
+            handleApplyInlineDesKey();
+        });
+        btnWrap.add(btnQuickRestoreKey);
+
+        box.add(lblIconTitle);
+        box.add(lblLockedKeyDetail);
+        box.add(lblGuide);
+        box.add(btnWrap);
+
+        lockPanel.add(box);
+        return lockPanel;
     }
 
     private void openAccountsInspectionDialog() {
@@ -1061,23 +1127,36 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
                         });
                     }
                     if (failCount > 0) {
+                        tableModel.setRowCount(0); // Xóa sạch bảng và ẩn hoàn toàn giao diện danh sách
+                        if (lblLockedKeyDetail != null) {
+                            lblLockedKeyDetail.setText("Khóa DES '" + keyInput + "' KHÔNG CHÍNH XÁC (" + firstErrorMsg + ") — Từ chối hiển thị " + failCount + " bản ghi!");
+                        }
+                        if (dataCardLayout != null && dataCenterContainer != null) {
+                            dataCardLayout.show(dataCenterContainer, "LOCKED");
+                        }
                         updateChartFromCounts(0, 0, 0, 0, 0);
-                        String err = "Giải mã DES thất bại trên " + failCount + " bản ghi (" + firstErrorMsg + "). Khóa '" + keyInput + "' không khớp — Toàn bộ thông tin giải mã & điểm số đã bị khóa!";
+                        String err = "SAI KHÓA GIẢI MÃ DES ('" + keyInput + "'): Đã ẩn hoàn toàn giao diện danh sách sinh viên để bảo vệ dữ liệu!";
                         DatabaseManager.getInstance().logAudit("admin", "DES_KEY_INVALID",
-                                "Nhập sai khóa giải mã DES ('" + keyInput + "') -> Hệ thống tự động khóa hiển thị 251 bản ghi", "127.0.0.1");
+                                "Nhập sai khóa giải mã DES ('" + keyInput + "') -> Hệ thống tự động ẩn toàn bộ danh sách 251 bản ghi", "127.0.0.1");
                         refreshAuditLogs();
                         if (lblCryptoVerifyStatus != null) {
                             lblCryptoVerifyStatus.setForeground(PTIT_RED);
-                            lblCryptoVerifyStatus.setText("● CẢNH BÁO SAI KHÓA: " + err);
+                            lblCryptoVerifyStatus.setText("● " + err);
                         }
                         onLog("[LỖI GIẢI MÃ DES] " + err);
                         if (udpServer != null) {
                             udpServer.broadcastPushEvent("CRYPTO_ERROR", "CẢNH BÁO BẢO MẬT: Khóa giải mã DES trên Server không hợp lệ ('" + keyInput + "') — Tạm khóa truy xuất bảng điểm!", keyInput);
                         }
                         JOptionPane.showMessageDialog(ServerGUI.this,
-                                err + "\n\n(Hệ thống đã ẩn hoàn toàn Họ tên, Mã SV, Điểm HP và khóa truy vấn Client để ngăn rò rỉ dữ liệu. Hãy nhập lại khóa đúng 'QLSV_KEY' để khôi phục!)",
-                                "Phát Hiện Sai Khóa Giải Mã DES — Đã Khóa Hiển Thị Thông Tin", JOptionPane.WARNING_MESSAGE);
+                                "SAI KHÓA GIẢI MÃ DES ('" + keyInput + "')!\n\n" +
+                                "• Chi tiết kỹ thuật: " + firstErrorMsg + "\n" +
+                                "• Hệ thống đã ẨN HOÀN TOÀN bảng danh sách sinh viên trên cả Server và Client.\n" +
+                                "• Vui lòng nhập lại khóa đúng ('QLSV_KEY') hoặc nhấn nút Khôi phục trên màn hình để mở lại danh sách!",
+                                "Sai Khóa Giải Mã DES — Đã Ẩn Danh Sách", JOptionPane.ERROR_MESSAGE);
                     } else {
+                        if (dataCardLayout != null && dataCenterContainer != null) {
+                            dataCardLayout.show(dataCenterContainer, "TABLE");
+                        }
                         try {
                             Map<String, Integer> rankStats = DatabaseManager.getInstance().getRankStatistics();
                             updateChartFromCounts(
