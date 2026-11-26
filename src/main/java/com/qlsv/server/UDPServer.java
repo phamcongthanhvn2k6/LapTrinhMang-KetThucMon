@@ -56,6 +56,7 @@ public class UDPServer {
     private final AtomicLong totalPacketsReceived = new AtomicLong(0);
     private final AtomicLong totalPacketsDroppedByChaos = new AtomicLong(0);
     private final AtomicLong totalPushEventsSent = new AtomicLong(0);
+    private final AtomicLong totalSecurityThreatsBlocked = new AtomicLong(0);
 
     // Active Client Push Subscribers (Key: "ip:pushPort" -> InetSocketAddress)
     private final Map<String, InetSocketAddress> pushSubscribers = new ConcurrentHashMap<>();
@@ -184,6 +185,10 @@ public class UDPServer {
         return pushSubscribers.size();
     }
 
+    public long getTotalSecurityThreatsBlocked() {
+        return totalSecurityThreatsBlocked.get();
+    }
+
     public synchronized void start() throws Exception {
         if (running) return;
         socket = new DatagramSocket(port);
@@ -284,17 +289,31 @@ public class UDPServer {
 
             // 2. Kiểm tra chữ ký toàn vẹn HMAC-SHA256 & Chống Replay Attack
             if (!packet.verifyIntegrity()) {
-                log(String.format("[CẢNH BÁO AN NINH] Chữ ký HMAC-SHA256 KHÔNG HỢP LỆ trên gói [Seq#%d | %s] từ %s:%d! Từ chối xử lý.",
-                        seq, packet.getType(), clientIp, clientPort));
-                sendPacket(UDPPacket.createError("BẢO MẬT RUDP: Chữ ký số HMAC-SHA256 không hợp lệ (Gói tin có dấu hiệu bị can thiệp)!"),
+                totalSecurityThreatsBlocked.incrementAndGet();
+                String alert = String.format("Chặn đứng gói tin [Seq#%d | %s] bị sửa đổi Payload trên đường truyền (Sai chữ ký HMAC-SHA256)!",
+                        seq, packet.getType());
+                log("[IDS CẢNH BÁO AN NINH - MITM TAMPERING] " + alert);
+                DatabaseManager.getInstance().logAudit("IDS-FIREWALL", "BLOCK_MITM_HMAC", alert, clientIp);
+                broadcastPushEvent("SECURITY_ALERT", "[IDS CẢNH BÁO AN NINH] " + alert, clientIp);
+                if (logListener != null) {
+                    logListener.onDataUpdated();
+                }
+                sendPacket(UDPPacket.createError("BẢO MẬT RUDP (IDS): Chữ ký số HMAC-SHA256 không hợp lệ (Gói tin có dấu hiệu bị can thiệp MITM)!"),
                         seq, clientAddress, clientPort);
                 return;
             }
 
             if (!packet.isReplayValid()) {
-                log(String.format("[CẢNH BÁO AN NINH] Phát hiện gói tin quá hạn Timestamp (Replay Attack) [Seq#%d] từ %s:%d!",
-                        seq, clientIp, clientPort));
-                sendPacket(UDPPacket.createError("BẢO MẬT RUDP: Gói tin đã hết hạn Timestamp (Chống tấn công phát lại - Anti-Replay)!"),
+                totalSecurityThreatsBlocked.incrementAndGet();
+                String alert = String.format("Chặn đứng gói tin phát lại quá hạn Timestamp (Replay Attack > 5 phút) [Seq#%d | %s]!",
+                        seq, packet.getType());
+                log("[IDS CẢNH BÁO AN NINH - REPLAY ATTACK] " + alert);
+                DatabaseManager.getInstance().logAudit("IDS-FIREWALL", "BLOCK_REPLAY_ATTACK", alert, clientIp);
+                broadcastPushEvent("SECURITY_ALERT", "[IDS CẢNH BÁO AN NINH] " + alert, clientIp);
+                if (logListener != null) {
+                    logListener.onDataUpdated();
+                }
+                sendPacket(UDPPacket.createError("BẢO MẬT RUDP (IDS): Gói tin đã hết hạn Timestamp (Chống tấn công phát lại - Anti-Replay)!"),
                         seq, clientAddress, clientPort);
                 return;
             }
@@ -342,9 +361,13 @@ public class UDPServer {
 
                         long lockRemain = SessionManager.getInstance().getRemainingLockoutSeconds(username);
                         if (lockRemain > 0) {
+                            totalSecurityThreatsBlocked.incrementAndGet();
                             DatabaseManager.getInstance().logAudit(username, "LOGIN_LOCKED",
                                     "Tài khoản đang bị khóa Brute-force (" + lockRemain + "s)", clientIp);
                             log(String.format("[CẢNH BÁO BRUTE-FORCE] Chặn đăng nhập '%s' từ %s (Đang khóa còn %ds)", username, clientIp, lockRemain));
+                            if (logListener != null) {
+                                logListener.onDataUpdated();
+                            }
                             responsePacket = UDPPacket.createLoginResponse(false,
                                     "BẢO VỆ CHỐNG BRUTE-FORCE: Tài khoản tạm khóa do nhập sai nhiều lần! Vui lòng thử lại sau " + lockRemain + " giây.",
                                     null, null);
@@ -359,9 +382,17 @@ public class UDPServer {
                             responsePacket = UDPPacket.createLoginResponse(true, "Đăng nhập thành công!", token, gson.toJson(acc));
                         } else {
                             int failCount = SessionManager.getInstance().recordLoginFailure(username);
+                            if (failCount >= 5) {
+                                totalSecurityThreatsBlocked.incrementAndGet();
+                                broadcastPushEvent("SECURITY_ALERT",
+                                        "[IDS BRUTE-FORCE LOCKOUT] Đã khóa tài khoản '" + username + "' trong 60s do dò mật khẩu 5 lần liên tiếp!", clientIp);
+                            }
                             DatabaseManager.getInstance().logAudit(username, "LOGIN_FAILED",
                                     "Sai mật khẩu lần " + failCount + "/5", clientIp);
                             log(String.format("Xác thực THẤT BẠI cho '%s' (Lần sai: %d/5)", username, failCount));
+                            if (logListener != null) {
+                                logListener.onDataUpdated();
+                            }
                             String msg = failCount >= 5
                                     ? "Sai mật khẩu 5 lần liên tiếp! Tài khoản đã bị khóa tạm thời 60 giây để bảo vệ an ninh."
                                     : String.format("Sai tên đăng nhập hoặc mật khẩu! (Cảnh báo an ninh: Lần thử sai %d/5)", failCount);

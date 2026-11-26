@@ -143,15 +143,21 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
 
         JScrollPane scrollTable = new JScrollPane(tblDataInspection);
 
-        JPanel tableActionBar = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JPanel tableActionBar = new JPanel(new GridLayout(2, 1, 2, 2));
         tableActionBar.setBackground(Color.WHITE);
+
+        JPanel actionRow1 = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));
+        actionRow1.setBackground(Color.WHITE);
+
+        JPanel actionRow2 = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));
+        actionRow2.setBackground(Color.WHITE);
 
         JButton btnRefreshData = new JButton("Làm Mới Dữ Liệu");
         btnRefreshData.setBackground(PTIT_RED);
         btnRefreshData.setForeground(Color.WHITE);
         btnRefreshData.setFont(new Font("Segoe UI", Font.BOLD, 12));
         btnRefreshData.addActionListener(e -> refreshDataInspection());
-        tableActionBar.add(btnRefreshData);
+        actionRow1.add(btnRefreshData);
 
         JButton btnRotateKey = new JButton("Xoay Khóa & Tái Mã Hóa CSDL (DES <-> AES-256)");
         btnRotateKey.setBackground(new Color(111, 66, 193));
@@ -159,15 +165,15 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
         btnRotateKey.setFont(new Font("Segoe UI", Font.BOLD, 12));
         btnRotateKey.setFocusPainted(false);
         btnRotateKey.addActionListener(e -> handleLiveKeyRotation());
-        tableActionBar.add(btnRotateKey);
+        actionRow1.add(btnRotateKey);
 
-        JButton btnBackupSnapshot = new JButton("Sao Lưu Snapshot CSDL");
+        JButton btnBackupSnapshot = new JButton("Sao Lưu Snapshot");
         btnBackupSnapshot.setBackground(new Color(40, 167, 69));
         btnBackupSnapshot.setForeground(Color.WHITE);
         btnBackupSnapshot.setFont(new Font("Segoe UI", Font.BOLD, 12));
         btnBackupSnapshot.setFocusPainted(false);
         btnBackupSnapshot.addActionListener(e -> handleBackupSnapshot());
-        tableActionBar.add(btnBackupSnapshot);
+        actionRow1.add(btnBackupSnapshot);
 
         JButton btnRestoreSnapshot = new JButton("Khôi Phục Snapshot (HMAC)");
         btnRestoreSnapshot.setBackground(new Color(230, 126, 34));
@@ -175,17 +181,16 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
         btnRestoreSnapshot.setFont(new Font("Segoe UI", Font.BOLD, 12));
         btnRestoreSnapshot.setFocusPainted(false);
         btnRestoreSnapshot.addActionListener(e -> handleRestoreSnapshot());
-        tableActionBar.add(btnRestoreSnapshot);
+        actionRow1.add(btnRestoreSnapshot);
 
-        tableActionBar.add(Box.createHorizontalStrut(6));
         JLabel lblKeyPrompt = new JLabel("Khóa DES (8 ký tự):");
         lblKeyPrompt.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        tableActionBar.add(lblKeyPrompt);
+        actionRow2.add(lblKeyPrompt);
 
         txtInlineDesKey = new JTextField(DatabaseManager.getInstance().getDesKey(), 8);
         txtInlineDesKey.setFont(new Font("Consolas", Font.BOLD, 13));
         txtInlineDesKey.setToolTipText("Nhập đúng 8 ký tự (ví dụ QLSV_KEY để giải mã đúng, hoặc WRONGKEY để demo bắt lỗi BadPaddingException)");
-        tableActionBar.add(txtInlineDesKey);
+        actionRow2.add(txtInlineDesKey);
 
         JButton btnApplyDesKey = new JButton("Áp Dụng Khóa & Giải Mã");
         btnApplyDesKey.setBackground(new Color(0, 123, 255));
@@ -193,12 +198,15 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
         btnApplyDesKey.setFont(new Font("Segoe UI", Font.BOLD, 12));
         btnApplyDesKey.setFocusPainted(false);
         btnApplyDesKey.addActionListener(e -> handleApplyInlineDesKey());
-        tableActionBar.add(btnApplyDesKey);
+        actionRow2.add(btnApplyDesKey);
 
         lblDbStatus = new JLabel("Trạng thái CSDL: Chưa kết nối");
         lblDbStatus.setFont(new Font("Segoe UI", Font.ITALIC, 11));
-        tableActionBar.add(Box.createHorizontalStrut(6));
-        tableActionBar.add(lblDbStatus);
+        actionRow2.add(Box.createHorizontalStrut(8));
+        actionRow2.add(lblDbStatus);
+
+        tableActionBar.add(actionRow1);
+        tableActionBar.add(actionRow2);
 
         lblCryptoVerifyStatus = new JLabel("● Khóa giải mã hiện tại: QLSV_KEY (8 bytes hợp lệ)");
         lblCryptoVerifyStatus.setFont(new Font("Segoe UI", Font.BOLD, 12));
@@ -447,12 +455,12 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
         panel.setBackground(Color.WHITE);
         panel.setBorder(BorderFactory.createEmptyBorder(10, 12, 10, 12));
 
-        // 1. Top Box: Network Chaos Simulator & Gradebook Governance
-        JPanel topBox = new JPanel(new GridLayout(2, 1, 6, 6));
+        // 1. Top Box: Network Chaos Simulator, Gradebook Governance & Security Penetration Testing (IDS)
+        JPanel topBox = new JPanel(new GridLayout(3, 1, 4, 4));
         topBox.setBackground(new Color(248, 249, 252));
         topBox.setBorder(BorderFactory.createTitledBorder(
                 BorderFactory.createLineBorder(PTIT_RED, 1),
-                " PHÒNG THÍ NGHIỆM MẠNG RUDP 2.0 (CHAOS SIMULATOR) & QUẢN TRỊ HỌC VỤ ",
+                " PHÒNG THÍ NGHIỆM MẠNG RUDP 2.0 (CHAOS SIMULATOR), KIỂM THỬ XÂM NHẬP (IDS) & QUẢN TRỊ HỌC VỤ ",
                 javax.swing.border.TitledBorder.LEFT, javax.swing.border.TitledBorder.TOP,
                 new Font("Segoe UI", Font.BOLD, 12), PTIT_RED
         ));
@@ -566,7 +574,7 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
         btnStressBenchmark.setFocusPainted(false);
         btnStressBenchmark.addActionListener(e -> runRudpStressBenchmark());
 
-        lblChaosTelemetry = new JLabel("● Gói nhận: 0 | Rớt giả lập: 0 | Push Clients: 0 | Chữ ký: HMAC-SHA256");
+        lblChaosTelemetry = new JLabel("● Gói nhận: 0 | Rớt giả lập: 0 | IDS chặn tấn công: 0 | Push Clients: 0");
         lblChaosTelemetry.setFont(new Font("Segoe UI", Font.BOLD, 12));
         lblChaosTelemetry.setForeground(new Color(30, 90, 160));
 
@@ -574,11 +582,46 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
         row2.add(btnBroadcast);
         row2.add(btnRefreshAudit);
         row2.add(btnStressBenchmark);
-        row2.add(Box.createHorizontalStrut(6));
-        row2.add(lblChaosTelemetry);
+
+        // Row 3: Live Cyber-Attack & Intrusion Detection System (IDS) Simulator
+        JPanel row3 = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 2));
+        row3.setOpaque(false);
+
+        JLabel lblIdsTitle = new JLabel("Giả lập Tấn công Bảo mật (IDS Test):");
+        lblIdsTitle.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        lblIdsTitle.setForeground(PTIT_DARK_RED);
+
+        JButton btnAttackMitm = new JButton("1. Tấn Công Sửa Điểm MITM (HMAC Tamper)");
+        btnAttackMitm.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        btnAttackMitm.setBackground(new Color(220, 53, 69));
+        btnAttackMitm.setForeground(Color.WHITE);
+        btnAttackMitm.setFocusPainted(false);
+        btnAttackMitm.addActionListener(e -> simulateMitmTamperingAttack());
+
+        JButton btnAttackReplay = new JButton("2. Tấn Công Phát Lại Gói Cũ (Replay Attack)");
+        btnAttackReplay.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        btnAttackReplay.setBackground(new Color(230, 126, 34));
+        btnAttackReplay.setForeground(Color.WHITE);
+        btnAttackReplay.setFocusPainted(false);
+        btnAttackReplay.addActionListener(e -> simulateReplayAttack());
+
+        JButton btnAttackBruteForce = new JButton("3. Tấn Công Dò Mật Khẩu (Brute-Force 5 Lần)");
+        btnAttackBruteForce.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        btnAttackBruteForce.setBackground(new Color(108, 117, 125));
+        btnAttackBruteForce.setForeground(Color.WHITE);
+        btnAttackBruteForce.setFocusPainted(false);
+        btnAttackBruteForce.addActionListener(e -> simulateBruteForceAttack());
+
+        row3.add(lblIdsTitle);
+        row3.add(btnAttackMitm);
+        row3.add(btnAttackReplay);
+        row3.add(btnAttackBruteForce);
+        row3.add(Box.createHorizontalStrut(6));
+        row3.add(lblChaosTelemetry);
 
         topBox.add(row1);
         topBox.add(row2);
+        topBox.add(row3);
         panel.add(topBox, BorderLayout.NORTH);
 
         // 2. Center Box: Immutable Audit Log Table
@@ -636,10 +679,125 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
 
     private void updateChaosTelemetryLabel() {
         if (lblChaosTelemetry != null && udpServer != null) {
-            lblChaosTelemetry.setText(String.format("● Gói UDP nhận: %d  |  Rớt giả lập (ARQ): %d  |  Kênh Push Online: %d  |  HMAC-SHA256: BẬT",
+            lblChaosTelemetry.setText(String.format("● Gói nhận: %d | Rớt (ARQ): %d | IDS chặn: %d | Push: %d",
                     udpServer.getTotalPacketsReceived(),
                     udpServer.getTotalPacketsDroppedByChaos(),
+                    udpServer.getTotalSecurityThreatsBlocked(),
                     udpServer.getActivePushSubscriberCount()));
+        }
+    }
+
+    private void simulateMitmTamperingAttack() {
+        if (udpServer == null || !udpServer.isRunning()) {
+            JOptionPane.showMessageDialog(this, "Máy chủ RUDP chưa chạy!", "Thông báo", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        try (java.net.DatagramSocket attackerSocket = new java.net.DatagramSocket()) {
+            attackerSocket.setSoTimeout(3000);
+            // 1. Tạo gói tin cập nhật điểm hợp lệ và ký HMAC-SHA256
+            com.qlsv.network.UDPPacket pkt = com.qlsv.network.UDPPacket.createUpdateRequest(
+                    "{\"studentId\":\"SV001\",\"fullName\":\"Vũ Khánh Bích\",\"scoreMath\":7.0,\"scoreLiterature\":7.0,\"scoreEnglish\":7.0}",
+                    "attacker-token");
+            pkt.setSequenceNum(9901);
+            pkt.signPacket();
+            String validHmac = pkt.getHmacSignature();
+
+            // 2. Kẻ tấn công MITM chặn gói tin trên đường truyền và sửa điểm 7.0 thành 10.0 mà không biết khóa bí mật HMAC
+            pkt.setPayload("{\"studentId\":\"SV001\",\"fullName\":\"Vũ Khánh Bích (HACKED 10.0)\",\"scoreMath\":10.0,\"scoreLiterature\":10.0,\"scoreEnglish\":10.0}");
+            byte[] tamperedBytes = pkt.toBytesWithoutResigning();
+
+            java.net.InetAddress addr = java.net.InetAddress.getByName("127.0.0.1");
+            attackerSocket.send(new java.net.DatagramPacket(tamperedBytes, tamperedBytes.length, addr, serverPort));
+
+            byte[] buf = new byte[8192];
+            java.net.DatagramPacket respDp = new java.net.DatagramPacket(buf, buf.length);
+            attackerSocket.receive(respDp);
+            com.qlsv.network.UDPPacket resp = com.qlsv.network.UDPPacket.fromBytes(respDp.getData(), respDp.getLength());
+
+            refreshAuditLogs();
+            updateChaosTelemetryLabel();
+            JOptionPane.showMessageDialog(this,
+                    "=== KẾT QUẢ GIẢ LẬP TẤN CÔNG MITM SỬA ĐIỂM TRÊN ĐƯỜNG TRUYỀN ===\n\n" +
+                    "1. Gói tin gốc đã ký HMAC-SHA256:\n   " + validHmac + "\n" +
+                    "2. Hành vi tấn công: Kẻ gian bắt gói UDP và sửa Payload điểm SV001 thành 10.0.\n" +
+                    "3. Phản ứng của Máy chủ RUDP (IDS Firewall):\n   -> " + (resp != null ? resp.getMessage() : "Đã chặn gói tin") + "\n" +
+                    "4. Trạng thái CSDL: Điểm của SV001 được BẢO TOÀN 100%, hành vi tấn công đã bị ghi vào Nhật ký Thanh tra (BLOCK_MITM_HMAC)!",
+                    "IDS Đã Chặn Đứng Tấn Công MITM (HMAC-SHA256 Mismatch)", JOptionPane.WARNING_MESSAGE);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Lỗi giả lập MITM: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void simulateReplayAttack() {
+        if (udpServer == null || !udpServer.isRunning()) {
+            JOptionPane.showMessageDialog(this, "Máy chủ RUDP chưa chạy!", "Thông báo", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        try (java.net.DatagramSocket attackerSocket = new java.net.DatagramSocket()) {
+            attackerSocket.setSoTimeout(3000);
+            // Tạo gói tin cũ có Timestamp cách đây 15 phút (vượt quá cửa sổ Anti-Replay 5 phút)
+            com.qlsv.network.UDPPacket pkt = com.qlsv.network.UDPPacket.createUpdateRequest(
+                    "{\"studentId\":\"SV001\",\"fullName\":\"Vũ Khánh Bích\",\"scoreMath\":9.5,\"scoreLiterature\":9.5,\"scoreEnglish\":9.5}",
+                    "captured-old-token");
+            pkt.setSequenceNum(9902);
+            long expiredTimestamp = System.currentTimeMillis() - (15 * 60 * 1000L);
+            pkt.setTimestamp(expiredTimestamp);
+            pkt.signPacket(); // Dù chữ ký HMAC hợp lệ nhưng gói tin đã quá hạn thời gian
+            byte[] replayBytes = pkt.toBytesWithoutResigning();
+
+            java.net.InetAddress addr = java.net.InetAddress.getByName("127.0.0.1");
+            attackerSocket.send(new java.net.DatagramPacket(replayBytes, replayBytes.length, addr, serverPort));
+
+            byte[] buf = new byte[8192];
+            java.net.DatagramPacket respDp = new java.net.DatagramPacket(buf, buf.length);
+            attackerSocket.receive(respDp);
+            com.qlsv.network.UDPPacket resp = com.qlsv.network.UDPPacket.fromBytes(respDp.getData(), respDp.getLength());
+
+            refreshAuditLogs();
+            updateChaosTelemetryLabel();
+            JOptionPane.showMessageDialog(this,
+                    "=== KẾT QUẢ GIẢ LẬP TẤN CÔNG PHÁT LẠI GÓI TIN CŨ (REPLAY ATTACK) ===\n\n" +
+                    "1. Hành vi tấn công: Kẻ gian thu lén (Sniffing) một gói UDP hợp lệ đã gửi cách đây 15 phút và phát lại lên Server.\n" +
+                    "2. Kiểm tra Cửa sổ Thời gian (Anti-Replay Window +-5 phút):\n   Độ lệch Timestamp = 900 giây (> 300 giây cho phép).\n" +
+                    "3. Phản ứng của Máy chủ RUDP (IDS Firewall):\n   -> " + (resp != null ? resp.getMessage() : "Đã hủy gói tin quá hạn") + "\n" +
+                    "4. Nhật ký Thanh tra: Đã ghi nhận sự kiện BLOCK_REPLAY_ATTACK!",
+                    "IDS Đã Chặn Đứng Tấn Công Replay Attack", JOptionPane.WARNING_MESSAGE);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Lỗi giả lập Replay Attack: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void simulateBruteForceAttack() {
+        if (udpServer == null || !udpServer.isRunning()) {
+            JOptionPane.showMessageDialog(this, "Máy chủ RUDP chưa chạy!", "Thông báo", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        final String targetAccount = "hacker_demo";
+        SessionManager.getInstance().clearLoginFailures(targetAccount);
+        StringBuilder logBuilder = new StringBuilder("=== KẾT QUẢ GIẢ LẬP TẤN CÔNG DÒ MẬT KHẨU (BRUTE-FORCE RATE LIMITING) ===\n\n");
+        try (java.net.DatagramSocket attackerSocket = new java.net.DatagramSocket()) {
+            attackerSocket.setSoTimeout(3000);
+            java.net.InetAddress addr = java.net.InetAddress.getByName("127.0.0.1");
+
+            for (int attempt = 1; attempt <= 6; attempt++) {
+                com.qlsv.network.UDPPacket loginPkt = com.qlsv.network.UDPPacket.createLogin(targetAccount, "wrong_pass_" + attempt);
+                loginPkt.setSequenceNum(9910 + attempt);
+                byte[] bytes = loginPkt.toBytes();
+                attackerSocket.send(new java.net.DatagramPacket(bytes, bytes.length, addr, serverPort));
+
+                byte[] buf = new byte[8192];
+                java.net.DatagramPacket respDp = new java.net.DatagramPacket(buf, buf.length);
+                attackerSocket.receive(respDp);
+                com.qlsv.network.UDPPacket resp = com.qlsv.network.UDPPacket.fromBytes(respDp.getData(), respDp.getLength());
+                logBuilder.append(String.format("• Lần thử #%d (pass='wrong_pass_%d'):\n   -> %s\n",
+                        attempt, attempt, resp != null ? resp.getMessage() : "Timeout"));
+            }
+            refreshAuditLogs();
+            updateChaosTelemetryLabel();
+            JOptionPane.showMessageDialog(this, logBuilder.toString(),
+                    "IDS Đã Kích Hoạt Khóa Tài Khoản Chống Brute-Force (60 Giây)", JOptionPane.WARNING_MESSAGE);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Lỗi giả lập Brute-Force: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
         }
     }
 

@@ -239,6 +239,13 @@ public class UDPPacket {
 
     public byte[] toBytes() {
         this.signPacket();
+        return toBytesWithoutResigning();
+    }
+
+    /**
+     * Đóng gói mảng byte giữ nguyên chữ ký và timestamp hiện tại (dùng cho Kiểm thử Thâm nhập Bảo mật MITM / Replay Attack).
+     */
+    public byte[] toBytesWithoutResigning() {
         String json = gson.toJson(this);
         byte[] raw = json.getBytes(StandardCharsets.UTF_8);
         if (raw.length > 512) {
