@@ -7,6 +7,8 @@ public enum PacketType {
     DB_STATUS,                // Server returns DB connection success/failure
     LOGIN,                    // Client sends Username/Password for Server authentication
     LOGIN_RESPONSE,           // Server returns auth token and user profile
+    REGISTER_ACCOUNT,         // Client registers a new account with SHA-256 + Salt hashing
+    CHANGE_PASSWORD,          // Client changes account password with old password verification
     ADD_STUDENT,              // Client sends a student record
     UPDATE_STUDENT,           // Client updates an existing student record
     DELETE_STUDENT,           // Client deletes a student record

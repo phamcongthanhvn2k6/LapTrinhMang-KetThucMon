@@ -61,6 +61,29 @@ public class UDPPacket {
         return p;
     }
 
+    public static UDPPacket createRegisterAccount(String username, String password, String roleName,
+                                                  String studentId, String fullName, String email, String inviteCode) {
+        String json = gson.toJson(new String[]{
+                username != null ? username : "",
+                password != null ? password : "",
+                roleName != null ? roleName : "HOCSINH",
+                studentId != null ? studentId : "",
+                fullName != null ? fullName : "",
+                email != null ? email : "",
+                inviteCode != null ? inviteCode : ""
+        });
+        return new UDPPacket(PacketType.REGISTER_ACCOUNT, true, "Register Account Request", json);
+    }
+
+    public static UDPPacket createChangePassword(String username, String oldPassword, String newPassword, String token) {
+        String json = gson.toJson(new String[]{
+                username != null ? username : "",
+                oldPassword != null ? oldPassword : "",
+                newPassword != null ? newPassword : ""
+        });
+        return new UDPPacket(PacketType.CHANGE_PASSWORD, true, "Change Password Request", json, token);
+    }
+
     public static UDPPacket createConnectDb(String sqlConfigJson) {
         return new UDPPacket(PacketType.CONNECT_DB, true, "Connecting DB", sqlConfigJson);
     }

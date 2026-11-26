@@ -126,6 +126,20 @@ public class ValidationAndBusinessLogicTest {
         assertTrue("Nguyễn Văn An".equals(com.qlsv.security.DESEncryption.decrypt(desCipher, "PTIT2026")),
                 "Khôi phục lại đúng khóa DES (PTIT2026) phải giải mã chính xác bản rõ ban đầu");
 
+        // 8. Test Account Registration & Change Password RUDP Packets + SHA-256 Salt Hashing
+        String salt = com.qlsv.security.PasswordHasher.generateSalt();
+        String hash = com.qlsv.security.PasswordHasher.hashPassword("ptit123456", salt);
+        assertTrue(com.qlsv.security.PasswordHasher.verifyPassword("ptit123456", salt, hash), "Xác thực mật khẩu SHA-256 + Salt chính xác");
+        assertTrue(!com.qlsv.security.PasswordHasher.verifyPassword("wrongpass", salt, hash), "Từ chối mật khẩu sai với SHA-256 + Salt");
+
+        UDPPacket regAccPkt = UDPPacket.createRegisterAccount("sv_thanh079", "ptit123456", "HOCSINH", "SV001", "Phạm Công Thành", "n24dtcn079@student.ptithcm.edu.vn", "");
+        regAccPkt.toBytes();
+        assertTrue(regAccPkt.verifyIntegrity(), "Gói tin REGISTER_ACCOUNT phải được ký HMAC-SHA256 hợp lệ");
+
+        UDPPacket chgPassPkt = UDPPacket.createChangePassword("sv_thanh079", "ptit123456", "newpass789", "token123");
+        chgPassPkt.toBytes();
+        assertTrue(chgPassPkt.verifyIntegrity(), "Gói tin CHANGE_PASSWORD phải được ký HMAC-SHA256 hợp lệ");
+
         System.out.println("✔ TẤT CẢ CÁC BÀI KIỂM THỬ VALIDATE, BẢO MẬT & LOGIC TÍN CHỈ ĐỀU ĐẠT 100%!");
     }
 }

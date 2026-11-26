@@ -404,6 +404,64 @@ public class UDPServer {
                     }
                     break;
 
+                case REGISTER_ACCOUNT:
+                    try {
+                        String[] params = gson.fromJson(packet.getPayload(), String[].class);
+                        String regUser = params.length > 0 ? params[0].trim() : "";
+                        String regPass = params.length > 1 ? params[1].trim() : "";
+                        String regRoleStr = params.length > 2 ? params[2].trim() : "HOCSINH";
+                        String regSvId = params.length > 3 ? params[3].trim() : "SV001";
+                        String regName = params.length > 4 ? params[4].trim() : regUser;
+                        String regEmail = params.length > 5 ? params[5].trim() : "";
+                        String inviteCode = params.length > 6 ? params[6].trim() : "";
+
+                        UserAccount.Role targetRole = UserAccount.Role.HOCSINH;
+                        if ("GIANGVIEN".equalsIgnoreCase(regRoleStr)) {
+                            if (!"PTIT-GV-2025".equalsIgnoreCase(inviteCode) && !"ptit123".equalsIgnoreCase(inviteCode)) {
+                                responsePacket = UDPPacket.createError("Mã xác thực Giảng viên không đúng (Gợi ý mã cấp quyền: PTIT-GV-2025 hoặc ptit123)!");
+                                break;
+                            }
+                            targetRole = UserAccount.Role.GIANGVIEN;
+                        }
+
+                        UserAccount newAcc = DatabaseManager.getInstance().registerNewAccount(
+                                regUser, regPass, targetRole, regSvId, regName, regEmail);
+                        String token = SessionManager.getInstance().createSession(newAcc);
+                        String detail = String.format("Đăng ký tài khoản mới '%s' (Vai trò: %s | Mã SV: %s | Băm: SHA-256 + Salt 16B)",
+                                newAcc.getUsername(), newAcc.getRole(), newAcc.getStudentId());
+                        DatabaseManager.getInstance().logAudit(newAcc.getUsername(), "REGISTER_ACCOUNT", detail, clientIp);
+                        log("[ĐĂNG KÝ TÀI KHOẢN MỚI] " + detail);
+                        if (logListener != null) {
+                            logListener.onDataUpdated();
+                        }
+                        responsePacket = UDPPacket.createLoginResponse(true,
+                                "Đăng ký tài khoản thành công (Đã băm mật khẩu SHA-256 + Salt)!", token, gson.toJson(newAcc));
+                    } catch (Exception ex) {
+                        log("Từ chối đăng ký tài khoản: " + ex.getMessage());
+                        responsePacket = UDPPacket.createError(ex.getMessage());
+                    }
+                    break;
+
+                case CHANGE_PASSWORD:
+                    try {
+                        String[] params = gson.fromJson(packet.getPayload(), String[].class);
+                        String cpUser = params.length > 0 ? params[0].trim() : "";
+                        String oldPass = params.length > 1 ? params[1].trim() : "";
+                        String newPass = params.length > 2 ? params[2].trim() : "";
+
+                        DatabaseManager.getInstance().changePassword(cpUser, oldPass, newPass);
+                        String detail = String.format("Đổi mật khẩu tài khoản '%s' thành công (Đã sinh Salt mới & tái băm SHA-256)", cpUser);
+                        DatabaseManager.getInstance().logAudit(cpUser, "CHANGE_PASSWORD", detail, clientIp);
+                        log("[ĐỔI MẬT KHẨU] " + detail);
+                        if (logListener != null) {
+                            logListener.onDataUpdated();
+                        }
+                        responsePacket = new UDPPacket(PacketType.CHANGE_PASSWORD, true, detail, cpUser);
+                    } catch (Exception ex) {
+                        responsePacket = UDPPacket.createError(ex.getMessage());
+                    }
+                    break;
+
                 case CONNECT_DB:
                     try {
                         SqlConfig config = gson.fromJson(packet.getPayload(), SqlConfig.class);

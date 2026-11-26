@@ -170,6 +170,30 @@ public class UDPClient implements AutoCloseable {
         return this.currentUser;
     }
 
+    public UserAccount registerAccount(String username, String password, String roleName,
+                                       String studentId, String fullName, String email, String inviteCode) throws Exception {
+        UDPPacket req = UDPPacket.createRegisterAccount(username, password, roleName, studentId, fullName, email, inviteCode);
+        UDPPacket res = sendAndReceiveWithRetry(req, MAX_RETRIES);
+        if (res == null) {
+            throw new Exception("Không nhận được phản hồi đăng ký tài khoản từ Server!");
+        }
+        if (!res.isSuccess()) {
+            throw new Exception(res.getMessage());
+        }
+        this.sessionToken = res.getToken();
+        this.currentUser = gson.fromJson(res.getPayload(), UserAccount.class);
+        return this.currentUser;
+    }
+
+    public String changePassword(String username, String oldPassword, String newPassword) throws Exception {
+        UDPPacket req = UDPPacket.createChangePassword(username, oldPassword, newPassword, sessionToken);
+        UDPPacket res = sendAndReceiveWithRetry(req, MAX_RETRIES);
+        if (res != null && res.isSuccess()) {
+            return res.getMessage();
+        }
+        throw new Exception(res != null ? res.getMessage() : "Không thể đổi mật khẩu!");
+    }
+
     public boolean toggleGradeLock(boolean lockState) throws Exception {
         UDPPacket req = UDPPacket.createToggleGradeLock(lockState, sessionToken);
         UDPPacket res = sendAndReceiveWithRetry(req, MAX_RETRIES);

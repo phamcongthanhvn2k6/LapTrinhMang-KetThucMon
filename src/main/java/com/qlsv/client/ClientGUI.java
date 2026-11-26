@@ -189,13 +189,16 @@ public class ClientGUI extends JFrame {
             m2.addActionListener(evt -> switchDemoRole(UserRole.TEACHER, null));
             JMenuItem m3 = new JMenuItem("▶ Sang Quyền Admin (Toàn Quyền)");
             m3.addActionListener(evt -> switchDemoRole(UserRole.ADMIN, null));
-            JMenuItem m4 = new JMenuItem("▶ Hộp thoại đăng nhập...");
-            m4.addActionListener(evt -> toggleRoleAuth());
+            JMenuItem m4 = new JMenuItem("▶ Đăng Nhập / Đăng Ký Tài Khoản & Đổi Mật Khẩu...");
+            m4.addActionListener(evt -> openAuthAndRegistrationDialog(0));
+            JMenuItem m5 = new JMenuItem("▶ Đăng Ký Tài Khoản Mới (SHA-256 + Salt)...");
+            m5.addActionListener(evt -> openAuthAndRegistrationDialog(1));
             pop.add(m1);
             pop.add(m2);
             pop.add(m3);
             pop.addSeparator();
             pop.add(m4);
+            pop.add(m5);
             pop.show(btnQuickSwitch, 0, btnQuickSwitch.getHeight());
         });
 
@@ -925,74 +928,16 @@ public class ClientGUI extends JFrame {
     }
 
     private void toggleRoleAuth() {
-        if (currentRole == UserRole.STUDENT) {
-            // Open full login dialog
-            JPanel p = new JPanel(new GridLayout(3, 2, 8, 8));
-            JTextField tfUser = new JTextField("giangvien");
-            JPasswordField pfPass = new JPasswordField("ptit123");
-
-            p.add(new JLabel("Tên đăng nhập:"));
-            p.add(tfUser);
-            p.add(new JLabel("Mật khẩu:"));
-            p.add(pfPass);
-            p.add(new JLabel("Gợi ý tài khoản:"));
-            p.add(new JLabel("<html><i>giangvien / ptit123<br>admin / admin123</i></html>"));
-
-            int option = JOptionPane.showConfirmDialog(this, p,
-                    "ĐĂNG NHẬP HỆ THỐNG", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
-
-            if (option == JOptionPane.OK_OPTION) {
-                String u = tfUser.getText().trim();
-                String pwd = new String(pfPass.getPassword()).trim();
-
-                if (u.isEmpty() || pwd.isEmpty()) {
-                    JOptionPane.showMessageDialog(this, "Vui lòng nhập đầy đủ thông tin!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
-                    return;
-                }
-
-                if (client == null) {
-                    JOptionPane.showMessageDialog(this, "Chưa kết nối máy chủ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
-                    return;
-                }
-
-                try {
-                    UserAccount acc = client.login(u, pwd);
-                    this.currentUserAccount = acc;
-
-                    if (acc.getRole() == UserAccount.Role.ADMIN) {
-                        currentRole = UserRole.ADMIN;
-                    } else if (acc.getRole() == UserAccount.Role.GIANGVIEN) {
-                        currentRole = UserRole.TEACHER;
-                    } else {
-                        currentRole = UserRole.STUDENT;
-                    }
-
-                    updateRoleUI();
-                    loadAllStudents();
-                    if (currentRole == UserRole.TEACHER || currentRole == UserRole.ADMIN) {
-                        mainTabbedPane.setSelectedIndex(1); // Quản lý
-                    } else {
-                        mainTabbedPane.setSelectedIndex(0); // Cổng sinh viên
-                        if (acc.getStudentId() != null && !acc.getStudentId().isEmpty()) {
-                            loadStudentPortal(acc.getStudentId());
-                        }
-                    }
-                    JOptionPane.showMessageDialog(this,
-                            String.format("Xác thực THÀNH CÔNG!\nXin chào: %s\nVai trò: %s",
-                                    acc.getFullName(), acc.getRole().getDisplayName()),
-                            "Đăng Nhập Thành Công", JOptionPane.INFORMATION_MESSAGE);
-
-                } catch (Exception ex) {
-                    JOptionPane.showMessageDialog(this,
-                            "Đăng nhập thất bại: " + ex.getMessage(),
-                            "Từ Chối Truy Cập", JOptionPane.ERROR_MESSAGE);
-                }
-            }
+        if (currentRole == UserRole.STUDENT && currentUserAccount == null) {
+            openAuthAndRegistrationDialog(0);
         } else {
-            int confirm = JOptionPane.showConfirmDialog(this,
-                    "Bạn có muốn đăng xuất và quay lại Chế độ Học sinh (Chỉ xem) không?",
-                    "Đăng Xuất", JOptionPane.YES_NO_OPTION);
-            if (confirm == JOptionPane.YES_OPTION) {
+            Object[] options = {"Đăng Xuất Về Chế Độ Học Sinh", "Mở Cửa Sổ Đăng Ký / Đổi Mật Khẩu", "Hủy"};
+            int choice = JOptionPane.showOptionDialog(this,
+                    "Tài khoản hiện tại: " + (currentUserAccount != null ? currentUserAccount.getUsername() + " (" + currentUserAccount.getFullName() + ")" : currentRole.name()) +
+                    "\nBạn muốn Đăng xuất hay Mở hộp thoại Đăng ký / Đổi mật khẩu?",
+                    "Quản Lý Tài Khoản & Phân Quyền",
+                    JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE, null, options, options[0]);
+            if (choice == 0) {
                 if (client != null) {
                     client.logout();
                 }
@@ -1002,8 +947,220 @@ public class ClientGUI extends JFrame {
                 JOptionPane.showMessageDialog(this,
                         "Đã đăng xuất. Hệ thống chuyển về Chế độ Học sinh (Chỉ xem).",
                         "Thông Báo", JOptionPane.INFORMATION_MESSAGE);
+            } else if (choice == 1) {
+                openAuthAndRegistrationDialog(2);
             }
         }
+    }
+
+    private void applyAuthenticatedUser(UserAccount acc, JDialog parentDialog, String titleMsg) {
+        this.currentUserAccount = acc;
+        if (acc.getRole() == UserAccount.Role.ADMIN) {
+            currentRole = UserRole.ADMIN;
+        } else if (acc.getRole() == UserAccount.Role.GIANGVIEN) {
+            currentRole = UserRole.TEACHER;
+        } else {
+            currentRole = UserRole.STUDENT;
+        }
+        updateRoleUI();
+        loadAllStudents();
+        if (currentRole == UserRole.TEACHER || currentRole == UserRole.ADMIN) {
+            mainTabbedPane.setSelectedIndex(1);
+        } else {
+            mainTabbedPane.setSelectedIndex(0);
+            if (acc.getStudentId() != null && !acc.getStudentId().isEmpty()) {
+                loadStudentPortal(acc.getStudentId());
+            }
+        }
+        if (parentDialog != null) {
+            parentDialog.dispose();
+        }
+        JOptionPane.showMessageDialog(this,
+                String.format("%s\n• Tài khoản: %s (%s)\n• Vai trò phân quyền: %s\n• Bảo mật mật khẩu: SHA-256 + 16-Byte Random Salt",
+                        titleMsg, acc.getUsername(), acc.getFullName(), acc.getRole().getDisplayName()),
+                "Xác Thực Thành Công", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    public void openAuthAndRegistrationDialog(int initialTabIndex) {
+        if (client == null) {
+            JOptionPane.showMessageDialog(this, "Chưa kết nối máy chủ RUDP!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        JDialog dlg = new JDialog(this, "TRUNG TÂM ĐĂNG NHẬP, ĐĂNG KÝ TÀI KHOẢN & ĐỔI MẬT KHẨU (SHA-256 + SALT)", true);
+        dlg.setSize(620, 460);
+        dlg.setLocationRelativeTo(this);
+        dlg.setLayout(new BorderLayout(8, 8));
+
+        JPanel head = new JPanel(new GridLayout(2, 1));
+        head.setBackground(PTIT_RED);
+        head.setBorder(BorderFactory.createEmptyBorder(10, 16, 10, 16));
+        JLabel lblT = new JLabel("HỆ THỐNG XÁC THỰC & QUẢN LÝ ĐỊNH DANH TÀI KHOẢN PTIT");
+        lblT.setFont(new Font("Segoe UI", Font.BOLD, 15));
+        lblT.setForeground(Color.WHITE);
+        JLabel lblS = new JLabel("Mật khẩu băm một chiều SHA-256 + Salt | Chống dò mật khẩu Brute-Force 5 lần | Ký gói HMAC-SHA256");
+        lblS.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        lblS.setForeground(new Color(255, 230, 230));
+        head.add(lblT);
+        head.add(lblS);
+        dlg.add(head, BorderLayout.NORTH);
+
+        JTabbedPane tabs = new JTabbedPane();
+        tabs.setFont(new Font("Segoe UI", Font.BOLD, 12));
+
+        // ================= TAB 1: ĐĂNG NHẬP =================
+        JPanel tabLogin = new JPanel(new BorderLayout(10, 10));
+        tabLogin.setBorder(BorderFactory.createEmptyBorder(16, 24, 12, 24));
+        JPanel loginForm = new JPanel(new GridLayout(3, 2, 10, 14));
+        JTextField tfLoginUser = new JTextField("giangvien");
+        tfLoginUser.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        JPasswordField pfLoginPass = new JPasswordField("ptit123");
+        pfLoginPass.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        loginForm.add(new JLabel("Tên đăng nhập / Mã SV:"));
+        loginForm.add(tfLoginUser);
+        loginForm.add(new JLabel("Mật khẩu:"));
+        loginForm.add(pfLoginPass);
+        loginForm.add(new JLabel("Tài khoản mẫu có sẵn:"));
+        loginForm.add(new JLabel("<html><b>giangvien / ptit123</b> | <b>admin / admin123</b> | <b>SV001 / ptit123</b></html>"));
+        tabLogin.add(loginForm, BorderLayout.CENTER);
+
+        JPanel loginBtnBar = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 6));
+        JButton btnDoLogin = new JButton("Đăng Nhập Hệ Thống");
+        btnDoLogin.setBackground(PTIT_RED);
+        btnDoLogin.setForeground(Color.WHITE);
+        btnDoLogin.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnDoLogin.addActionListener(e -> {
+            String u = tfLoginUser.getText().trim();
+            String p = new String(pfLoginPass.getPassword()).trim();
+            if (u.isEmpty() || p.isEmpty()) {
+                JOptionPane.showMessageDialog(dlg, "Vui lòng nhập Tên đăng nhập và Mật khẩu!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            try {
+                UserAccount acc = client.login(u, p);
+                applyAuthenticatedUser(acc, dlg, "Đăng nhập hệ thống thành công!");
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(dlg, "Đăng nhập thất bại:\n" + ex.getMessage(), "Từ Chối Truy Cập", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+        JButton btnSwitchToReg = new JButton("Chưa có tài khoản? Đăng Ký Ngay");
+        btnSwitchToReg.addActionListener(e -> tabs.setSelectedIndex(1));
+        loginBtnBar.add(btnSwitchToReg);
+        loginBtnBar.add(btnDoLogin);
+        tabLogin.add(loginBtnBar, BorderLayout.SOUTH);
+
+        // ================= TAB 2: ĐĂNG KÝ TÀI KHOẢN MỚI =================
+        JPanel tabRegister = new JPanel(new BorderLayout(8, 8));
+        tabRegister.setBorder(BorderFactory.createEmptyBorder(10, 20, 8, 20));
+        JPanel regForm = new JPanel(new GridLayout(7, 2, 10, 8));
+        JTextField tfRegUser = new JTextField("sv_thanh079");
+        JPasswordField pfRegPass = new JPasswordField("ptit123456");
+        JPasswordField pfRegConfirm = new JPasswordField("ptit123456");
+        JComboBox<String> cbRegRole = new JComboBox<>(new String[]{
+                "HOCSINH - Sinh viên (Tra cứu bảng điểm, Phúc khảo, ĐK Tín chỉ)",
+                "GIANGVIEN - Giảng viên (Yêu cầu mã cấp quyền Bộ môn)"
+        });
+        JTextField tfRegSvId = new JTextField("SV001");
+        JTextField tfRegFullName = new JTextField("Phạm Công Thành");
+        JTextField tfRegInvite = new JTextField("PTIT-GV-2025");
+        tfRegInvite.setToolTipText("Mã xác thực dành riêng khi đăng ký tài khoản Giảng viên: PTIT-GV-2025 hoặc ptit123");
+
+        regForm.add(new JLabel("Tên đăng nhập mới (>= 3 ký tự):"));
+        regForm.add(tfRegUser);
+        regForm.add(new JLabel("Mật khẩu (>= 6 ký tự):"));
+        regForm.add(pfRegPass);
+        regForm.add(new JLabel("Nhập lại mật khẩu:"));
+        regForm.add(pfRegConfirm);
+        regForm.add(new JLabel("Vai trò đăng ký:"));
+        regForm.add(cbRegRole);
+        regForm.add(new JLabel("Mã Sinh Viên liên kết (VD: SV001):"));
+        regForm.add(tfRegSvId);
+        regForm.add(new JLabel("Họ và Tên hiển thị:"));
+        regForm.add(tfRegFullName);
+        regForm.add(new JLabel("Mã cấp quyền GV (nếu chọn GV):"));
+        regForm.add(tfRegInvite);
+        tabRegister.add(regForm, BorderLayout.CENTER);
+
+        JPanel regBtnBar = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 6));
+        JButton btnDoRegister = new JButton("Đăng Ký & Tự Động Đăng Nhập (SHA-256 + Salt)");
+        btnDoRegister.setBackground(new Color(40, 167, 69));
+        btnDoRegister.setForeground(Color.WHITE);
+        btnDoRegister.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnDoRegister.addActionListener(e -> {
+            String u = tfRegUser.getText().trim();
+            String p1 = new String(pfRegPass.getPassword()).trim();
+            String p2 = new String(pfRegConfirm.getPassword()).trim();
+            if (!p1.equals(p2)) {
+                JOptionPane.showMessageDialog(dlg, "Mật khẩu xác nhận không khớp!", "Lỗi", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            String roleCode = cbRegRole.getSelectedIndex() == 1 ? "GIANGVIEN" : "HOCSINH";
+            String svId = tfRegSvId.getText().trim().toUpperCase();
+            String fName = tfRegFullName.getText().trim();
+            String email = u.toLowerCase() + "@student.ptithcm.edu.vn";
+            String invite = tfRegInvite.getText().trim();
+            try {
+                UserAccount newAcc = client.registerAccount(u, p1, roleCode, svId, fName, email, invite);
+                applyAuthenticatedUser(newAcc, dlg, "Đăng ký tài khoản mới & lưu CSDL thành công!");
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(dlg, "Không thể đăng ký tài khoản:\n" + ex.getMessage(), "Lỗi Đăng Ký", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+        regBtnBar.add(btnDoRegister);
+        tabRegister.add(regBtnBar, BorderLayout.SOUTH);
+
+        // ================= TAB 3: ĐỔI MẬT KHẨU =================
+        JPanel tabChangePass = new JPanel(new BorderLayout(10, 10));
+        tabChangePass.setBorder(BorderFactory.createEmptyBorder(16, 24, 12, 24));
+        JPanel cpForm = new JPanel(new GridLayout(4, 2, 10, 12));
+        String curUser = currentUserAccount != null ? currentUserAccount.getUsername() : "giangvien";
+        JTextField tfCpUser = new JTextField(curUser);
+        JPasswordField pfCpOld = new JPasswordField("ptit123");
+        JPasswordField pfCpNew = new JPasswordField("ptit123");
+        JPasswordField pfCpConfirm = new JPasswordField("ptit123");
+        cpForm.add(new JLabel("Tên đăng nhập cần đổi MK:"));
+        cpForm.add(tfCpUser);
+        cpForm.add(new JLabel("Mật khẩu hiện tại:"));
+        cpForm.add(pfCpOld);
+        cpForm.add(new JLabel("Mật khẩu mới (>= 6 ký tự):"));
+        cpForm.add(pfCpNew);
+        cpForm.add(new JLabel("Xác nhận mật khẩu mới:"));
+        cpForm.add(pfCpConfirm);
+        tabChangePass.add(cpForm, BorderLayout.CENTER);
+
+        JPanel cpBtnBar = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 6));
+        JButton btnDoChangePass = new JButton("Cập Nhật Mật Khẩu Mới (Tái Băm SHA-256 + Salt)");
+        btnDoChangePass.setBackground(new Color(0, 123, 255));
+        btnDoChangePass.setForeground(Color.WHITE);
+        btnDoChangePass.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnDoChangePass.addActionListener(e -> {
+            String u = tfCpUser.getText().trim();
+            String oldP = new String(pfCpOld.getPassword()).trim();
+            String newP = new String(pfCpNew.getPassword()).trim();
+            String cfmP = new String(pfCpConfirm.getPassword()).trim();
+            if (!newP.equals(cfmP)) {
+                JOptionPane.showMessageDialog(dlg, "Mật khẩu mới và xác nhận không khớp!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            try {
+                String msg = client.changePassword(u, oldP, newP);
+                JOptionPane.showMessageDialog(dlg, msg, "Đổi Mật Khẩu Thành Công", JOptionPane.INFORMATION_MESSAGE);
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(dlg, "Lỗi đổi mật khẩu:\n" + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+        cpBtnBar.add(btnDoChangePass);
+        tabChangePass.add(cpBtnBar, BorderLayout.SOUTH);
+
+        tabs.addTab("1. Đăng Nhập (Login)", tabLogin);
+        tabs.addTab("2. Đăng Ký Tài Khoản Mới (Register)", tabRegister);
+        tabs.addTab("3. Đổi Mật Khẩu (Change Password)", tabChangePass);
+        if (initialTabIndex >= 0 && initialTabIndex < tabs.getTabCount()) {
+            tabs.setSelectedIndex(initialTabIndex);
+        }
+
+        dlg.add(tabs, BorderLayout.CENTER);
+        dlg.setVisible(true);
     }
 
     public void switchDemoRole(UserRole role, String defaultId) {

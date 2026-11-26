@@ -64,6 +64,81 @@ public class AccountDAO {
         } catch (Exception ignored) {}
     }
 
+    public boolean accountExists(String username) {
+        if (username == null || username.trim().isEmpty()) return false;
+        String sql = "SELECT COUNT(*) FROM TaiKhoan WHERE LOWER(TenDangNhap) = LOWER(?)";
+        try (Connection conn = ConnectionPool.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, username.trim());
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1) > 0;
+                }
+            }
+        } catch (Exception ignored) {}
+        return false;
+    }
+
+    public UserAccount registerNewAccount(String username, String rawPassword, UserAccount.Role role,
+                                          String studentId, String fullName, String email) throws Exception {
+        if (username == null || username.trim().length() < 3) {
+            throw new IllegalArgumentException("Tên đăng nhập phải có từ 3 ký tự trở lên!");
+        }
+        if (rawPassword == null || rawPassword.trim().length() < 6) {
+            throw new IllegalArgumentException("Mật khẩu phải có tối thiểu 6 ký tự!");
+        }
+        String cleanUser = username.trim();
+        if (accountExists(cleanUser)) {
+            throw new IllegalArgumentException("Tên đăng nhập '" + cleanUser + "' đã tồn tại trên hệ thống!");
+        }
+
+        String salt = PasswordHasher.generateSalt();
+        String hash = PasswordHasher.hashPassword(rawPassword.trim(), salt);
+        String cleanSvId = (studentId != null && !studentId.trim().isEmpty()) ? studentId.trim().toUpperCase() : "SV001";
+        String cleanName = (fullName != null && !fullName.trim().isEmpty()) ? fullName.trim() : cleanUser;
+        String cleanEmail = (email != null && !email.trim().isEmpty()) ? email.trim() : cleanUser.toLowerCase() + "@student.ptithcm.edu.vn";
+
+        String insertSql = "INSERT INTO TaiKhoan (TenDangNhap, MatKhauHash, Salt, VaiTro, MaSV, HoTen, Email) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        try (Connection conn = ConnectionPool.getConnection();
+             PreparedStatement ps = conn.prepareStatement(insertSql)) {
+            ps.setString(1, cleanUser);
+            ps.setString(2, hash);
+            ps.setString(3, salt);
+            ps.setString(4, role.name());
+            ps.setString(5, cleanSvId);
+            ps.setString(6, cleanName);
+            ps.setString(7, cleanEmail);
+            ps.executeUpdate();
+        }
+        return new UserAccount(cleanUser, hash, salt, role, cleanSvId, cleanName, cleanEmail);
+    }
+
+    public boolean changePassword(String username, String oldPassword, String newPassword) throws Exception {
+        if (newPassword == null || newPassword.trim().length() < 6) {
+            throw new IllegalArgumentException("Mật khẩu mới phải có ít nhất 6 ký tự!");
+        }
+        UserAccount verified = authenticateUser(username, oldPassword);
+        if (verified == null) {
+            throw new IllegalArgumentException("Tên đăng nhập hoặc mật khẩu hiện tại không chính xác!");
+        }
+        String newSalt = PasswordHasher.generateSalt();
+        String newHash = PasswordHasher.hashPassword(newPassword.trim(), newSalt);
+
+        String updateSql = "UPDATE TaiKhoan SET MatKhauHash = ?, Salt = ? WHERE LOWER(TenDangNhap) = LOWER(?)";
+        try (Connection conn = ConnectionPool.getConnection();
+             PreparedStatement ps = conn.prepareStatement(updateSql)) {
+            ps.setString(1, newHash);
+            ps.setString(2, newSalt);
+            ps.setString(3, username.trim());
+            int rows = ps.executeUpdate();
+            if (rows == 0) {
+                insertUserAccount(username.trim(), newPassword.trim(), verified.getRole(),
+                        verified.getStudentId(), verified.getFullName(), verified.getEmail());
+            }
+        }
+        return true;
+    }
+
     public UserAccount authenticateUser(String username, String password) {
         if (username == null || password == null) return null;
 

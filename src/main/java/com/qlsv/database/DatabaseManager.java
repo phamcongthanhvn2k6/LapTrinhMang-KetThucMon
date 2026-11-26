@@ -137,6 +137,21 @@ public class DatabaseManager {
         return accountDAO.authenticateUser(username, password);
     }
 
+    public UserAccount registerNewAccount(String username, String rawPassword, UserAccount.Role role,
+                                          String studentId, String fullName, String email) throws Exception {
+        if (!isConnected()) {
+            throw new Exception("CSDL chưa được kết nối!");
+        }
+        return accountDAO.registerNewAccount(username, rawPassword, role, studentId, fullName, email);
+    }
+
+    public boolean changePassword(String username, String oldPassword, String newPassword) throws Exception {
+        if (!isConnected()) {
+            throw new Exception("CSDL chưa được kết nối!");
+        }
+        return accountDAO.changePassword(username, oldPassword, newPassword);
+    }
+
     public void logAudit(String username, String action, String details, String ip) {
         auditDAO.logAudit(username, action, details, ip);
     }
