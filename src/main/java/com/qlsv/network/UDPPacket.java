@@ -248,14 +248,16 @@ public class UDPPacket {
     }
 
     public boolean verifyIntegrity() {
-        if (hmacSignature == null || hmacSignature.isEmpty()) {
-            return true; // Allow legacy unsigned packets in unit tests
+        if (hmacSignature == null || hmacSignature.trim().isEmpty()) {
+            return false; // Zero-Trust: Mọi gói tin UDP không có chữ ký HMAC-SHA256 đều bị từ chối tuyệt đối!
         }
         return SecurityManager.verifyHmacSha256(buildCanonicalSigningString(), hmacSignature);
     }
 
     public boolean isReplayValid() {
-        if (timestamp <= 0) return true;
+        if (timestamp <= 0) {
+            return false; // Zero-Trust: Gói tin thiếu Timestamp hoặc Timestamp <= 0 bị chặn ngay lập tức!
+        }
         long drift = Math.abs(System.currentTimeMillis() - timestamp);
         return drift <= MAX_REPLAY_DRIFT_MS;
     }

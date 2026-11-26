@@ -140,6 +140,19 @@ public class ValidationAndBusinessLogicTest {
         chgPassPkt.toBytes();
         assertTrue(chgPassPkt.verifyIntegrity(), "Gói tin CHANGE_PASSWORD phải được ký HMAC-SHA256 hợp lệ");
 
+        // 9. Test Zero-Trust Unsigned Packet & Zero-Timestamp Rejection (Chặn tuyệt đối gói tin bỏ trống chữ ký HMAC hoặc Timestamp = 0)
+        UDPPacket unsignedPkt = UDPPacket.createAddStudent("{\"studentId\":\"SV999\"}", "token123");
+        unsignedPkt.setHmacSignature("");
+        assertTrue(!unsignedPkt.verifyIntegrity(), "Phải chặn tuyệt đối gói tin UDP bỏ trống chữ ký HMAC-SHA256");
+        unsignedPkt.setTimestamp(0L);
+        assertTrue(!unsignedPkt.isReplayValid(), "Phải chặn tuyệt đối gói tin UDP có Timestamp <= 0");
+
+        // 10. Test CourseCode, Username & Pipe-Delimiter Sanitization Validation
+        assertTrue("INT1339".equals(InputValidator.normalizeAndValidateCourseCode(" int1339 ")), "Chuẩn hóa mã học phần INT1339");
+        assertTrue("sv_thanh079".equals(InputValidator.validateAndNormalizeUsername(" SV_Thanh079 ")), "Chuẩn hóa tên đăng nhập chữ thường");
+        String sanitizedReason = InputValidator.validateAndSanitizeReasonOrNote("Em xin phúc khảo câu 1 | câu 2", "Lý do phúc khảo", 5, 300);
+        assertTrue(!sanitizedReason.contains("|"), "Phải lọc bỏ ký tự phân cách giao thức '|' trong lý do phúc khảo");
+
         System.out.println("✔ TẤT CẢ CÁC BÀI KIỂM THỬ VALIDATE, BẢO MẬT & LOGIC TÍN CHỈ ĐỀU ĐẠT 100%!");
     }
 }

@@ -744,7 +744,7 @@ public class UDPServer {
                         } else {
                             String[] parts = packet.getPayload().split("\\|");
                             String stId = InputValidator.normalizeAndValidateStudentId(parts[0]);
-                            String cCode = parts[1].trim().toUpperCase();
+                            String cCode = InputValidator.normalizeAndValidateCourseCode(parts[1]);
                             double procScore = InputValidator.validateScoreValue(Double.parseDouble(parts[2]), "Điểm Quá trình");
                             double exScore = InputValidator.validateScoreValue(Double.parseDouble(parts[3]), "Điểm Thi kết thúc");
 
@@ -770,8 +770,10 @@ public class UDPServer {
                     try {
                         String[] parts = packet.getPayload().split("\\|", 3);
                         String stId = InputValidator.normalizeAndValidateStudentId(parts[0]);
-                        String cCode = parts.length > 1 ? parts[1].trim().toUpperCase() : "INT1339";
-                        String reason = parts.length > 2 ? parts[2].trim() : "Xin phúc khảo điểm bài thi cuối kỳ";
+                        String cCode = InputValidator.normalizeAndValidateCourseCode(parts.length > 1 ? parts[1] : "INT1339");
+                        String reason = InputValidator.validateAndSanitizeReasonOrNote(
+                                parts.length > 2 ? parts[2] : "Xin phúc khảo điểm bài thi cuối kỳ",
+                                "Lý do phúc khảo", 5, 300);
 
                         boolean hasPendingAppeal = false;
                         for (GradeAppeal existing : gradeAppeals) {
@@ -828,7 +830,8 @@ public class UDPServer {
                             boolean approved = Boolean.parseBoolean(parts[1].trim());
                             double newProc = Double.parseDouble(parts[2].trim());
                             double newExam = Double.parseDouble(parts[3].trim());
-                            String note = parts.length > 4 ? parts[4].trim() : "";
+                            String rawNote = parts.length > 4 ? parts[4].trim() : "";
+                            String note = rawNote.isEmpty() ? "" : InputValidator.validateAndSanitizeReasonOrNote(rawNote, "Kết luận phúc khảo", 3, 300);
 
                             GradeAppeal target = null;
                             for (GradeAppeal ga : gradeAppeals) {

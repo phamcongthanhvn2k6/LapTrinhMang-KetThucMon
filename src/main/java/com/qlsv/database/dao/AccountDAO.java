@@ -87,15 +87,17 @@ public class AccountDAO {
         if (rawPassword == null || rawPassword.trim().length() < 6) {
             throw new IllegalArgumentException("Mật khẩu phải có tối thiểu 6 ký tự!");
         }
-        String cleanUser = username.trim();
+        String cleanUser = com.qlsv.util.InputValidator.validateAndNormalizeUsername(username);
         if (accountExists(cleanUser)) {
             throw new IllegalArgumentException("Tên đăng nhập '" + cleanUser + "' đã tồn tại trên hệ thống!");
         }
 
         String salt = PasswordHasher.generateSalt();
         String hash = PasswordHasher.hashPassword(rawPassword.trim(), salt);
-        String cleanSvId = (studentId != null && !studentId.trim().isEmpty()) ? studentId.trim().toUpperCase() : "SV001";
-        String cleanName = (fullName != null && !fullName.trim().isEmpty()) ? fullName.trim() : cleanUser;
+        String cleanSvId = (studentId != null && !studentId.trim().isEmpty())
+                ? com.qlsv.util.InputValidator.normalizeAndValidateStudentId(studentId) : "SV001";
+        String cleanName = (fullName != null && !fullName.trim().isEmpty())
+                ? com.qlsv.util.InputValidator.normalizeAndValidateFullName(fullName) : cleanUser;
         String cleanEmail = (email != null && !email.trim().isEmpty()) ? email.trim() : cleanUser.toLowerCase() + "@student.ptithcm.edu.vn";
 
         String insertSql = "INSERT INTO TaiKhoan (TenDangNhap, MatKhauHash, Salt, VaiTro, MaSV, HoTen, Email) VALUES (?, ?, ?, ?, ?, ?, ?)";
@@ -116,6 +118,9 @@ public class AccountDAO {
     public boolean changePassword(String username, String oldPassword, String newPassword) throws Exception {
         if (newPassword == null || newPassword.trim().length() < 6) {
             throw new IllegalArgumentException("Mật khẩu mới phải có ít nhất 6 ký tự!");
+        }
+        if (oldPassword != null && oldPassword.trim().equals(newPassword.trim())) {
+            throw new IllegalArgumentException("Mật khẩu mới không được trùng với mật khẩu hiện tại!");
         }
         UserAccount verified = authenticateUser(username, oldPassword);
         if (verified == null) {

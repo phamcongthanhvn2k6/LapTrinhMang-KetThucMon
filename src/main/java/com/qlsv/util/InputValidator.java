@@ -12,8 +12,44 @@ import com.qlsv.model.StudentData;
 public class InputValidator {
 
     private static final Pattern STUDENT_ID_PATTERN = Pattern.compile("^[A-Z0-9_-]{3,25}$");
+    private static final Pattern COURSE_CODE_PATTERN = Pattern.compile("^[A-Z0-9_-]{4,15}$");
+    private static final Pattern USERNAME_PATTERN = Pattern.compile("^[a-zA-Z0-9_.-]{3,30}$");
     private static final Pattern HAS_LETTER_PATTERN = Pattern.compile(".*\\p{L}+.*");
     private static final Pattern INVALID_NAME_CHARS = Pattern.compile(".*[0-9<>\"';\\\\/|@#$%^&*=+~`]+.*");
+
+    public static String normalizeAndValidateCourseCode(String rawCourse) throws IllegalArgumentException {
+        if (rawCourse == null || rawCourse.trim().isEmpty()) {
+            throw new IllegalArgumentException("Mã học phần không được để trống!");
+        }
+        String normalized = rawCourse.trim().toUpperCase();
+        if (!COURSE_CODE_PATTERN.matcher(normalized).matches()) {
+            throw new IllegalArgumentException("Mã học phần '" + rawCourse + "' không hợp lệ (Chỉ chấp nhận chữ cái và số, dài 4-15 ký tự, VD: INT1339)!");
+        }
+        return normalized;
+    }
+
+    public static String validateAndNormalizeUsername(String rawUser) throws IllegalArgumentException {
+        if (rawUser == null || rawUser.trim().isEmpty()) {
+            throw new IllegalArgumentException("Tên đăng nhập không được để trống!");
+        }
+        String clean = rawUser.trim();
+        if (!USERNAME_PATTERN.matcher(clean).matches()) {
+            throw new IllegalArgumentException("Tên đăng nhập '" + rawUser + "' không hợp lệ (Chỉ gồm chữ cái không dấu, chữ số, dấu '_', '.', '-', độ dài 3-30 ký tự)!");
+        }
+        return clean;
+    }
+
+    public static String validateAndSanitizeReasonOrNote(String rawText, String fieldLabel, int minLen, int maxLen) throws IllegalArgumentException {
+        if (rawText == null || rawText.trim().isEmpty()) {
+            throw new IllegalArgumentException(fieldLabel + " không được để trống!");
+        }
+        // Loại bỏ ký tự phân cách giao thức '|' để chống tấn công Protocol Delimiter Injection
+        String sanitized = rawText.trim().replace('|', '/').replaceAll("\\s+", " ");
+        if (sanitized.length() < minLen || sanitized.length() > maxLen) {
+            throw new IllegalArgumentException(fieldLabel + " phải có độ dài từ " + minLen + " đến " + maxLen + " ký tự!");
+        }
+        return sanitized;
+    }
 
     public static String normalizeAndValidateStudentId(String rawId) throws IllegalArgumentException {
         if (rawId == null || rawId.trim().isEmpty()) {
