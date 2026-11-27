@@ -198,10 +198,14 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
         lblKeyPrompt.setFont(new Font("Segoe UI", Font.BOLD, 12));
         actionRow2.add(lblKeyPrompt);
 
-        txtInlineDesKey = new JPasswordField(DatabaseManager.getInstance().getDesKey(), 8);
+        // Khi khởi chạy ServerGUI: Khóa giải mã DES để trống, yêu cầu Quản trị viên tự nhập khóa DES thủ công mới hiện dữ liệu!
+        DatabaseManager.getInstance().setDesKeyUnlocked(false);
+
+        txtInlineDesKey = new JPasswordField("", 8);
         txtInlineDesKey.setFont(new Font("Consolas", Font.BOLD, 13));
         txtInlineDesKey.setEchoChar('•');
-        txtInlineDesKey.setToolTipText("Nhập khóa giải mã DES (đúng 8 bytes UTF-8 / 8 ký tự ASCII)");
+        txtInlineDesKey.setToolTipText("Nhập khóa giải mã DES (đúng 8 bytes UTF-8 / 8 ký tự ASCII) rồi nhấn Enter hoặc nút Áp Dụng");
+        txtInlineDesKey.addActionListener(e -> handleApplyInlineDesKey());
         actionRow2.add(txtInlineDesKey);
 
         JCheckBox chkShowKey = new JCheckBox("Hiện khóa");
@@ -226,9 +230,9 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
         tableActionBar.add(actionRow1);
         tableActionBar.add(actionRow2);
 
-        lblCryptoVerifyStatus = new JLabel("● Trạng thái giải mã: Đã xác thực khóa DES hợp lệ (8 bytes)");
+        lblCryptoVerifyStatus = new JLabel("● CHƯA NHẬP KHÓA GIẢI MÃ DES: Toàn bộ dữ liệu đang được khóa bảo mật (Vui lòng tự nhập Khóa DES 8 ký tự ở trên để mở khóa)!");
         lblCryptoVerifyStatus.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        lblCryptoVerifyStatus.setForeground(new Color(40, 167, 69));
+        lblCryptoVerifyStatus.setForeground(PTIT_RED);
         lblCryptoVerifyStatus.setBorder(BorderFactory.createEmptyBorder(2, 6, 4, 6));
 
         JPanel topInspectionContainer = new JPanel(new BorderLayout(2, 2));
@@ -241,6 +245,7 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
         dataCenterContainer.setBackground(Color.WHITE);
         dataCenterContainer.add(scrollTable, "TABLE");
         dataCenterContainer.add(createWrongKeyLockoutPanel(), "LOCKED");
+        dataCardLayout.show(dataCenterContainer, "LOCKED");
 
         tabData.add(topInspectionContainer, BorderLayout.NORTH);
         tabData.add(dataCenterContainer, BorderLayout.CENTER);
@@ -903,6 +908,20 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
             updateDbStatusLabel();
             return;
         }
+        if (!DatabaseManager.getInstance().isDesKeyUnlocked()) {
+            tableModel.setRowCount(0);
+            if (lblLockedKeyDetail != null) {
+                lblLockedKeyDetail.setText("DỮ LIỆU ĐANG ĐƯỢC PHONG TỎA BẢO MẬT — Chờ Quản trị viên nhập Khóa Giải Mã DES (8 ký tự) để giải mã CSDL!");
+            }
+            if (dataCardLayout != null && dataCenterContainer != null) {
+                dataCardLayout.show(dataCenterContainer, "LOCKED");
+            }
+            updateChartFromCounts(0, 0, 0, 0, 0);
+            updateDbStatusLabel();
+            refreshAuditLogs();
+            updateChaosTelemetryLabel();
+            return;
+        }
         new SwingWorker<List<DatabaseManager.EncryptedRecord>, Void>() {
             @Override
             protected List<DatabaseManager.EncryptedRecord> doInBackground() throws Exception {
@@ -940,6 +959,7 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
                         }
                         updateChartFromCounts(0, 0, 0, 0, 0);
                     } else {
+                        DatabaseManager.getInstance().setDesKeyUnlocked(true);
                         if (dataCardLayout != null && dataCenterContainer != null) {
                             dataCardLayout.show(dataCenterContainer, "TABLE");
                         }
@@ -1035,15 +1055,15 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
         JPanel box = new JPanel(new GridLayout(3, 1, 12, 12));
         box.setOpaque(false);
 
-        JLabel lblIconTitle = new JLabel("TRUY CẬP BỊ TỪ CHỐI: SAI KHÓA GIẢI MÃ DES — ĐÃ KHÓA & ẨN TOÀN BỘ DỮ LIỆU!", SwingConstants.CENTER);
+        JLabel lblIconTitle = new JLabel("BẢO MẬT MÃ HÓA CSDL DES — DỮ LIỆU ĐANG ĐƯỢC KHÓA & ẨN HOÀN TOÀN!", SwingConstants.CENTER);
         lblIconTitle.setFont(new Font("Segoe UI", Font.BOLD, 17));
         lblIconTitle.setForeground(PTIT_RED);
 
-        lblLockedKeyDetail = new JLabel("Khóa giải mã không khớp với bản mã trong CSDL (BadPaddingException).", SwingConstants.CENTER);
+        lblLockedKeyDetail = new JLabel("DỮ LIỆU ĐANG ĐƯỢC PHONG TỎA BẢO MẬT — Chờ Quản trị viên tự nhập Khóa Giải Mã DES (8 ký tự) ở ô phía trên!", SwingConstants.CENTER);
         lblLockedKeyDetail.setFont(new Font("Segoe UI", Font.BOLD, 13));
         lblLockedKeyDetail.setForeground(new Color(80, 20, 20));
 
-        JLabel lblGuide = new JLabel("Hệ thống đã phong tỏa toàn bộ danh sách trên Server và Client. Quản trị viên bắt buộc phải tự nhập đúng Khóa Bí Mật 8 ký tự ở ô phía trên để mở khóa!", SwingConstants.CENTER);
+        JLabel lblGuide = new JLabel("Hệ thống KHÔNG tự động điền sẵn khóa để chống lộ dữ liệu khi vừa mở máy. Quản trị viên bắt buộc phải tự nhập đúng Khóa Bí Mật 8 ký tự rồi nhấn [Áp Dụng Khóa & Giải Mã] để mở khóa!", SwingConstants.CENTER);
         lblGuide.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         lblGuide.setForeground(new Color(90, 90, 90));
 
@@ -1114,17 +1134,29 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
         try {
             com.qlsv.security.DESEncryption.validateStrictEightByteKey(keyInput);
         } catch (IllegalArgumentException ex) {
+            DatabaseManager.getInstance().setDesKeyUnlocked(false);
+            tableModel.setRowCount(0);
+            if (dataCardLayout != null && dataCenterContainer != null) {
+                dataCardLayout.show(dataCenterContainer, "LOCKED");
+            }
+            if (lblLockedKeyDetail != null) {
+                lblLockedKeyDetail.setText("Khóa DES vừa nhập không đủ 8 bytes (" + ex.getMessage() + ") — Đã khóa hiển thị dữ liệu!");
+            }
             if (lblCryptoVerifyStatus != null) {
                 lblCryptoVerifyStatus.setForeground(PTIT_RED);
                 lblCryptoVerifyStatus.setText("● LỖI KHÓA DES: " + ex.getMessage());
             }
             onLog("[LỖI KHÓA DES] " + ex.getMessage());
+            if (udpServer != null) {
+                udpServer.broadcastPushEvent("CRYPTO_ERROR", "CẢNH BÁO BẢO MẬT: Khóa DES trên Server chưa hợp lệ — Đã khóa truy xuất bảng điểm!", "LOCKED");
+            }
             JOptionPane.showMessageDialog(this, ex.getMessage(), "Khóa DES Không Hợp Lệ (Yêu Cầu Đúng 8 Bytes)", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
         DatabaseManager.getInstance().setDesKey(keyInput);
-        onLog("[ÁP DỤNG KHÓA DES] Đã cập nhật khóa giải mã runtime (8 bytes): '" + keyInput + "'. Đang đọc và giải mã lại CSDL...");
+        DatabaseManager.getInstance().setDesKeyUnlocked(true);
+        onLog("[ÁP DỤNG KHÓA DES] Đang kiểm tra khóa giải mã runtime (8 bytes) và giải mã CSDL...");
 
         new SwingWorker<List<DatabaseManager.EncryptedRecord>, Void>() {
             private int failCount = 0;
@@ -1181,6 +1213,7 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
                         });
                     }
                     if (failCount > 0) {
+                        DatabaseManager.getInstance().setDesKeyUnlocked(false);
                         tableModel.setRowCount(0); // Xóa sạch bảng và ẩn hoàn toàn giao diện danh sách
                         if (lblLockedKeyDetail != null) {
                             lblLockedKeyDetail.setText("Khóa giải mã DES vừa nhập KHÔNG CHÍNH XÁC (" + firstErrorMsg + ") — Từ chối hiển thị " + failCount + " bản ghi!");
@@ -1208,6 +1241,7 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
                                 "• Yêu cầu nhập đúng Khóa Bí Mật DES (8 bytes) để giải mã dữ liệu!",
                                 "Sai Khóa Giải Mã DES — Truy Cập Bị Từ Chối", JOptionPane.ERROR_MESSAGE);
                     } else {
+                        DatabaseManager.getInstance().setDesKeyUnlocked(true);
                         if (dataCardLayout != null && dataCenterContainer != null) {
                             dataCardLayout.show(dataCenterContainer, "TABLE");
                         }

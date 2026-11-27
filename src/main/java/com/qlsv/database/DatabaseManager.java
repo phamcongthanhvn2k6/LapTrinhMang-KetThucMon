@@ -16,6 +16,7 @@ public class DatabaseManager {
     private static DatabaseManager instance;
     private SqlConfig currentConfig;
     private String desKey = "QLSV_KEY";
+    private volatile boolean desKeyUnlocked = true; // Khi ServerGUI khởi chạy sẽ khóa lại (false) bắt buộc người dùng tự nhập khóa DES!
 
     private final StudentDAO studentDAO = new StudentDAO();
     private final SubjectDAO subjectDAO = new SubjectDAO();
@@ -40,6 +41,20 @@ public class DatabaseManager {
     public void setDesKey(String desKey) {
         if (desKey != null && !desKey.trim().isEmpty()) {
             this.desKey = desKey.trim();
+        }
+    }
+
+    public boolean isDesKeyUnlocked() {
+        return desKeyUnlocked;
+    }
+
+    public void setDesKeyUnlocked(boolean unlocked) {
+        this.desKeyUnlocked = unlocked;
+    }
+
+    private void ensureDesKeyUnlocked() throws Exception {
+        if (!desKeyUnlocked) {
+            throw new Exception("CHƯA MỞ KHÓA BẢO MẬT DES TRÊN SERVER: Quản trị viên cần nhập Khóa DES (8 ký tự) trên Máy chủ để mở khóa giải mã CSDL!");
         }
     }
 
@@ -218,6 +233,7 @@ public class DatabaseManager {
         if (!isConnected()) {
             throw new Exception("CSDL chưa được kết nối!");
         }
+        ensureDesKeyUnlocked();
         return studentDAO.getStudentDecrypted(studentId, desKey);
     }
 
@@ -225,6 +241,7 @@ public class DatabaseManager {
         if (!isConnected()) {
             throw new Exception("CSDL chưa được kết nối!");
         }
+        ensureDesKeyUnlocked();
         return studentDAO.deleteStudent(studentId);
     }
 
@@ -232,10 +249,12 @@ public class DatabaseManager {
         if (!isConnected()) {
             return List.of();
         }
+        ensureDesKeyUnlocked();
         return studentDAO.getAllStudentsDecrypted(desKey);
     }
 
     public List<StudentResult> searchStudents(String query) throws Exception {
+        ensureDesKeyUnlocked();
         return studentDAO.searchStudents(query, desKey);
     }
 
@@ -243,6 +262,7 @@ public class DatabaseManager {
         if (!isConnected()) {
             return new com.qlsv.model.PageResult<>(List.of(), page, pageSize, 0);
         }
+        ensureDesKeyUnlocked();
         return studentDAO.getStudentsPaged(page, pageSize, desKey);
     }
 
@@ -250,10 +270,12 @@ public class DatabaseManager {
         if (!isConnected()) {
             return new com.qlsv.model.PageResult<>(List.of(), page, pageSize, 0);
         }
+        ensureDesKeyUnlocked();
         return studentDAO.searchStudentsPaged(query, page, pageSize, desKey);
     }
 
     public Map<String, Integer> getRankStatistics() throws Exception {
+        ensureDesKeyUnlocked();
         return studentDAO.getRankStatistics(desKey);
     }
 
@@ -271,6 +293,7 @@ public class DatabaseManager {
         if (!isConnected()) {
             return List.of();
         }
+        ensureDesKeyUnlocked();
         return studentDAO.getAllRecordsForInspection(desKey);
     }
 

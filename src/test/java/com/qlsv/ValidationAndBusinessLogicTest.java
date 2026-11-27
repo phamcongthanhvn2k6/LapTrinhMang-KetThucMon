@@ -112,19 +112,19 @@ public class ValidationAndBusinessLogicTest {
         }
         assertTrue(caughtShortKey, "Khóa DES không đủ 8 bytes phải báo lỗi rõ ràng");
 
-        String desCipher = com.qlsv.security.DESEncryption.encrypt("Nguyễn Văn An", "PTIT2026");
+        String desCipher = com.qlsv.security.DESEncryption.encrypt("Nguyễn Văn An", "QLSV_KEY");
         boolean caughtWrongKey = false;
         try {
-            String wrongDec = com.qlsv.security.DESEncryption.decrypt(desCipher, "WRONG999");
+            String wrongDec = com.qlsv.security.DESEncryption.decrypt(desCipher, "QLSV_KEX");
             if (!"Nguyễn Văn An".equals(wrongDec)) {
                 caughtWrongKey = true;
             }
         } catch (javax.crypto.BadPaddingException | javax.crypto.IllegalBlockSizeException ex) {
             caughtWrongKey = true;
         }
-        assertTrue(caughtWrongKey, "Giải mã DES với khóa sai (WRONG999) phải bắt được BadPaddingException hoặc khác bản rõ mà không sập hệ thống");
-        assertTrue("Nguyễn Văn An".equals(com.qlsv.security.DESEncryption.decrypt(desCipher, "PTIT2026")),
-                "Khôi phục lại đúng khóa DES (PTIT2026) phải giải mã chính xác bản rõ ban đầu");
+        assertTrue(caughtWrongKey, "Giải mã DES với khóa sai dù chỉ lệch 1 bit Parity (QLSV_KEX vs QLSV_KEY) cũng phải bị chặn hoàn toàn!");
+        assertTrue("Nguyễn Văn An".equals(com.qlsv.security.DESEncryption.decrypt(desCipher, "QLSV_KEY")),
+                "Khôi phục lại đúng khóa DES (QLSV_KEY) phải giải mã chính xác bản rõ ban đầu");
 
         // 8. Test Account Registration & Change Password RUDP Packets + SHA-256 Salt Hashing
         String salt = com.qlsv.security.PasswordHasher.generateSalt();
