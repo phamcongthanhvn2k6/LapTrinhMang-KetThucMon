@@ -466,14 +466,31 @@ public class UDPServer {
                         String oldPass = params.length > 1 ? params[1].trim() : "";
                         String newPass = params.length > 2 ? params[2].trim() : "";
 
-                        DatabaseManager.getInstance().changePassword(cpUser, oldPass, newPass);
-                        String detail = String.format("Đổi mật khẩu tài khoản '%s' thành công (Đã sinh Salt mới & tái băm SHA-256)", cpUser);
-                        DatabaseManager.getInstance().logAudit(cpUser, "CHANGE_PASSWORD", detail, clientIp);
-                        log("[ĐỔI MẬT KHẨU] " + detail);
-                        if (logListener != null) {
-                            logListener.onDataUpdated();
+                        long lockRemain = SessionManager.getInstance().getRemainingLockoutSeconds(cpUser);
+                        if (lockRemain > 0) {
+                            totalSecurityThreatsBlocked.incrementAndGet();
+                            responsePacket = UDPPacket.createError("BẢO VỆ CHỐNG BRUTE-FORCE: Tài khoản đang tạm khóa (" + lockRemain + " giây)!");
+                            break;
                         }
-                        responsePacket = new UDPPacket(PacketType.CHANGE_PASSWORD, true, detail, cpUser);
+                        try {
+                            DatabaseManager.getInstance().changePassword(cpUser, oldPass, newPass);
+                            SessionManager.getInstance().clearLoginFailures(cpUser);
+                            String detail = String.format("Đổi mật khẩu tài khoản '%s' thành công (Đã sinh Salt mới & tái băm SHA-256)", cpUser);
+                            DatabaseManager.getInstance().logAudit(cpUser, "CHANGE_PASSWORD", detail, clientIp);
+                            log("[ĐỔI MẬT KHẨU] " + detail);
+                            if (logListener != null) {
+                                logListener.onDataUpdated();
+                            }
+                            responsePacket = new UDPPacket(PacketType.CHANGE_PASSWORD, true, detail, cpUser);
+                        } catch (IllegalArgumentException authEx) {
+                            if (authEx.getMessage() != null && authEx.getMessage().contains("không chính xác")) {
+                                int failCount = SessionManager.getInstance().recordLoginFailure(cpUser);
+                                if (failCount >= 5) {
+                                    totalSecurityThreatsBlocked.incrementAndGet();
+                                }
+                            }
+                            throw authEx;
+                        }
                     } catch (Exception ex) {
                         responsePacket = UDPPacket.createError(ex.getMessage());
                     }
@@ -483,11 +500,11 @@ public class UDPServer {
                     try {
                         String token = packet.getToken();
                         SessionManager.UserSession session = SessionManager.getInstance().getSession(token);
-                        if (session != null && session.getRole() == UserAccount.Role.HOCSINH) {
+                        if (session == null || session.getRole() == UserAccount.Role.HOCSINH) {
                             totalSecurityThreatsBlocked.incrementAndGet();
-                            DatabaseManager.getInstance().logAudit(session.getUsername(), "RBAC_VIOLATION_DB",
-                                    "Chặn Học sinh thay đổi cấu hình kết nối CSDL", clientIp);
-                            responsePacket = UDPPacket.createDbStatus(false, "BẢO VỆ PHÂN QUYỀN SERVER: Học sinh không có quyền thay đổi cấu hình kết nối Cơ sở dữ liệu!");
+                            DatabaseManager.getInstance().logAudit(session != null ? session.getUsername() : "anonymous", "RBAC_VIOLATION_DB",
+                                    "Chặn kết nối trái phép thay đổi cấu hình CSDL (Thiếu Token hoặc quyền Học sinh)", clientIp);
+                            responsePacket = UDPPacket.createDbStatus(false, "BẢO VỆ PHÂN QUYỀN SERVER (ZERO-TRUST): Yêu cầu đăng nhập quyền Quản trị viên hoặc Giảng viên để thay đổi cấu hình CSDL!");
                             break;
                         }
                         SqlConfig config = gson.fromJson(packet.getPayload(), SqlConfig.class);
@@ -508,11 +525,12 @@ public class UDPServer {
                     try {
                         String token = packet.getToken();
                         SessionManager.UserSession session = SessionManager.getInstance().getSession(token);
-                        if (session != null && session.getRole() == UserAccount.Role.HOCSINH) {
-                            responsePacket = UDPPacket.createError("Chỉ Quản trị viên / Phòng Giáo vụ mới có quyền Khóa hoặc Mở khóa sổ điểm!");
+                        if (session == null || session.getRole() == UserAccount.Role.HOCSINH) {
+                            totalSecurityThreatsBlocked.incrementAndGet();
+                            responsePacket = UDPPacket.createError("BẢO VỆ PHÂN QUYỀN SERVER (ZERO-TRUST): Chỉ Quản trị viên / Phòng Giáo vụ đã xác thực mới có quyền Khóa hoặc Mở khóa sổ điểm!");
                         } else {
                             boolean targetLock = Boolean.parseBoolean(packet.getPayload());
-                            String operator = (session != null) ? session.getUsername() : "admin";
+                            String operator = session.getUsername();
                             SessionManager.getInstance().setGradebookLocked(targetLock, operator);
                             String statusMsg = targetLock
                                     ? "ĐÃ KHÓA & CÔNG BỐ SỔ ĐIỂM HỌC KỲ (Chặn chỉnh sửa điểm)"
@@ -531,13 +549,14 @@ public class UDPServer {
                     try {
                         String token = packet.getToken();
                         SessionManager.UserSession session = SessionManager.getInstance().getSession(token);
-                        if (session != null && session.getRole() == UserAccount.Role.HOCSINH) {
-                            responsePacket = UDPPacket.createError("Học sinh không có quyền phát thông báo đào tạo!");
+                        if (session == null || session.getRole() == UserAccount.Role.HOCSINH) {
+                            totalSecurityThreatsBlocked.incrementAndGet();
+                            responsePacket = UDPPacket.createError("BẢO VỆ PHÂN QUYỀN SERVER (ZERO-TRUST): Yêu cầu đăng nhập quyền Giảng viên/Admin để phát thông báo đào tạo!");
                         } else {
-                            String operator = (session != null) ? session.getFullName() : "Phòng Đào Tạo PTIT";
-                            String text = packet.getPayload();
+                            String operator = session.getFullName();
+                            String text = InputValidator.validateAndSanitizeReasonOrNote(packet.getPayload(), "Nội dung thông báo", 3, 400);
                             DatabaseManager.getInstance().logAudit(
-                                    session != null ? session.getUsername() : "giangvien",
+                                    session.getUsername(),
                                     "BROADCAST", "Phát thông báo: " + text, clientIp);
                             broadcastPushEvent("ANNOUNCEMENT", "Thông báo từ " + operator + ": " + text, text);
                             responsePacket = new UDPPacket(PacketType.BROADCAST_ANNOUNCEMENT, true, "Đã phát thông báo tới toàn bộ sinh viên trực tuyến!", text);
@@ -549,6 +568,13 @@ public class UDPServer {
 
                 case GET_AUDIT_LOGS:
                     try {
+                        String token = packet.getToken();
+                        SessionManager.UserSession session = SessionManager.getInstance().getSession(token);
+                        if (session == null || session.getRole() == UserAccount.Role.HOCSINH) {
+                            totalSecurityThreatsBlocked.incrementAndGet();
+                            responsePacket = UDPPacket.createError("BẢO VỆ PHÂN QUYỀN SERVER (ZERO-TRUST): Chỉ Giảng viên hoặc Quản trị viên mới có quyền truy xuất Nhật ký Thanh tra!");
+                            break;
+                        }
                         int limit = 50;
                         try {
                             if (packet.getPayload() != null) limit = Integer.parseInt(packet.getPayload().trim());
@@ -569,15 +595,18 @@ public class UDPServer {
                             String token = packet.getToken();
                             SessionManager.UserSession session = SessionManager.getInstance().getSession(token);
 
-                            if (session != null && session.getRole() == UserAccount.Role.HOCSINH) {
-                                responsePacket = UDPPacket.createError("BẢO VỆ PHÂN QUYỀN SERVER: Quyền Học sinh không được phép thêm hoặc cập nhật điểm số!");
+                            if (session == null || session.getRole() == UserAccount.Role.HOCSINH) {
+                                totalSecurityThreatsBlocked.incrementAndGet();
+                                DatabaseManager.getInstance().logAudit(session != null ? session.getUsername() : "anonymous", "RBAC_VIOLATION_GRADE",
+                                        "Chặn gói tin thêm/sửa điểm trái phép (Không có Session Token hợp lệ hoặc quyền Học sinh)", clientIp);
+                                responsePacket = UDPPacket.createError("BẢO VỆ PHÂN QUYỀN SERVER (ZERO-TRUST): Yêu cầu đăng nhập phiên Giảng viên/Admin hợp lệ để thêm hoặc cập nhật điểm số!");
                             } else if (SessionManager.getInstance().isGradebookLocked() &&
-                                    (session == null || session.getRole() != UserAccount.Role.ADMIN)) {
+                                    session.getRole() != UserAccount.Role.ADMIN) {
                                 responsePacket = UDPPacket.createError("[KHÓA SỔ ĐIỂM] Sổ điểm học kỳ đã khóa bởi Phòng Giáo Vụ! Giảng viên không thể sửa điểm khi sổ đã khóa (Yêu cầu quyền Admin để mở khóa).");
                             } else {
                                 StudentData student = gson.fromJson(packet.getPayload(), StudentData.class);
                                 InputValidator.validateAndNormalizeStudentData(student);
-                                String operator = (session != null) ? session.getUsername() : "giangvien";
+                                String operator = session.getUsername();
 
                                 // Lấy điểm cũ trước khi lưu để ghi Audit Trail bất biến (OldScore -> NewScore)
                                 StudentResult oldRecord = null;
@@ -645,14 +674,17 @@ public class UDPServer {
                             String token = packet.getToken();
                             SessionManager.UserSession session = SessionManager.getInstance().getSession(token);
 
-                            if (session != null && session.getRole() == UserAccount.Role.HOCSINH) {
-                                responsePacket = UDPPacket.createError("BẢO VỆ PHÂN QUYỀN SERVER: Học sinh không được phép xóa dữ liệu sinh viên!");
+                            if (session == null || session.getRole() == UserAccount.Role.HOCSINH) {
+                                totalSecurityThreatsBlocked.incrementAndGet();
+                                DatabaseManager.getInstance().logAudit(session != null ? session.getUsername() : "anonymous", "RBAC_VIOLATION_DELETE",
+                                        "Chặn gói tin xóa sinh viên trái phép (Thiếu Token hoặc quyền Học sinh)", clientIp);
+                                responsePacket = UDPPacket.createError("BẢO VỆ PHÂN QUYỀN SERVER (ZERO-TRUST): Yêu cầu đăng nhập phiên Giảng viên/Admin hợp lệ để xóa dữ liệu sinh viên!");
                             } else if (SessionManager.getInstance().isGradebookLocked() &&
-                                    (session == null || session.getRole() != UserAccount.Role.ADMIN)) {
+                                    session.getRole() != UserAccount.Role.ADMIN) {
                                 responsePacket = UDPPacket.createError("[KHÓA SỔ ĐIỂM] Sổ điểm học kỳ đã khóa! Không thể xóa hồ sơ sinh viên khi sổ điểm đã khóa.");
                             } else {
-                                String studentId = packet.getPayload();
-                                String operator = (session != null) ? session.getUsername() : "giangvien";
+                                String studentId = InputValidator.normalizeAndValidateStudentId(packet.getPayload());
+                                String operator = session.getUsername();
                                 boolean deleted = DatabaseManager.getInstance().deleteStudent(studentId);
                                 if (deleted) {
                                     DatabaseManager.getInstance().logAudit(operator, "DELETE_STUDENT", "Xóa hồ sơ sinh viên " + studentId, clientIp);
@@ -736,10 +768,13 @@ public class UDPServer {
                     try {
                         String token = packet.getToken();
                         SessionManager.UserSession session = SessionManager.getInstance().getSession(token);
-                        if (session != null && session.getRole() == UserAccount.Role.HOCSINH) {
-                            responsePacket = UDPPacket.createError("BẢO VỆ PHÂN QUYỀN SERVER: Học sinh không có quyền chấm điểm học phần!");
+                        if (session == null || session.getRole() == UserAccount.Role.HOCSINH) {
+                            totalSecurityThreatsBlocked.incrementAndGet();
+                            DatabaseManager.getInstance().logAudit(session != null ? session.getUsername() : "anonymous", "RBAC_VIOLATION_COURSE_GRADE",
+                                    "Chặn chấm điểm học phần trái phép (Thiếu Token hoặc quyền Học sinh)", clientIp);
+                            responsePacket = UDPPacket.createError("BẢO VỆ PHÂN QUYỀN SERVER (ZERO-TRUST): Yêu cầu đăng nhập phiên Giảng viên/Admin hợp lệ để chấm điểm học phần!");
                         } else if (SessionManager.getInstance().isGradebookLocked() &&
-                                (session == null || session.getRole() != UserAccount.Role.ADMIN)) {
+                                session.getRole() != UserAccount.Role.ADMIN) {
                             responsePacket = UDPPacket.createError("[KHÓA SỔ ĐIỂM] Sổ điểm học kỳ đang khóa! Không thể sửa điểm học phần.");
                         } else {
                             String[] parts = packet.getPayload().split("\\|");
@@ -749,7 +784,7 @@ public class UDPServer {
                             double exScore = InputValidator.validateScoreValue(Double.parseDouble(parts[3]), "Điểm Thi kết thúc");
 
                             StudentTranscript updatedT = DatabaseManager.getInstance().updateCourseGrade(stId, cCode, procScore, exScore);
-                            String operator = (session != null) ? session.getUsername() : "giangvien";
+                            String operator = session.getUsername();
                             String detail = String.format("Chấm điểm môn %s của %s: Quá trình=%.2f, Thi=%.2f -> GPA Tích lũy mới=%.2f (%s)",
                                     cCode, stId, procScore, exScore, updatedT.getCumulativeGpa4(), updatedT.getAcademicRank());
                             DatabaseManager.getInstance().logAudit(operator, "UPDATE_COURSE_GRADE", detail, clientIp);
@@ -768,12 +803,26 @@ public class UDPServer {
 
                 case SUBMIT_GRADE_APPEAL:
                     try {
+                        String token = packet.getToken();
+                        SessionManager.UserSession session = SessionManager.getInstance().getSession(token);
                         String[] parts = packet.getPayload().split("\\|", 3);
                         String stId = InputValidator.normalizeAndValidateStudentId(parts[0]);
                         String cCode = InputValidator.normalizeAndValidateCourseCode(parts.length > 1 ? parts[1] : "INT1339");
                         String reason = InputValidator.validateAndSanitizeReasonOrNote(
                                 parts.length > 2 ? parts[2] : "Xin phúc khảo điểm bài thi cuối kỳ",
                                 "Lý do phúc khảo", 5, 300);
+
+                        if (session != null && session.getRole() == UserAccount.Role.HOCSINH
+                                && session.getStudentId() != null && !session.getStudentId().isEmpty()
+                                && !session.getStudentId().equalsIgnoreCase(stId)) {
+                            totalSecurityThreatsBlocked.incrementAndGet();
+                            DatabaseManager.getInstance().logAudit(session.getUsername(), "IDOR_APPEAL_BLOCKED",
+                                    "Chặn SV " + session.getStudentId() + " gửi đơn phúc khảo mạo danh Mã SV " + stId, clientIp);
+                            responsePacket = UDPPacket.createError("BẢO MẬT ĐỊNH DANH (ANTI-IDOR): Tài khoản của bạn liên kết với Mã SV " + session.getStudentId() + ", không được phép gửi đơn phúc khảo mạo danh Mã SV " + stId + "!");
+                            break;
+                        }
+                        // Kiểm tra sinh viên có tồn tại thực sự trong CSDL hay không trước khi tạo đơn
+                        DatabaseManager.getInstance().getStudentDecrypted(stId);
 
                         boolean hasPendingAppeal = false;
                         for (GradeAppeal existing : gradeAppeals) {
@@ -818,11 +867,13 @@ public class UDPServer {
                     try {
                         String token = packet.getToken();
                         SessionManager.UserSession session = SessionManager.getInstance().getSession(token);
-                        if (session != null && session.getRole() == UserAccount.Role.HOCSINH) {
+                        if (session == null || session.getRole() == UserAccount.Role.HOCSINH) {
                             totalSecurityThreatsBlocked.incrementAndGet();
-                            responsePacket = UDPPacket.createError("BẢO VỆ PHÂN QUYỀN SERVER: Học sinh không có quyền xét duyệt đơn phúc khảo!");
+                            DatabaseManager.getInstance().logAudit(session != null ? session.getUsername() : "anonymous", "RBAC_VIOLATION_APPEAL",
+                                    "Chặn xét duyệt phúc khảo trái phép (Thiếu Token hoặc quyền Học sinh)", clientIp);
+                            responsePacket = UDPPacket.createError("BẢO VỆ PHÂN QUYỀN SERVER (ZERO-TRUST): Yêu cầu đăng nhập phiên Giảng viên/Admin hợp lệ để xét duyệt đơn phúc khảo!");
                         } else if (SessionManager.getInstance().isGradebookLocked() &&
-                                (session == null || session.getRole() != UserAccount.Role.ADMIN)) {
+                                session.getRole() != UserAccount.Role.ADMIN) {
                             responsePacket = UDPPacket.createError("[KHÓA SỔ ĐIỂM] Sổ điểm học kỳ đã khóa bởi Phòng Giáo Vụ! Không thể duyệt sửa điểm phúc khảo khi sổ đang khóa.");
                         } else {
                             String[] parts = packet.getPayload().split("\\|", 5);
@@ -842,8 +893,10 @@ public class UDPServer {
                             }
                             if (target == null) {
                                 responsePacket = UDPPacket.createError("Không tìm thấy đơn phúc khảo #" + apId);
+                            } else if (!"CHỜ DUYỆT".equalsIgnoreCase(target.getStatus())) {
+                                responsePacket = UDPPacket.createError("Đơn phúc khảo #" + apId + " đã được xử lý trước đó (Trạng thái: " + target.getStatus() + "), không thể xét duyệt lại!");
                             } else {
-                                String operator = (session != null) ? session.getUsername() : "giangvien";
+                                String operator = session.getUsername();
                                 if (approved) {
                                     InputValidator.validateScoreValue(newProc, "Điểm Quá trình mới");
                                     InputValidator.validateScoreValue(newExam, "Điểm Thi mới");
@@ -879,13 +932,27 @@ public class UDPServer {
 
                 case REGISTER_CREDITS:
                     try {
+                        String token = packet.getToken();
+                        SessionManager.UserSession session = SessionManager.getInstance().getSession(token);
                         String[] parts = packet.getPayload().split("\\|", 3);
                         String stId = InputValidator.normalizeAndValidateStudentId(parts[0]);
                         int reqCredits = Integer.parseInt(parts[1].trim());
                         String coursesCsv = parts.length > 2 ? parts[2].trim() : "";
 
+                        if (session != null && session.getRole() == UserAccount.Role.HOCSINH
+                                && session.getStudentId() != null && !session.getStudentId().isEmpty()
+                                && !session.getStudentId().equalsIgnoreCase(stId)) {
+                            totalSecurityThreatsBlocked.incrementAndGet();
+                            DatabaseManager.getInstance().logAudit(session.getUsername(), "IDOR_CREDITS_BLOCKED",
+                                    "Chặn SV " + session.getStudentId() + " đăng ký tín chỉ mạo danh Mã SV " + stId, clientIp);
+                            responsePacket = UDPPacket.createError("BẢO MẬT ĐỊNH DANH (ANTI-IDOR): Tài khoản của bạn liên kết với Mã SV " + session.getStudentId() + ", không được phép đăng ký tín chỉ thay cho Mã SV " + stId + "!");
+                            break;
+                        }
+
                         StudentResult student = DatabaseManager.getInstance().getStudentDecrypted(stId);
-                        boolean isWarning = student.getGpa4() < 2.0 || student.isExamBanned() || student.isFinalExamFailed();
+                        StudentTranscript transcript = DatabaseManager.getInstance().getDetailedTranscript(stId);
+                        double cumulativeGpa4 = transcript.getCumulativeGpa4();
+                        boolean isWarning = cumulativeGpa4 < 2.0 || student.getGpa4() < 2.0 || student.isExamBanned() || student.isFinalExamFailed();
                         int maxCredits = isWarning ? 14 : 22;
 
                         if (reqCredits < 10) {
@@ -893,10 +960,10 @@ public class UDPServer {
                                     "QUY CHẾ ĐÀO TẠO TÍN CHỈ: Số tín chỉ đăng ký tối thiểu trong 1 học kỳ chính là 10 tín chỉ (Bạn đang chọn " + reqCredits + " TC).\nVui lòng chọn thêm học phần!");
                         } else if (reqCredits > maxCredits) {
                             String err = String.format(
-                                    "QUY CHẾ ĐÀO TẠO TÍN CHỈ: Sinh viên %s (%s) hiện có GPA = %.2f (%s),\n" +
+                                    "QUY CHẾ ĐÀO TẠO TÍN CHỈ: Sinh viên %s (%s) hiện có CPA Tích lũy = %.2f (GPA môn chính = %.2f - %s),\n" +
                                     "định mức đăng ký tối đa là %d tín chỉ/học kỳ (Bạn đang chọn %d TC).\n" +
                                     "Vui lòng bỏ bớt học phần tự chọn để đảm bảo chất lượng học tập!",
-                                    student.getFullName(), stId, student.getGpa4(), student.getAcademicStatus(), maxCredits, reqCredits);
+                                    student.getFullName(), stId, cumulativeGpa4, student.getGpa4(), student.getAcademicStatus(), maxCredits, reqCredits);
                             responsePacket = UDPPacket.createError(err);
                         } else {
                             long tuitionVnd = reqCredits * 650_000L;
@@ -919,11 +986,11 @@ public class UDPServer {
                     try {
                         String token = packet.getToken();
                         SessionManager.UserSession session = SessionManager.getInstance().getSession(token);
-                        if (session != null && session.getRole() == UserAccount.Role.HOCSINH) {
+                        if (session == null || session.getRole() != UserAccount.Role.ADMIN) {
                             totalSecurityThreatsBlocked.incrementAndGet();
-                            DatabaseManager.getInstance().logAudit(session.getUsername(), "RBAC_VIOLATION_KEY",
-                                    "Chặn Học sinh thực hiện Xoay khóa mật mã CSDL", clientIp);
-                            responsePacket = UDPPacket.createError("BẢO VỆ PHÂN QUYỀN SERVER: Chỉ Quản trị viên mới có quyền Xoay khóa & Tái mã hóa CSDL!");
+                            DatabaseManager.getInstance().logAudit(session != null ? session.getUsername() : "anonymous", "RBAC_VIOLATION_KEY",
+                                    "Chặn xoay khóa mật mã CSDL trái phép (Yêu cầu quyền ADMIN)", clientIp);
+                            responsePacket = UDPPacket.createError("BẢO VỆ PHÂN QUYỀN SERVER (ZERO-TRUST): Chỉ Quản trị viên (ADMIN) đã xác thực mới có quyền Xoay khóa & Tái mã hóa CSDL!");
                             break;
                         }
                         String[] parts = packet.getPayload().split("\\|", 2);
@@ -934,7 +1001,7 @@ public class UDPServer {
                         int count = DatabaseManager.getInstance().rotateEncryptionForAllRecords(newKey, newAlgo);
                         String msg = String.format("Đã xoay khóa & tái mã hóa thành công %d hồ sơ sinh viên sang chuẩn %s!",
                                 count, newAlgo.getDisplayName());
-                        DatabaseManager.getInstance().logAudit("admin", "KEY_ROTATION", msg, clientIp);
+                        DatabaseManager.getInstance().logAudit(session.getUsername(), "KEY_ROTATION", msg, clientIp);
                         log("[XOAY KHÓA MẬT MÃ CSDL] " + msg);
                         if (logListener != null) {
                             logListener.onDataUpdated();
@@ -981,21 +1048,24 @@ public class UDPServer {
                     try {
                         String token = packet.getToken();
                         SessionManager.UserSession session = SessionManager.getInstance().getSession(token);
-                        if (session != null && session.getRole() == UserAccount.Role.HOCSINH) {
+                        if (session == null || session.getRole() == UserAccount.Role.HOCSINH) {
                             totalSecurityThreatsBlocked.incrementAndGet();
-                            DatabaseManager.getInstance().logAudit(session.getUsername(), "RBAC_VIOLATION_UPLOAD",
-                                    "Chặn Học sinh phát hành đề cương học phần trái phép", clientIp);
-                            responsePacket = UDPPacket.createError("BẢO VỆ PHÂN QUYỀN SERVER: Học sinh không có quyền phát hành hoặc sửa đề cương học phần!");
+                            DatabaseManager.getInstance().logAudit(session != null ? session.getUsername() : "anonymous", "RBAC_VIOLATION_UPLOAD",
+                                    "Chặn phát hành đề cương học phần trái phép (Thiếu Token hoặc quyền Học sinh)", clientIp);
+                            responsePacket = UDPPacket.createError("BẢO VỆ PHÂN QUYỀN SERVER (ZERO-TRUST): Yêu cầu đăng nhập phiên Giảng viên/Admin hợp lệ để phát hành đề cương học phần!");
                             break;
                         }
                         String[] parts = packet.getPayload().split("\\|", 2);
-                        String cCode = parts[0].trim().toUpperCase();
-                        String content = parts.length > 1 ? parts[1] : "";
+                        String cCode = InputValidator.normalizeAndValidateCourseCode(parts[0]);
+                        String content = parts.length > 1 ? parts[1].trim() : "";
+                        if (content.length() < 10) {
+                            throw new IllegalArgumentException("Nội dung đề cương học phần phải có tối thiểu 10 ký tự!");
+                        }
                         courseMaterials.put(cCode, content);
                         String sha256 = computeSha256Hex(content);
-                        String msg = String.format("Giảng viên vừa cập nhật Đề cương học phần %s (SHA-256: %s...)",
-                                cCode, sha256.substring(0, 12));
-                        DatabaseManager.getInstance().logAudit("giangvien", "UPLOAD_MATERIAL", msg, clientIp);
+                        String msg = String.format("Giảng viên %s vừa cập nhật Đề cương học phần %s (SHA-256: %s...)",
+                                session.getUsername(), cCode, sha256.substring(0, 12));
+                        DatabaseManager.getInstance().logAudit(session.getUsername(), "UPLOAD_MATERIAL", msg, clientIp);
                         log("[CẬP NHẬT ĐỀ CƯƠNG] " + msg);
                         broadcastPushEvent("MATERIAL_UPDATED", msg, cCode);
                         responsePacket = new UDPPacket(PacketType.UPLOAD_COURSE_MATERIAL, true, msg, sha256);
@@ -1009,17 +1079,20 @@ public class UDPServer {
                         String token = packet.getToken();
                         SessionManager.UserSession session = SessionManager.getInstance().getSession(token);
 
-                        if (session != null && session.getRole() == UserAccount.Role.HOCSINH) {
-                            responsePacket = UDPPacket.createError("BẢO VỆ PHÂN QUYỀN SERVER: Học sinh không được phép nhập dữ liệu Excel!");
+                        if (session == null || session.getRole() == UserAccount.Role.HOCSINH) {
+                            totalSecurityThreatsBlocked.incrementAndGet();
+                            DatabaseManager.getInstance().logAudit(session != null ? session.getUsername() : "anonymous", "RBAC_VIOLATION_IMPORT",
+                                    "Chặn import bảng điểm Excel trái phép (Thiếu Token hoặc quyền Học sinh)", clientIp);
+                            responsePacket = UDPPacket.createError("BẢO VỆ PHÂN QUYỀN SERVER (ZERO-TRUST): Yêu cầu đăng nhập phiên Giảng viên/Admin hợp lệ để nhập dữ liệu Excel!");
                         } else if (SessionManager.getInstance().isGradebookLocked() &&
-                                (session == null || session.getRole() != UserAccount.Role.ADMIN)) {
+                                session.getRole() != UserAccount.Role.ADMIN) {
                             responsePacket = UDPPacket.createError("[KHÓA SỔ ĐIỂM] Sổ điểm học kỳ đã khóa! Không thể import bảng điểm mới khi sổ đã khóa.");
                         } else {
                             Type listType = new TypeToken<List<StudentData>>() {}.getType();
                             List<StudentData> list = gson.fromJson(packet.getPayload(), listType);
                             int count = DatabaseManager.getInstance().saveStudentBatch(list);
 
-                            String operator = (session != null) ? session.getUsername() : "giangvien";
+                            String operator = session.getUsername();
                             DatabaseManager.getInstance().logAudit(operator, "IMPORT_EXCEL", "Nhập hàng loạt " + count + " sinh viên từ Excel", clientIp);
                             log(String.format("[%s] Đã nhập thành công %d sinh viên từ file Excel vào CSDL SQL!", operator, count));
 

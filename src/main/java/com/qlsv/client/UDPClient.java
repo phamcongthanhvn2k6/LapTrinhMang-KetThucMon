@@ -75,6 +75,10 @@ public class UDPClient implements AutoCloseable {
                         pushSocket.receive(dp);
                         UDPPacket pkt = UDPPacket.fromBytes(dp.getData(), dp.getLength());
                         if (pkt != null && pkt.getType() == PacketType.PUSH_EVENT) {
+                            if (!pkt.verifyIntegrity() || !pkt.isReplayValid()) {
+                                System.err.println("[RUDP Client Security] Chặn gói PUSH_EVENT giả mạo (Sai chữ ký HMAC-SHA256 hoặc Replay)!");
+                                continue;
+                            }
                             String msg = pkt.getMessage() != null ? pkt.getMessage() : "";
                             if (msg.contains("[GRADE_LOCK]")) {
                                 gradebookLocked = Boolean.parseBoolean(pkt.getPayload());
@@ -436,9 +440,6 @@ public class UDPClient implements AutoCloseable {
         byte[] sendData = request.toBytes();
         DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, address, serverPort);
 
-        byte[] receiveData = new byte[65507];
-        DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
-
         Exception lastException = null;
         for (int attempt = 1; attempt <= maxAttempts; attempt++) {
             long startNs = System.nanoTime();
@@ -446,11 +447,17 @@ public class UDPClient implements AutoCloseable {
                 totalPacketsSent.incrementAndGet();
                 socket.send(sendPacket);
 
-                // Lọc bỏ các gói tin UDP phản hồi đến trễ của SequenceNum cũ
+                // Lọc bỏ các gói tin UDP phản hồi đến trễ của SequenceNum cũ và xác thực HMAC-SHA256 chiều về
                 while (true) {
+                    byte[] receiveData = new byte[65507];
+                    DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
                     socket.receive(receivePacket);
                     UDPPacket resp = UDPPacket.fromBytes(receivePacket.getData(), receivePacket.getLength());
                     if (resp == null) {
+                        continue;
+                    }
+                    if (!resp.verifyIntegrity() || !resp.isReplayValid()) {
+                        System.err.println("[RUDP Client Security] Bỏ qua gói phản hồi Server không hợp lệ chữ ký HMAC-SHA256!");
                         continue;
                     }
                     if (resp.getAckNum() > 0 && resp.getAckNum() != request.getSequenceNum()) {

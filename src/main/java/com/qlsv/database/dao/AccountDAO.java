@@ -147,13 +147,15 @@ public class AccountDAO {
     public UserAccount authenticateUser(String username, String password) {
         if (username == null || password == null) return null;
 
-        String sql = "SELECT TenDangNhap, MatKhauHash, Salt, VaiTro, MaSV, HoTen, Email FROM TaiKhoan WHERE TenDangNhap = ?";
+        boolean foundInDb = false;
+        String sql = "SELECT TenDangNhap, MatKhauHash, Salt, VaiTro, MaSV, HoTen, Email FROM TaiKhoan WHERE LOWER(TenDangNhap) = LOWER(?)";
         try (Connection conn = ConnectionPool.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setString(1, username.trim());
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
+                    foundInDb = true;
                     String salt = rs.getString("Salt");
                     String hash = rs.getString("MatKhauHash");
                     if (PasswordHasher.verifyPassword(password.trim(), salt, hash)) {
@@ -168,26 +170,31 @@ public class AccountDAO {
                                 rs.getString("Email")
                         );
                     }
+                    // Bảo mật: Nếu tài khoản ĐÃ TỒN TẠI trong bảng TaiKhoan nhưng sai mật khẩu băm SHA-256 + Salt,
+                    // tuyệt đối từ chối ngay (return null), KHÔNG cho phép rơi xuống mật khẩu mặc định ban đầu!
+                    return null;
                 }
             }
         } catch (Exception e) {
             System.err.println("Lỗi xác thực: " + e.getMessage());
         }
 
-        // Hardcoded safety fallback for demo admin credentials
-        if ("admin".equalsIgnoreCase(username) && "admin123".equals(password)) {
-            return new UserAccount("admin", "", "", UserAccount.Role.ADMIN, null, "Quản Trị Viên", "admin@ptit.edu.vn");
-        }
-        if (("giangvien".equalsIgnoreCase(username) || "teacher".equalsIgnoreCase(username)) && "ptit123".equals(password)) {
-            return new UserAccount("giangvien", "", "", UserAccount.Role.GIANGVIEN, null, "ThS. Giảng Viên Mạng", "giangvien@ptit.edu.vn");
-        }
-        if ("student".equalsIgnoreCase(username) && "ptit123".equals(password)) {
-            return new UserAccount("student", "", "", UserAccount.Role.HOCSINH, "SV001", "Vũ Khánh Bích", "sv001@ptit.edu.vn");
-        }
-        // Cho phép đăng nhập bất kỳ Mã SV nào (SV001 - SV250) với mật khẩu ptit123
-        if (username.toUpperCase().startsWith("SV") && "ptit123".equals(password)) {
-            String cleanId = username.toUpperCase().trim();
-            return new UserAccount(cleanId, "", "", UserAccount.Role.HOCSINH, cleanId, "Sinh Viên " + cleanId, cleanId.toLowerCase() + "@ptit.edu.vn");
+        // Fallback tài khoản demo chỉ áp dụng khi tài khoản chưa có bản ghi riêng trong bảng TaiKhoan
+        if (!foundInDb) {
+            if ("admin".equalsIgnoreCase(username) && "admin123".equals(password)) {
+                return new UserAccount("admin", "", "", UserAccount.Role.ADMIN, null, "Quản Trị Viên", "admin@ptit.edu.vn");
+            }
+            if (("giangvien".equalsIgnoreCase(username) || "teacher".equalsIgnoreCase(username)) && "ptit123".equals(password)) {
+                return new UserAccount("giangvien", "", "", UserAccount.Role.GIANGVIEN, null, "ThS. Giảng Viên Mạng", "giangvien@ptit.edu.vn");
+            }
+            if ("student".equalsIgnoreCase(username) && "ptit123".equals(password)) {
+                return new UserAccount("student", "", "", UserAccount.Role.HOCSINH, "SV001", "Vũ Khánh Bích", "sv001@ptit.edu.vn");
+            }
+            // Cho phép đăng nhập Mã SV (SV001 - SV251) chưa đổi mật khẩu với mật khẩu mặc định ptit123
+            if (username.toUpperCase().startsWith("SV") && "ptit123".equals(password)) {
+                String cleanId = username.toUpperCase().trim();
+                return new UserAccount(cleanId, "", "", UserAccount.Role.HOCSINH, cleanId, "Sinh Viên " + cleanId, cleanId.toLowerCase() + "@ptit.edu.vn");
+            }
         }
 
         return null;

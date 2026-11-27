@@ -2044,13 +2044,24 @@ public class ClientGUI extends JFrame {
         btnCalc.addActionListener(e -> {
             String target = (String) cbTarget.getSelectedItem();
             double targetScore = target.contains("9.0") ? 9.0 : (target.contains("8.0") ? 8.0 : 6.5);
+            int nextCredits = 15;
+            try {
+                nextCredits = Math.max(1, Integer.parseInt(txtCredits.getText().trim()));
+            } catch (Exception ignored) {}
+            int currentCredits = 15;
             if (baseGpa >= targetScore) {
-                txtAdvice.setText("Chúc mừng! Điểm hiện tại (" + String.format("%.2f", baseGpa) + ") đã đạt xếp loại mục tiêu.\nHãy duy trì phong độ tối thiểu " + String.format("%.2f", targetScore) + " điểm ở các môn tiếp theo!");
+                txtAdvice.setText("Chúc mừng! Điểm hiện tại (" + String.format("%.2f", baseGpa) + ") đã đạt xếp loại mục tiêu.\nHãy duy trì phong độ tối thiểu " + String.format("%.2f", targetScore) + " điểm ở " + nextCredits + " tín chỉ học kỳ tiếp theo!");
             } else {
-                double diff = targetScore - baseGpa;
-                double needed = baseGpa + (diff * 1.8);
-                if (needed > 10.0) needed = 9.8;
-                txtAdvice.setText(String.format("Để nâng hạng học lực lên %s:\n• Bạn cần đạt trung bình tối thiểu: %.2f điểm ở các môn học kỳ tiếp theo.\n• Lời khuyên: Tập trung cao vào các môn chuyên ngành và Cơ sở dữ liệu!", target, needed));
+                // Công thức toán học tín chỉ: (baseGpa * currentCredits + needed * nextCredits) / (currentCredits + nextCredits) = targetScore
+                double needed = (targetScore * (currentCredits + nextCredits) - (baseGpa * currentCredits)) / nextCredits;
+                if (needed > 10.0) {
+                    double maxAchievable = (baseGpa * currentCredits + 10.0 * nextCredits) / (currentCredits + nextCredits);
+                    txtAdvice.setText(String.format("Mục tiêu %s chưa thể đạt ngay trong 1 học kỳ với %d tín chỉ (Yêu cầu %.2f > 10.0).\n• Nếu đạt tuyệt đối 10.0 ở %d TC kỳ tới, ĐTB tích lũy tối đa sẽ đạt: %.2f.\n• Lời khuyên: Đăng ký thêm tín chỉ học cải thiện hoặc chia lộ trình nâng điểm trong 2 học kỳ!",
+                            target, nextCredits, needed, nextCredits, maxAchievable));
+                } else {
+                    txtAdvice.setText(String.format("Để nâng hạng học lực lên %s với %d tín chỉ kỳ tới:\n• Bạn cần đạt điểm trung bình học kỳ tới tối thiểu: %.2f / 10.0.\n• Lời khuyên: Tập trung cao vào các môn chuyên ngành 3-4 tín chỉ!",
+                            target, nextCredits, needed));
+                }
             }
         });
 
@@ -2857,9 +2868,9 @@ public class ClientGUI extends JFrame {
                         g.getCourseCode(),
                         g.getCourseName(),
                         g.getCredits(),
-                        String.format("%.2f", g.getScoreProcess()),
-                        String.format("%.2f", g.getScoreExam()),
-                        String.format("%.2f", g.getTotalScore()),
+                        String.format("%.2f", g.getAttendanceScore()),
+                        String.format("%.2f", g.getMidtermScore()),
+                        String.format("%.2f", g.getFinalScore()),
                         String.format("%.2f", g.getTotalScore()),
                         String.format("%.2f", g.getGpa4()),
                         g.getLetterGrade(),
@@ -2948,13 +2959,24 @@ public class ClientGUI extends JFrame {
             String target = (String) cbTarget.getSelectedItem();
             double targetScore = target.contains("3.6") ? 3.6 : (target.contains("3.2") ? 3.2 : 2.5);
             double baseGpa = t.getCumulativeGpa4();
+            int curCredits = Math.max(3, t.getRegisteredCredits());
+            int nextCredits = 15;
+            try {
+                nextCredits = Math.max(1, Integer.parseInt(txtCredits.getText().trim()));
+            } catch (Exception ignored) {}
             if (baseGpa >= targetScore) {
-                txtAdvice.setText("Chúc mừng! CPA hiện tại (" + String.format("%.2f", baseGpa) + ") đã đạt mức mục tiêu (" + target + ").\nHãy duy trì phong độ tối thiểu 3.0 ở các môn tiếp theo!");
+                txtAdvice.setText("Chúc mừng! CPA hiện tại (" + String.format("%.2f", baseGpa) + ") đã đạt mức mục tiêu (" + target + ").\nHãy duy trì phong độ tối thiểu " + String.format("%.2f", targetScore) + " ở " + nextCredits + " tín chỉ tiếp theo!");
             } else {
-                double diff = targetScore - baseGpa;
-                double needed = baseGpa + (diff * 1.6);
-                if (needed > 4.0) needed = 3.9;
-                txtAdvice.setText(String.format("Để nâng hạng học lực lên %s:\n• Bạn cần đạt GPA trung bình tối thiểu: %.2f (Thang 4) ở kỳ tới.\n• Lời khuyên: Cố gắng đạt điểm A ở các môn 3 và 4 tín chỉ!", target, needed));
+                // Công thức CPA tích lũy chuẩn: (baseGpa * curCredits + needed * nextCredits) / (curCredits + nextCredits) = targetScore
+                double needed = (targetScore * (curCredits + nextCredits) - (baseGpa * curCredits)) / nextCredits;
+                if (needed > 4.0) {
+                    double maxAchievable = (baseGpa * curCredits + 4.0 * nextCredits) / (curCredits + nextCredits);
+                    txtAdvice.setText(String.format("Mục tiêu %s chưa thể đạt ngay trong 1 học kỳ với %d tín chỉ (Cần GPA %.2f > 4.00).\n• Nếu đạt tối đa 4.00 (A+) cho cả %d TC kỳ tới, CPA sẽ nâng từ %.2f lên %.2f.\n• Lời khuyên: Đăng ký học cải thiện các môn điểm D/C hoặc lộ trình 2 học kỳ!",
+                            target, nextCredits, needed, nextCredits, baseGpa, maxAchievable));
+                } else {
+                    txtAdvice.setText(String.format("Để nâng CPA tích lũy từ %.2f (%d TC) lên %s với %d tín chỉ kỳ tới:\n• Bạn cần đạt GPA học kỳ tới tối thiểu: %.2f / 4.00.\n• Lời khuyên: Cố gắng đạt điểm A/B+ ở các môn 3 và 4 tín chỉ!",
+                            baseGpa, curCredits, target, nextCredits, needed));
+                }
             }
         });
 

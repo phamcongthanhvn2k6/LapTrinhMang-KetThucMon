@@ -116,13 +116,14 @@ public class AuditDAO {
         Set<String> seenSignatures = new LinkedHashSet<>();
 
         for (AuditEntry m : memoryAuditBuffer) {
-            String sig = m.username + "|" + m.action + "|" + m.details;
+            String sig = m.username + "|" + m.action + "|" + m.details + "|" + m.timestamp;
             if (seenSignatures.add(sig)) {
                 merged.add(m);
             }
         }
         for (AuditEntry d : dbList) {
-            String sig = d.username + "|" + d.action + "|" + d.details;
+            String tsSec = (d.timestamp != null && d.timestamp.length() >= 19) ? d.timestamp.substring(0, 19) : String.valueOf(d.timestamp);
+            String sig = d.username + "|" + d.action + "|" + d.details + "|" + tsSec;
             if (seenSignatures.add(sig)) {
                 merged.add(d);
             }

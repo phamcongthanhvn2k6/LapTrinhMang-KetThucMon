@@ -153,6 +153,19 @@ public class ValidationAndBusinessLogicTest {
         String sanitizedReason = InputValidator.validateAndSanitizeReasonOrNote("Em xin phúc khảo câu 1 | câu 2", "Lý do phúc khảo", 5, 300);
         assertTrue(!sanitizedReason.contains("|"), "Phải lọc bỏ ký tự phân cách giao thức '|' trong lý do phúc khảo");
 
+        // 11. Test Full-Envelope HMAC-SHA256 Signing (Token, Success, Message, AckNum Tampering Detection)
+        UDPPacket tokenPkt = UDPPacket.createAddStudent("{\"studentId\":\"SV001\"}", "valid-teacher-token");
+        tokenPkt.toBytes();
+        assertTrue(tokenPkt.verifyIntegrity(), "Gói tin có Session Token hợp lệ phải xác thực HMAC thành công");
+        tokenPkt.setToken("hijacked-admin-token");
+        assertTrue(!tokenPkt.verifyIntegrity(), "Phải phát hiện ngay hành vi đánh tráo Session Token trên đường truyền");
+
+        UDPPacket respPkt = UDPPacket.createLoginResponse(false, "Sai mật khẩu", null, null);
+        respPkt.toBytes();
+        assertTrue(respPkt.verifyIntegrity(), "Gói tin phản hồi Server phải được ký HMAC hợp lệ");
+        respPkt.setSuccess(true); // Giả lập kẻ gian sửa cờ success từ false -> true
+        assertTrue(!respPkt.verifyIntegrity(), "Phải chặn ngay hành vi sửa cờ trạng thái success trên gói phản hồi");
+
         System.out.println("✔ TẤT CẢ CÁC BÀI KIỂM THỬ VALIDATE, BẢO MẬT & LOGIC TÍN CHỈ ĐỀU ĐẠT 100%!");
     }
 }

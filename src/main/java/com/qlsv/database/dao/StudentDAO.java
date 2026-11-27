@@ -417,14 +417,8 @@ public class StudentDAO {
                         int bdId = rsBd.getInt("Id");
                         String oldQt = rsBd.getString("DiemQuaTrinhEncrypted");
                         String oldThi = rsBd.getString("DiemThiEncrypted");
-                        String plainQt = "8.0";
-                        String plainThi = "8.0";
-                        try {
-                            if (oldQt != null) plainQt = SecurityManager.decrypt(oldQt, oldKey);
-                        } catch (Exception ignored) {}
-                        try {
-                            if (oldThi != null) plainThi = SecurityManager.decrypt(oldThi, oldKey);
-                        } catch (Exception ignored) {}
+                        String plainQt = (oldQt != null && !oldQt.isEmpty()) ? SecurityManager.decrypt(oldQt, oldKey) : "8.0";
+                        String plainThi = (oldThi != null && !oldThi.isEmpty()) ? SecurityManager.decrypt(oldThi, oldKey) : "8.0";
                         psBd.setString(1, SecurityManager.encrypt(plainQt, newKey));
                         psBd.setString(2, SecurityManager.encrypt(plainThi, newKey));
                         psBd.setInt(3, bdId);

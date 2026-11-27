@@ -234,11 +234,17 @@ public class UDPPacket {
         return new UDPPacket(PacketType.ERROR, false, message, null);
     }
 
-    // HMAC-SHA256 Signing & Anti-Replay Verification
+    // HMAC-SHA256 Signing & Anti-Replay Verification (Covers all critical protocol headers + token + payload)
     private String buildCanonicalSigningString() {
         return (packetId != null ? packetId : "") + "|" +
                 sequenceNum + "|" +
+                ackNum + "|" +
                 (type != null ? type.name() : "") + "|" +
+                success + "|" +
+                (message != null ? message : "") + "|" +
+                (token != null ? token : "") + "|" +
+                totalChunks + "|" +
+                chunkIndex + "|" +
                 timestamp + "|" +
                 (payload != null ? payload : "");
     }

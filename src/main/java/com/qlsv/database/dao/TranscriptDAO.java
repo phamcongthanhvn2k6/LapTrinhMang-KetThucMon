@@ -144,9 +144,12 @@ public class TranscriptDAO {
             }
         }
 
-        student.setScoreGK(processScore);
-        student.setScoreCK(examScore);
-        student.setAverageScore(StudentResult.calculateWeightedScore(student.getScoreCC(), processScore, examScore));
+        // Chỉ đồng bộ ngược lên bảng SinhVien khi học phần đang chấm là học phần chính INT1339 (Lập Trình Mạng)
+        if ("INT1339".equalsIgnoreCase(cleanCourse)) {
+            student.setScoreGK(processScore);
+            student.setScoreCK(examScore);
+            student.setAverageScore(StudentResult.calculateWeightedScore(student.getScoreCC(), processScore, examScore));
+        }
         return getDetailedTranscript(cleanId, desKey, student);
     }
 
