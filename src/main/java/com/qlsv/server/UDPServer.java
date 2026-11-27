@@ -334,13 +334,35 @@ public class UDPServer {
                     packet.getType() == PacketType.REGISTER_CREDITS ||
                     packet.getType() == PacketType.REGISTER_ACCOUNT ||
                     packet.getType() == PacketType.CHANGE_PASSWORD ||
-                    packet.getType() == PacketType.IMPORT_EXCEL);
+                    packet.getType() == PacketType.IMPORT_EXCEL ||
+                    packet.getType() == PacketType.BROADCAST_ANNOUNCEMENT ||
+                    packet.getType() == PacketType.UPLOAD_COURSE_MATERIAL ||
+                    packet.getType() == PacketType.ROTATE_CRYPTO_KEY);
             if (isMutatingRequest && packet.getPacketId() != null && responseCache.containsKey(packet.getPacketId())) {
                 UDPPacket cachedResp = responseCache.get(packet.getPacketId());
                 if (cachedResp != null) {
                     log(String.format("[ARQ IDEMPOTENT CACHE] Phát hiện gói ghi truyền lại #%d [%s] -> Gửi lại phản hồi đã cache, bảo vệ toàn vẹn CSDL.",
                             seq, packet.getPacketId().substring(0, 8)));
                     sendPacket(cachedResp, seq, clientAddress, clientPort);
+                    return;
+                }
+            }
+
+            // 4. Tường lửa Chống Spam & DoS Packet Flood toàn cục (Sliding Window Rate Limiter)
+            if (packet.getType() != PacketType.PING && packet.getType() != PacketType.PUSH_SUBSCRIBE) {
+                String spamCheckKey = (packet.getToken() != null && !packet.getToken().isEmpty())
+                        ? clientIp + ":" + packet.getToken() : clientIp;
+                String spamErr = SessionManager.getInstance().checkPacketSpamLimit(spamCheckKey, isMutatingRequest);
+                if (spamErr != null) {
+                    totalSecurityThreatsBlocked.incrementAndGet();
+                    log("[IDS CHẶN SPAM / DoS FLOOD] " + spamErr + " (Nguồn: " + clientIp + " | Gói: " + packet.getType() + ")");
+                    DatabaseManager.getInstance().logAudit("IDS-ANTI-SPAM", "BLOCK_SPAM_FLOOD",
+                            spamErr + " [" + packet.getType() + "]", clientIp);
+                    broadcastPushEvent("SECURITY_ALERT", "[IDS CHẶN SPAM/DoS] " + spamErr, clientIp);
+                    if (logListener != null) {
+                        logListener.onDataUpdated();
+                    }
+                    sendPacket(UDPPacket.createError(spamErr), seq, clientAddress, clientPort);
                     return;
                 }
             }
@@ -428,6 +450,14 @@ public class UDPServer {
                         String regName = params.length > 4 ? params[4].trim() : regUser;
                         String regEmail = params.length > 5 ? params[5].trim() : "";
                         String inviteCode = params.length > 6 ? params[6].trim() : "";
+
+                        String cooldownErr = SessionManager.getInstance().checkActionCooldown(clientIp, "ĐĂNG KÝ TÀI KHOẢN", 5000L);
+                        if (cooldownErr != null) {
+                            totalSecurityThreatsBlocked.incrementAndGet();
+                            DatabaseManager.getInstance().logAudit(regUser.isEmpty() ? "anonymous" : regUser, "SPAM_REGISTER_BLOCKED", cooldownErr, clientIp);
+                            responsePacket = UDPPacket.createError(cooldownErr);
+                            break;
+                        }
 
                         UserAccount.Role targetRole = UserAccount.Role.HOCSINH;
                         if ("GIANGVIEN".equalsIgnoreCase(regRoleStr)) {
@@ -824,6 +854,14 @@ public class UDPServer {
                         // Kiểm tra sinh viên có tồn tại thực sự trong CSDL hay không trước khi tạo đơn
                         DatabaseManager.getInstance().getStudentDecrypted(stId);
 
+                        String appealCooldown = SessionManager.getInstance().checkActionCooldown(stId, "GỬI ĐƠN PHÚC KHẢO", 5000L);
+                        if (appealCooldown != null) {
+                            totalSecurityThreatsBlocked.incrementAndGet();
+                            DatabaseManager.getInstance().logAudit(stId, "SPAM_APPEAL_BLOCKED", appealCooldown, clientIp);
+                            responsePacket = UDPPacket.createError(appealCooldown);
+                            break;
+                        }
+
                         boolean hasPendingAppeal = false;
                         for (GradeAppeal existing : gradeAppeals) {
                             if (existing.getStudentId().equalsIgnoreCase(stId)
@@ -966,6 +1004,13 @@ public class UDPServer {
                                     student.getFullName(), stId, cumulativeGpa4, student.getGpa4(), student.getAcademicStatus(), maxCredits, reqCredits);
                             responsePacket = UDPPacket.createError(err);
                         } else {
+                            String creditCooldown = SessionManager.getInstance().checkActionCooldown(stId, "ĐĂNG KÝ TÍN CHỈ", 4000L);
+                            if (creditCooldown != null) {
+                                totalSecurityThreatsBlocked.incrementAndGet();
+                                DatabaseManager.getInstance().logAudit(stId, "SPAM_CREDITS_BLOCKED", creditCooldown, clientIp);
+                                responsePacket = UDPPacket.createError(creditCooldown);
+                                break;
+                            }
                             long tuitionVnd = reqCredits * 650_000L;
                             String msg = String.format("Đăng ký học phần HK2 thành công cho %s (%s): %d/%d TC [%s] - Học phí dự kiến: %,d VNĐ",
                                     student.getFullName(), stId, reqCredits, maxCredits, coursesCsv, tuitionVnd);

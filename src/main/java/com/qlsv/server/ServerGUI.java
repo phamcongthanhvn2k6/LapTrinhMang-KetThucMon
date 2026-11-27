@@ -654,10 +654,18 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
         btnAttackBruteForce.setFocusPainted(false);
         btnAttackBruteForce.addActionListener(e -> simulateBruteForceAttack());
 
+        JButton btnAttackSpamFlood = new JButton("4. Tấn Công Spam / DoS Flood (25 Lệnh Ghi/s)");
+        btnAttackSpamFlood.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        btnAttackSpamFlood.setBackground(new Color(111, 66, 193));
+        btnAttackSpamFlood.setForeground(Color.WHITE);
+        btnAttackSpamFlood.setFocusPainted(false);
+        btnAttackSpamFlood.addActionListener(e -> simulateSpamFloodAttack());
+
         row3.add(lblIdsTitle);
         row3.add(btnAttackMitm);
         row3.add(btnAttackReplay);
         row3.add(btnAttackBruteForce);
+        row3.add(btnAttackSpamFlood);
 
         topBox.add(row1);
         topBox.add(row2);
@@ -838,6 +846,55 @@ public class ServerGUI extends JFrame implements UDPServer.ServerLogListener {
                     "IDS Đã Kích Hoạt Khóa Tài Khoản Chống Brute-Force (60 Giây)", JOptionPane.WARNING_MESSAGE);
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, "Lỗi giả lập Brute-Force: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void simulateSpamFloodAttack() {
+        if (udpServer == null || !udpServer.isRunning()) {
+            JOptionPane.showMessageDialog(this, "Máy chủ RUDP chưa chạy!", "Thông báo", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        String spamSessionToken = "spam-bot-session-999";
+        SessionManager.getInstance().clearSpamState("127.0.0.1:" + spamSessionToken);
+        StringBuilder logBuilder = new StringBuilder("=== KẾT QUẢ GIẢ LẬP TẤN CÔNG SPAM / DoS FLOOD (SLIDING WINDOW RATE LIMITER) ===\n\n");
+        int blockedAtAttempt = -1;
+        String blockMessage = "";
+
+        try (java.net.DatagramSocket attackerSocket = new java.net.DatagramSocket()) {
+            attackerSocket.setSoTimeout(3000);
+            java.net.InetAddress addr = java.net.InetAddress.getByName("127.0.0.1");
+
+            for (int i = 1; i <= 20; i++) {
+                com.qlsv.network.UDPPacket spamPkt = com.qlsv.network.UDPPacket.createSubmitGradeAppeal(
+                        "SV001", "INT1339", "Spam bot flood request #" + i, spamSessionToken);
+                spamPkt.setSequenceNum(9950 + i);
+                byte[] bytes = spamPkt.toBytes();
+                attackerSocket.send(new java.net.DatagramPacket(bytes, bytes.length, addr, serverPort));
+
+                byte[] buf = new byte[8192];
+                java.net.DatagramPacket respDp = new java.net.DatagramPacket(buf, buf.length);
+                attackerSocket.receive(respDp);
+                com.qlsv.network.UDPPacket resp = com.qlsv.network.UDPPacket.fromBytes(respDp.getData(), respDp.getLength());
+                String msg = resp != null ? resp.getMessage() : "";
+                if (i <= 3 || i >= 18 || msg.contains("CHẶN SPAM") || msg.contains("CHỐNG SPAM")) {
+                    logBuilder.append(String.format("• Gói Spam #%02d: %s\n", i, msg));
+                }
+                if (blockedAtAttempt < 0 && (msg.contains("CHẶN SPAM") || msg.contains("CHỐNG SPAM"))) {
+                    blockedAtAttempt = i;
+                    blockMessage = msg;
+                }
+            }
+            SessionManager.getInstance().clearSpamState("127.0.0.1:" + spamSessionToken);
+            refreshAuditLogs();
+            updateChaosTelemetryLabel();
+            logBuilder.append("\n-> KẾT LUẬN IDS: Hệ thống đã phát hiện và CHẶN ĐỨNG bot spam ngay từ gói #")
+                    .append(blockedAtAttempt)
+                    .append(" (").append(blockMessage).append(")!");
+            JOptionPane.showMessageDialog(this, logBuilder.toString(),
+                    "IDS Đã Chặn Đứng Tấn Công Spam / DoS Flood", JOptionPane.WARNING_MESSAGE);
+        } catch (Exception ex) {
+            SessionManager.getInstance().clearSpamState("127.0.0.1:" + spamSessionToken);
+            JOptionPane.showMessageDialog(this, "Lỗi giả lập Spam Flood: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
         }
     }
 

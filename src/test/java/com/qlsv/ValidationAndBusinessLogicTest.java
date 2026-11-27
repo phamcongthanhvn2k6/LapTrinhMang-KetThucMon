@@ -166,6 +166,21 @@ public class ValidationAndBusinessLogicTest {
         respPkt.setSuccess(true); // Giả lập kẻ gian sửa cờ success từ false -> true
         assertTrue(!respPkt.verifyIntegrity(), "Phải chặn ngay hành vi sửa cờ trạng thái success trên gói phản hồi");
 
+        // 12. Test Multi-Tier Anti-Spam & DoS Flood Rate Limiting (Sliding Window + Action Cooldown)
+        com.qlsv.server.SessionManager sm = com.qlsv.server.SessionManager.getInstance();
+        String testBotKey = "10.0.0.99:bot-token";
+        sm.clearSpamState(testBotKey);
+        for (int i = 1; i <= com.qlsv.server.SessionManager.MAX_MUTATIONS_PER_10_SEC; i++) {
+            assertTrue(sm.checkPacketSpamLimit(testBotKey, true) == null, "Các lệnh ghi trong ngưỡng cho phép phải thành công");
+        }
+        String spamBlockMsg = sm.checkPacketSpamLimit(testBotKey, true);
+        assertTrue(spamBlockMsg != null && spamBlockMsg.contains("CHẶN SPAM"), "Vượt ngưỡng 18 lệnh ghi/10s phải bị tường lửa Anti-Spam chặn");
+
+        assertTrue(sm.checkActionCooldown("SV001", "GỬI ĐƠN PHÚC KHẢO", 5000L) == null, "Lần gửi đơn đầu tiên phải được phép");
+        String cooldownMsg = sm.checkActionCooldown("SV001", "GỬI ĐƠN PHÚC KHẢO", 5000L);
+        assertTrue(cooldownMsg != null && cooldownMsg.contains("CHỐNG SPAM"), "Gửi liên tiếp trong thời gian Cooldown 5s phải bị chặn");
+        sm.clearSpamState(testBotKey);
+
         System.out.println("✔ TẤT CẢ CÁC BÀI KIỂM THỬ VALIDATE, BẢO MẬT & LOGIC TÍN CHỈ ĐỀU ĐẠT 100%!");
     }
 }
