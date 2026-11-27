@@ -780,9 +780,20 @@ public class UDPServer {
 
                 case GET_TRANSCRIPT:
                     try {
-                        String studentId = packet.getPayload();
+                        String token = packet.getToken();
+                        SessionManager.UserSession session = SessionManager.getInstance().getSession(token);
+                        String studentId = InputValidator.normalizeAndValidateStudentId(packet.getPayload());
+                        if (session != null && session.getRole() == UserAccount.Role.HOCSINH
+                                && session.getStudentId() != null && !session.getStudentId().isEmpty()
+                                && !session.getStudentId().equalsIgnoreCase(studentId)) {
+                            totalSecurityThreatsBlocked.incrementAndGet();
+                            DatabaseManager.getInstance().logAudit(session.getUsername(), "IDOR_TRANSCRIPT_BLOCKED",
+                                    "Chặn SV " + session.getStudentId() + " xem trái phép bảng điểm của SV khác (" + studentId + ")", clientIp);
+                            responsePacket = UDPPacket.createError("BẢO MẬT QUYỀN RIÊNG TƯ SINH VIÊN: Tài khoản của bạn gắn với Mã SV " + session.getStudentId() + ", không được phép xem bảng điểm cá nhân của sinh viên khác (" + studentId + ")!");
+                            break;
+                        }
                         StudentTranscript transcript = DatabaseManager.getInstance().getDetailedTranscript(studentId);
-                        DatabaseManager.getInstance().logAudit(studentId != null ? studentId.trim().toUpperCase() : "student",
+                        DatabaseManager.getInstance().logAudit(session != null ? session.getUsername() : studentId,
                                 "VIEW_TRANSCRIPT",
                                 String.format("Tra cứu bảng điểm học phần của %s (%s) - CPA: %.2f (%s)",
                                         transcript.getFullName(), transcript.getStudentId(),

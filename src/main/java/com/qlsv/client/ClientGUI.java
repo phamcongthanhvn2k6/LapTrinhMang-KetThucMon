@@ -91,6 +91,10 @@ public class ClientGUI extends JFrame {
     private JButton btnImportExcel;
     private JButton btnDownloadTemplate;
     private JButton btnExportExcel;
+    private JButton btnManageAppeals;
+    private JButton btnUploadMaterial;
+    private JButton btnToggleForm;
+    private JButton btnPortalSearch;
 
     private JTable tblResults;
     private DefaultTableModel tableModel;
@@ -176,29 +180,26 @@ public class ClientGUI extends JFrame {
         JPanel statusBox = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 2));
         statusBox.setOpaque(false);
 
-        JButton btnQuickSwitch = new JButton("Đổi Vai Trò ▼");
+        JButton btnQuickSwitch = new JButton("Tài Khoản & Vai Trò ▼");
         btnQuickSwitch.setFont(new Font("Segoe UI", Font.BOLD, 11));
         btnQuickSwitch.setBackground(Color.WHITE);
         btnQuickSwitch.setForeground(PTIT_RED);
         btnQuickSwitch.setFocusPainted(false);
         btnQuickSwitch.addActionListener(e -> {
             JPopupMenu pop = new JPopupMenu();
-            JMenuItem m1 = new JMenuItem("▶ Sang Cổng Sinh Viên (SV001)");
-            m1.addActionListener(evt -> switchDemoRole(UserRole.STUDENT, "SV001"));
-            JMenuItem m2 = new JMenuItem("▶ Sang Quyền Giảng Viên (Chấm Điểm)");
-            m2.addActionListener(evt -> switchDemoRole(UserRole.TEACHER, null));
-            JMenuItem m3 = new JMenuItem("▶ Sang Quyền Admin (Toàn Quyền)");
-            m3.addActionListener(evt -> switchDemoRole(UserRole.ADMIN, null));
-            JMenuItem m4 = new JMenuItem("▶ Đăng Nhập / Đăng Ký Tài Khoản & Đổi Mật Khẩu...");
-            m4.addActionListener(evt -> openAuthAndRegistrationDialog(0));
-            JMenuItem m5 = new JMenuItem("▶ Đăng Ký Tài Khoản Mới (SHA-256 + Salt)...");
-            m5.addActionListener(evt -> openAuthAndRegistrationDialog(1));
-            pop.add(m1);
-            pop.add(m2);
-            pop.add(m3);
+            JMenuItem mLogin = new JMenuItem("▶ Đăng Nhập Tài Khoản (Giảng viên / Sinh viên / Admin)...");
+            mLogin.addActionListener(evt -> openAuthAndRegistrationDialog(0));
+            JMenuItem mReg = new JMenuItem("▶ Đăng Ký Tài Khoản Mới (SHA-256 + 16B Salt)...");
+            mReg.addActionListener(evt -> openAuthAndRegistrationDialog(1));
+            JMenuItem mPass = new JMenuItem("▶ Đổi Mật Khẩu Tài Khoản...");
+            mPass.addActionListener(evt -> openAuthAndRegistrationDialog(2));
+            JMenuItem mLogout = new JMenuItem("▶ Đăng Xuất (Về Chế độ Khách / Sinh viên)");
+            mLogout.addActionListener(evt -> switchDemoRole(UserRole.STUDENT, "SV001"));
+            pop.add(mLogin);
+            pop.add(mReg);
+            pop.add(mPass);
             pop.addSeparator();
-            pop.add(m4);
-            pop.add(m5);
+            pop.add(mLogout);
             pop.show(btnQuickSwitch, 0, btnQuickSwitch.getHeight());
         });
 
@@ -381,9 +382,13 @@ public class ClientGUI extends JFrame {
         btnRefreshAll.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         btnRefreshAll.addActionListener(e -> loadAllStudents());
 
-        JButton btnToggleForm = new JButton("Ẩn/Hiện Form Nhập");
+        btnToggleForm = new JButton("Ẩn/Hiện Form Nhập");
         btnToggleForm.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         btnToggleForm.addActionListener(e -> {
+            if (currentRole == UserRole.STUDENT) {
+                JOptionPane.showMessageDialog(this, "Form nhập điểm chỉ dành cho Giảng viên hoặc Quản trị viên!", "Phân Quyền RBAC", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
             if (formPanel != null) {
                 formPanel.setVisible(!formPanel.isVisible());
                 revalidate();
@@ -432,14 +437,14 @@ public class ClientGUI extends JFrame {
         btnExportExcel.setForeground(Color.WHITE);
         btnExportExcel.addActionListener(e -> handleExportExcel());
 
-        JButton btnManageAppeals = new JButton("Xét Duyệt Phúc Khảo");
+        btnManageAppeals = new JButton("Xét Duyệt Phúc Khảo");
         btnManageAppeals.setFont(new Font("Segoe UI", Font.BOLD, 11));
         btnManageAppeals.setBackground(new Color(214, 51, 132));
         btnManageAppeals.setForeground(Color.WHITE);
         btnManageAppeals.setToolTipText("Hội đồng Giảng viên xem xét & phê duyệt đơn phúc khảo điểm 2 chiều");
         btnManageAppeals.addActionListener(e -> openTeacherAppealsDialog());
 
-        JButton btnUploadMaterial = new JButton("Cập Nhật Đề Cương");
+        btnUploadMaterial = new JButton("Cập Nhật Đề Cương");
         btnUploadMaterial.setFont(new Font("Segoe UI", Font.BOLD, 11));
         btnUploadMaterial.setBackground(new Color(32, 201, 151));
         btnUploadMaterial.setForeground(Color.WHITE);
@@ -1020,16 +1025,16 @@ public class ClientGUI extends JFrame {
         JPanel tabLogin = new JPanel(new BorderLayout(10, 10));
         tabLogin.setBorder(BorderFactory.createEmptyBorder(16, 24, 12, 24));
         JPanel loginForm = new JPanel(new GridLayout(3, 2, 10, 14));
-        JTextField tfLoginUser = new JTextField("giangvien");
+        JTextField tfLoginUser = new JTextField("");
         tfLoginUser.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        JPasswordField pfLoginPass = new JPasswordField("ptit123");
+        JPasswordField pfLoginPass = new JPasswordField("");
         pfLoginPass.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         loginForm.add(new JLabel("Tên đăng nhập / Mã SV:"));
         loginForm.add(tfLoginUser);
         loginForm.add(new JLabel("Mật khẩu:"));
         loginForm.add(pfLoginPass);
-        loginForm.add(new JLabel("Tài khoản mẫu có sẵn:"));
-        loginForm.add(new JLabel("<html><b>giangvien / ptit123</b> | <b>admin / admin123</b> | <b>SV001 / ptit123</b></html>"));
+        loginForm.add(new JLabel("Cơ chế bảo vệ:"));
+        loginForm.add(new JLabel("<html><i>Xác thực SHA-256 + 16B Salt | Khóa 60s nếu sai 5 lần</i></html>"));
         tabLogin.add(loginForm, BorderLayout.CENTER);
 
         JPanel loginBtnBar = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 6));
@@ -1061,18 +1066,27 @@ public class ClientGUI extends JFrame {
         JPanel tabRegister = new JPanel(new BorderLayout(8, 8));
         tabRegister.setBorder(BorderFactory.createEmptyBorder(10, 20, 8, 20));
         JPanel regForm = new JPanel(new GridLayout(7, 2, 10, 8));
-        JTextField tfRegUser = new JTextField("sv_thanh079");
-        JPasswordField pfRegPass = new JPasswordField("ptit123456");
-        JPasswordField pfRegConfirm = new JPasswordField("ptit123456");
+        JTextField tfRegUser = new JTextField("");
+        JPasswordField pfRegPass = new JPasswordField("");
+        JPasswordField pfRegConfirm = new JPasswordField("");
         JComboBox<String> cbRegRole = new JComboBox<>(new String[]{
                 "HOCSINH - Sinh viên (Tra cứu bảng điểm, Phúc khảo, ĐK Tín chỉ)",
                 "GIANGVIEN - Giảng viên (Yêu cầu mã cấp quyền Bộ môn)"
         });
-        JTextField tfRegSvId = new JTextField("SV001");
-        JTextField tfRegFullName = new JTextField("Phạm Công Thành");
+        JTextField tfRegSvId = new JTextField("");
+        JTextField tfRegFullName = new JTextField("");
         JPasswordField pfRegInvite = new JPasswordField("");
         pfRegInvite.setEchoChar('•');
+        pfRegInvite.setEnabled(false);
         pfRegInvite.setToolTipText("Nhập Mã xác thực do Bộ môn / Phòng Đào tạo cấp để đăng ký quyền Giảng viên");
+        cbRegRole.addActionListener(e -> {
+            boolean isGv = cbRegRole.getSelectedIndex() == 1;
+            pfRegInvite.setEnabled(isGv);
+            tfRegSvId.setEnabled(!isGv);
+            if (isGv) {
+                tfRegSvId.setText("");
+            }
+        });
 
         regForm.add(new JLabel("Tên đăng nhập mới (>= 3 ký tự):"));
         regForm.add(tfRegUser);
@@ -1122,11 +1136,11 @@ public class ClientGUI extends JFrame {
         JPanel tabChangePass = new JPanel(new BorderLayout(10, 10));
         tabChangePass.setBorder(BorderFactory.createEmptyBorder(16, 24, 12, 24));
         JPanel cpForm = new JPanel(new GridLayout(4, 2, 10, 12));
-        String curUser = currentUserAccount != null ? currentUserAccount.getUsername() : "giangvien";
+        String curUser = currentUserAccount != null ? currentUserAccount.getUsername() : "";
         JTextField tfCpUser = new JTextField(curUser);
-        JPasswordField pfCpOld = new JPasswordField("ptit123");
-        JPasswordField pfCpNew = new JPasswordField("ptit123");
-        JPasswordField pfCpConfirm = new JPasswordField("ptit123");
+        JPasswordField pfCpOld = new JPasswordField("");
+        JPasswordField pfCpNew = new JPasswordField("");
+        JPasswordField pfCpConfirm = new JPasswordField("");
         cpForm.add(new JLabel("Tên đăng nhập cần đổi MK:"));
         cpForm.add(tfCpUser);
         cpForm.add(new JLabel("Mật khẩu hiện tại:"));
@@ -1242,27 +1256,27 @@ public class ClientGUI extends JFrame {
     private JMenuBar createDemoMenuBar() {
         JMenuBar mb = new JMenuBar();
 
-        // 1. Menu Vai Trò
-        JMenu menuRole = new JMenu("Chuyển Nhanh Vai Trò");
+        // 1. Menu Tài Khoản & Phân Quyền
+        JMenu menuRole = new JMenu("Tài Khoản & Phân Quyền");
         menuRole.setFont(new Font("Segoe UI", Font.BOLD, 12));
 
-        JMenuItem miStudent = new JMenuItem("▶ Chuyển sang Cổng Sinh Viên (SV001)");
-        miStudent.addActionListener(e -> switchDemoRole(UserRole.STUDENT, "SV001"));
+        JMenuItem miAuthLogin = new JMenuItem("▶ Đăng Nhập Hệ Thống (Giảng viên / Sinh viên / Admin)...");
+        miAuthLogin.addActionListener(e -> openAuthAndRegistrationDialog(0));
 
-        JMenuItem miTeacher = new JMenuItem("▶ Chuyển sang Quyền Giảng Viên (Chấm điểm & Quản lý)");
-        miTeacher.addActionListener(e -> switchDemoRole(UserRole.TEACHER, null));
+        JMenuItem miAuthReg = new JMenuItem("▶ Đăng Ký Tài Khoản Mới (SHA-256 + Salt)...");
+        miAuthReg.addActionListener(e -> openAuthAndRegistrationDialog(1));
 
-        JMenuItem miAdmin = new JMenuItem("▶ Chuyển sang Quyền Admin (Toàn quyền)");
-        miAdmin.addActionListener(e -> switchDemoRole(UserRole.ADMIN, null));
+        JMenuItem miAuthChangePass = new JMenuItem("▶ Đổi Mật Khẩu Tài Khoản...");
+        miAuthChangePass.addActionListener(e -> openAuthAndRegistrationDialog(2));
 
-        JMenuItem miAuthDialog = new JMenuItem("▶ Hộp thoại đăng nhập...");
-        miAuthDialog.addActionListener(e -> toggleRoleAuth());
+        JMenuItem miLogoutStudent = new JMenuItem("▶ Đăng Xuất (Về Cổng Sinh Viên)");
+        miLogoutStudent.addActionListener(e -> switchDemoRole(UserRole.STUDENT, "SV001"));
 
-        menuRole.add(miStudent);
-        menuRole.add(miTeacher);
-        menuRole.add(miAdmin);
+        menuRole.add(miAuthLogin);
+        menuRole.add(miAuthReg);
+        menuRole.add(miAuthChangePass);
         menuRole.addSeparator();
-        menuRole.add(miAuthDialog);
+        menuRole.add(miLogoutStudent);
 
         // 2. Menu Điều Khiển Demo
         JMenu menuDemo = new JMenu("Bảng Điều Khiển Demo");
@@ -1341,6 +1355,35 @@ public class ClientGUI extends JFrame {
         if (btnImportExcel != null) {
             btnImportExcel.setEnabled(isTeacher);
             btnImportExcel.setToolTipText(isTeacher ? "Nhập danh sách từ Excel" : "Tính năng yêu cầu Quyền Giảng viên");
+        }
+        if (btnManageAppeals != null) {
+            btnManageAppeals.setEnabled(isTeacher);
+            btnManageAppeals.setToolTipText(isTeacher ? "Hội đồng xét duyệt đơn phúc khảo" : "Tính năng yêu cầu Quyền Giảng viên");
+        }
+        if (btnUploadMaterial != null) {
+            btnUploadMaterial.setEnabled(isTeacher);
+            btnUploadMaterial.setToolTipText(isTeacher ? "Phát hành đề cương học phần" : "Tính năng yêu cầu Quyền Giảng viên");
+        }
+        if (btnToggleForm != null) {
+            btnToggleForm.setEnabled(isTeacher);
+        }
+        if (btnConnectDb != null) {
+            btnConnectDb.setEnabled(isTeacher);
+        }
+        // Bảo vệ quyền riêng tư Sinh viên thực tế: Nếu đăng nhập tài khoản HOCSINH có gắn Mã SV, khóa ô tìm kiếm chỉ xem được hồ sơ chính mình
+        boolean lockedToOwnStudentId = (!isTeacher && currentUserAccount != null
+                && currentUserAccount.getStudentId() != null && !currentUserAccount.getStudentId().isEmpty());
+        if (txtPortalSearchMaSV != null) {
+            txtPortalSearchMaSV.setEditable(!lockedToOwnStudentId);
+            if (lockedToOwnStudentId) {
+                txtPortalSearchMaSV.setText(currentUserAccount.getStudentId());
+                txtPortalSearchMaSV.setToolTipText("Tài khoản Sinh viên chỉ được phép tra cứu bảng điểm cá nhân (" + currentUserAccount.getStudentId() + ")");
+            } else {
+                txtPortalSearchMaSV.setToolTipText("Nhập Mã SV cần tra cứu");
+            }
+        }
+        if (btnPortalSearch != null) {
+            btnPortalSearch.setEnabled(!lockedToOwnStudentId);
         }
 
         revalidate();
@@ -2099,7 +2142,7 @@ public class ClientGUI extends JFrame {
         txtPortalSearchMaSV.addActionListener(e -> loadStudentPortal(txtPortalSearchMaSV.getText().trim()));
         searchBar.add(txtPortalSearchMaSV);
 
-        JButton btnPortalSearch = new JButton("Xem Hồ Sơ");
+        btnPortalSearch = new JButton("Xem Hồ Sơ");
         btnPortalSearch.setFont(new Font("Segoe UI", Font.BOLD, 11));
         btnPortalSearch.setBackground(PTIT_RED);
         btnPortalSearch.setForeground(Color.WHITE);
@@ -2835,11 +2878,24 @@ public class ClientGUI extends JFrame {
                 } catch (Exception ex) {
                     currentPortalTranscript = null;
                     if (portalTableModel != null) portalTableModel.setRowCount(0);
-                    if (lblPortalHoTen != null) lblPortalHoTen.setText("[ĐÃ KHÓA: SAI KHÓA GIẢI MÃ]");
+                    String errMsg = ex.getMessage() != null ? ex.getMessage() : "";
+                    if (errMsg.contains("Không tìm thấy sinh viên")) {
+                        if (lblPortalHoTen != null) lblPortalHoTen.setText("[KHÔNG TÌM THẤY MÃ SV: " + targetMaSv + "]");
+                        if (lblPortalRank != null) lblPortalRank.setText("Không tồn tại");
+                    } else if (errMsg.contains("QUYỀN RIÊNG TƯ")) {
+                        if (lblPortalHoTen != null) lblPortalHoTen.setText("[TỪ CHỐI: CHỈ XEM HỒ SƠ CÁ NHÂN]");
+                        if (lblPortalRank != null) lblPortalRank.setText("Đã chặn IDOR");
+                        JOptionPane.showMessageDialog(ClientGUI.this, errMsg, "Bảo Vệ Quyền Riêng Tư Sinh Viên", JOptionPane.WARNING_MESSAGE);
+                    } else if (errMsg.contains("CHƯA MỞ KHÓA BẢO MẬT DES")) {
+                        if (lblPortalHoTen != null) lblPortalHoTen.setText("[CHỜ MỞ KHÓA DES TRÊN SERVER]");
+                        if (lblPortalRank != null) lblPortalRank.setText("[ĐANG KHÓA DES]");
+                    } else {
+                        if (lblPortalHoTen != null) lblPortalHoTen.setText("[ĐÃ KHÓA: SAI KHÓA GIẢI MÃ]");
+                        if (lblPortalRank != null) lblPortalRank.setText("[SAI KHÓA DES]");
+                    }
                     if (lblPortalCredits != null) lblPortalCredits.setText("---");
                     if (lblPortalGpa10 != null) lblPortalGpa10.setText("---");
                     if (lblPortalGpa4 != null) lblPortalGpa4.setText("---");
-                    if (lblPortalRank != null) lblPortalRank.setText("[SAI KHÓA DES]");
                 }
             }
         }.execute();
